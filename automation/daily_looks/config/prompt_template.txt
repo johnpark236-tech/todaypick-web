@@ -1,0 +1,34 @@
+Create one single Korean fashion lookbook sheet.
+
+[CORE LAYOUT RULES]
+- exactly 10 cells
+- exactly 5 columns x 2 rows
+- one character per cell
+- thin clean divider lines between cells
+- equal cell size and equal margins
+- clean soft interior lifestyle background
+- full body in every cell from head to toe (head fully visible, feet fully visible, hands not cropped)
+- no body overlap across cells
+- no extra background people
+- no labels, no numbers, no text, no brand logos, no watermark, no UI overlay
+
+[CHARACTER IDENTITY ANCHOR]
+- Group: {group_label}
+- Character: {character_identity}
+- Face: {character_face}
+- Hair: {character_hair}
+- Body: {character_body}
+- Aesthetic: {character_aesthetic}
+- Same exact character identity across all 10 cells (same face, same hairstyle, same body proportions, same age impression)
+- Only clothing changes across the 10 cells
+
+[SEASONAL DIRECTIVE]
+- Season: {season_name} ({current_date_kst})
+- {season_directive}
+- Prohibited items: {forbidden_items_summary}
+
+[10 OUTFIT PLANS]
+{outfit_plans_text}
+
+[ILLUSTRATION STYLE]
+Consistent 2D anime digital illustration style with clean sharp lines and soft cel shading, crisp fashion catalog presentation, pleasing lighting, refined high aesthetic quality.

@@ -1,0 +1,81 @@
+{
+  "manifest_version": "1.0.0",
+  "status": "ACTIVE",
+  "last_updated": "2026-08-31T07:30:00+09:00",
+  "active_date": "2026-08-31",
+  "season": "summer",
+  "groups": {
+    "female_10s": {
+      "status": "ACTIVE",
+      "approved_date": "2026-08-31",
+      "asset_dir": "/assets/looks/female_10s",
+      "look_count": 10
+    },
+    "female_20s": {
+      "status": "ACTIVE",
+      "approved_date": "2026-08-31",
+      "asset_dir": "/assets/looks/real",
+      "look_count": 14
+    },
+    "female_30s": {
+      "status": "ACTIVE",
+      "approved_date": "2026-08-31",
+      "asset_dir": "/assets/looks/female_30s",
+      "look_count": 10
+    },
+    "female_40s": {
+      "status": "ACTIVE",
+      "approved_date": "2026-08-31",
+      "asset_dir": "/assets/looks/female_40s",
+      "look_count": 10
+    },
+    "female_50s": {
+      "status": "ACTIVE",
+      "approved_date": "2026-08-31",
+      "asset_dir": "/assets/looks/female_50s",
+      "look_count": 10
+    },
+    "female_60s": {
+      "status": "ACTIVE",
+      "approved_date": "2026-08-31",
+      "asset_dir": "/assets/looks/female_60s",
+      "look_count": 10
+    },
+    "male_10s": {
+      "status": "ACTIVE",
+      "approved_date": "2026-08-31",
+      "asset_dir": "/assets/looks/male_10s",
+      "look_count": 10
+    },
+    "male_20s": {
+      "status": "ACTIVE",
+      "approved_date": "2026-08-31",
+      "asset_dir": "/assets/looks/male2d",
+      "look_count": 14
+    },
+    "male_30s": {
+      "status": "ACTIVE",
+      "approved_date": "2026-08-31",
+      "asset_dir": "/assets/looks/male_30s",
+      "look_count": 10
+    },
+    "male_40s": {
+      "status": "ACTIVE",
+      "approved_date": "2026-08-31",
+      "asset_dir": "/assets/looks/male_40s",
+      "look_count": 10
+    },
+    "male_50s": {
+      "status": "ACTIVE",
+      "approved_date": "2026-08-31",
+      "asset_dir": "/assets/looks/male_50s",
+      "look_count": 10
+    },
+    "male_60s": {
+      "status": "ACTIVE",
+      "approved_date": "2026-08-31",
+      "asset_dir": "/assets/looks/male_60s",
+      "look_count": 10
+    }
+  }
+}

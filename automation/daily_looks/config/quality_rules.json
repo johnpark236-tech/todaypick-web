@@ -1,0 +1,21 @@
+{
+  "expected_cells": 10,
+  "grid_columns": 5,
+  "grid_rows": 2,
+  "target_aspect_ratio": "16:9",
+  "cell_slice_width": 442,
+  "cell_slice_height": 973,
+  "duplicate_window_days": 30,
+  "max_retries": 3,
+  "auto_publish_default": false,
+  "qa_checks": [
+    "FILE_EXISTS",
+    "IMAGE_DECODE",
+    "GRID_STRUCTURE",
+    "CHARACTER_COUNT",
+    "FULL_BODY",
+    "SEASON_COMPLIANCE",
+    "DUPLICATE_CHECK",
+    "CROPPABILITY"
+  ]
+}

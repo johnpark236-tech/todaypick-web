@@ -1,0 +1,119 @@
+name: TodayPick Daily Look Generation Automation
+
+on:
+  schedule:
+    # Runs everyday at 21:00 UTC, which corresponds to 06:00 AM KST (UTC+9)
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry Run Mode (Simulate without generating actual images)'
+        type: boolean
+        default: true
+      target_group:
+        description: 'Target demographic group to process'
+        type: choice
+        default: 'all'
+        options:
+          - all
+          - female_10s
+          - female_20s
+          - female_30s
+          - female_40s
+          - female_50s
+          - female_60s
+          - male_10s
+          - male_20s
+          - male_30s
+          - male_40s
+          - male_50s
+          - male_60s
+      auto_publish:
+        description: 'Automatically promote passed groups to active manifest (Default: false)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  daily-looks:
+    name: Generate & QA Daily Looks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install Pillow
+
+      - name: Execute Daily Look Automation
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          DRY_ARG="--dry-run"
+          if [ "${{ github.event.inputs.dry_run }}" = "false" ]; then
+            DRY_ARG="--live"
+          fi
+
+          GROUP_ARG="all"
+          if [ -n "${{ github.event.inputs.target_group }}" ]; then
+            GROUP_ARG="${{ github.event.inputs.target_group }}"
+          fi
+
+          PUB_ARG=""
+          if [ "${{ github.event.inputs.auto_publish }}" = "true" ]; then
+            PUB_ARG="--auto-publish"
+          fi
+
+          echo "Running daily automation with: $DRY_ARG --group $GROUP_ARG $PUB_ARG"
+          python automation/daily_looks/scripts/daily_runner.py $DRY_ARG --group "$GROUP_ARG" $PUB_ARG
+
+      - name: Upload Automation Reports & Manifests Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: todaypick-daily-look-reports-${{ github.run_number }}
+          path: |
+            automation/daily_looks/reports/
+            automation/daily_looks/registry/
+            automation/daily_looks/output/
+          retention-days: 14
+
+      - name: Send Telegram Summary Notification
+        if: always()
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT_ID" ]; then
+            echo "Telegram credentials not set. Skipping Telegram notification."
+            exit 0
+          fi
+
+          STATUS_EMOJI="✅"
+          if [ "${{ job.status }}" != "success" ]; then
+            STATUS_EMOJI="⚠️"
+          fi
+
+          MSG="${STATUS_EMOJI} *TodayPick Daily Look Automation*\n\n"
+          MSG+="*Job Status*: ${{ job.status }}\n"
+          MSG+="*Run*: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n"
+          MSG+="*Mode*: ${{ github.event.inputs.dry_run || 'Scheduled Daily' }}\n"
+          MSG+="*Schedule*: 06:00 KST (21:00 UTC)\n"
+          MSG+="*Auto Publish*: ${{ github.event.inputs.auto_publish || 'false (Safe Human Review)' }}"
+
+          curl -sS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d chat_id="${TG_CHAT_ID}" \
+            -d parse_mode="Markdown" \
+            -d text="$MSG" || true

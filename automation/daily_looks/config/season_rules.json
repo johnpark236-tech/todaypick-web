@@ -1,0 +1,141 @@
+{
+  "month_mapping": {
+    "1": "winter",
+    "2": "winter",
+    "3": "spring",
+    "4": "spring",
+    "5": "spring",
+    "6": "summer",
+    "7": "summer",
+    "8": "summer",
+    "9": "autumn",
+    "10": "autumn",
+    "11": "autumn",
+    "12": "winter"
+  },
+  "rules": {
+    "summer": {
+      "season_name": "summer",
+      "kr_name": "여름 (6~8월)",
+      "allowed_clothing": [
+        "short sleeve top",
+        "t-shirt",
+        "lightweight blouse",
+        "linen shirt",
+        "sleeveless top with modest styling",
+        "summer dress",
+        "midi dress",
+        "pleated tennis skirt",
+        "A-line skirt",
+        "lightweight cotton pants",
+        "cropped slacks",
+        "light denim shorts",
+        "light denim jeans",
+        "sandals",
+        "lightweight sneakers",
+        "summer loafers",
+        "mules"
+      ],
+      "forbidden_clothing": [
+        "padded jacket",
+        "padding",
+        "down jacket",
+        "winter coat",
+        "heavy coat",
+        "overcoat",
+        "trench coat",
+        "thick knit",
+        "heavy knit",
+        "chunky sweater",
+        "turtleneck",
+        "thick cardigan",
+        "fleece",
+        "scarf",
+        "muffler",
+        "winter boots",
+        "heavy hoodie",
+        "fur",
+        "gloves",
+        "earmuffs",
+        "cold-weather outerwear"
+      ],
+      "prompt_directive": "Vibrant midsummer lightweight casual fashion, short sleeves, linen, breathable cotton fabrics, summer sandals or sneakers, absolutely no heavy winter outerwear or thick knitwear."
+    },
+    "spring": {
+      "season_name": "spring",
+      "kr_name": "봄 (3~5월)",
+      "allowed_clothing": [
+        "long sleeve shirt",
+        "blouse",
+        "light knit",
+        "light cardigan",
+        "denim jacket",
+        "light single jacket",
+        "cotton pants",
+        "slacks",
+        "midi skirt",
+        "sneakers",
+        "loafers",
+        "flats"
+      ],
+      "forbidden_clothing": [
+        "heavy padded jacket",
+        "thick winter coat",
+        "heavy muffler",
+        "fur",
+        "polar down",
+        "heavy boots"
+      ],
+      "prompt_directive": "Fresh spring casual layering, light cardigan or jacket, cotton slacks, breathable knits, pastel and neutral tones."
+    },
+    "autumn": {
+      "season_name": "autumn",
+      "kr_name": "가을 (9~11월)",
+      "allowed_clothing": [
+        "trench coat",
+        "single blazer",
+        "knitted sweater",
+        "cardigan",
+        "long sleeve shirt",
+        "tailored slacks",
+        "denim pants",
+        "long skirt",
+        "leather loafers",
+        "chelsea boots",
+        "ankle boots"
+      ],
+      "forbidden_clothing": [
+        "sleeveless summer top",
+        "summer sandals",
+        "summer shorts",
+        "heavy polar down coat"
+      ],
+      "prompt_directive": "Cozy autumn stylish layering, tailored jackets, trench coats, fine knitwear, warm earth tones and neutral colors."
+    },
+    "winter": {
+      "season_name": "winter",
+      "kr_name": "겨울 (12~2월)",
+      "allowed_clothing": [
+        "wool coat",
+        "padded down jacket",
+        "heavy knit",
+        "turtleneck sweater",
+        "corduroy pants",
+        "fleece jacket",
+        "warm wool slacks",
+        "boots",
+        "winter muffler",
+        "gloves"
+      ],
+      "forbidden_clothing": [
+        "short sleeve top only",
+        "sleeveless top",
+        "summer shorts",
+        "sandals",
+        "thin linen shirt",
+        "light summer dress"
+      ],
+      "prompt_directive": "Warm winter layered fashion, stylish overcoats, quilted padding, cozy knitwear, boots, warm textures."
+    }
+  }
+}

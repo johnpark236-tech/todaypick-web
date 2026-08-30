@@ -31,3 +31,7 @@ ci-release.keystore
 .idea/
 .DS_Store
 Thumbs.db
+
+# Daily Look Automation Outputs
+automation/daily_looks/output/
+

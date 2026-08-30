@@ -1,0 +1,172 @@
+{
+  "groups": {
+    "female_10s": {
+      "key": "female_10s",
+      "label": "여성 10대",
+      "gender": "female",
+      "age_group": "10s",
+      "anchor": {
+        "identity": "a lively charming Korean female teenager in her late teens",
+        "face": "cute round expressive face, bright cheerful youthful eyes, natural soft makeup",
+        "hair": "neat medium bob or cute layered cut with soft bangs, natural dark brown hair",
+        "body": "slender teenage proportions, energetic confident stance",
+        "aesthetic": "Korean teen school casual, cute streetwear, playful layering",
+        "shoes_style": "sneakers, canvas shoes, loafers, ankle boots"
+      }
+    },
+    "female_20s": {
+      "key": "female_20s",
+      "label": "여성 20대",
+      "gender": "female",
+      "age_group": "20s",
+      "anchor": {
+        "identity": "a stylish attractive Korean woman in her early to mid 20s",
+        "face": "delicate pretty oval face, bright smile, trendy natural Korean beauty look",
+        "hair": "stylish soft wavy long hair or shoulder-length cut, natural dark brown",
+        "body": "slender graceful feminine proportions, stylish lifestyle pose",
+        "aesthetic": "trendy Korean campus, smart casual, feminine minimal daily look",
+        "shoes_style": "clean sneakers, loafers, mary janes, ankle boots, mules"
+      }
+    },
+    "female_30s": {
+      "key": "female_30s",
+      "label": "여성 30대",
+      "gender": "female",
+      "age_group": "30s",
+      "anchor": {
+        "identity": "an elegant sophisticated Korean career woman in her early 30s",
+        "face": "poised refined facial features, gentle confident smile, polished neat makeup",
+        "hair": "sleek side-parted medium hair or neat soft waves, natural black or dark brown",
+        "body": "well-proportioned elegant upright posture",
+        "aesthetic": "modern office chic, smart business casual, urban minimalist luxury",
+        "shoes_style": "leather loafers, slingbacks, classic pumps, square-toe ankle boots"
+      }
+    },
+    "female_40s": {
+      "key": "female_40s",
+      "label": "여성 40대",
+      "gender": "female",
+      "age_group": "40s",
+      "anchor": {
+        "identity": "a graceful dignified Korean woman in her 40s",
+        "face": "warm calm mature expression, elegant fine features, gentle smile",
+        "hair": "voluminous neat bob or soft elegant shoulder-length hair",
+        "body": "comfortable graceful posture, dignified proportions",
+        "aesthetic": "sophisticated effortless elegance, premium fabric feel, timeless lifestyle",
+        "shoes_style": "horsebit loafers, comfort kitten heels, refined ankle boots, leather flats"
+      }
+    },
+    "female_50s": {
+      "key": "female_50s",
+      "label": "여성 50대",
+      "gender": "female",
+      "age_group": "50s",
+      "anchor": {
+        "identity": "a refined mature Korean woman in her 50s",
+        "face": "kind poise, gentle eyes, radiant mature natural elegance",
+        "hair": "neatly styled short voluminous perm or classic bob, subtle warm brown",
+        "body": "comfortable relaxed mature silhouette, dignified stance",
+        "aesthetic": "refined middle-aged Korean fashion, draped comfortable silhouettes, silk scarves",
+        "shoes_style": "comfortable leather loafers, orthotic-friendly chic flats, slip-ons"
+      }
+    },
+    "female_60s": {
+      "key": "female_60s",
+      "label": "여성 60대",
+      "gender": "female",
+      "age_group": "60s",
+      "anchor": {
+        "identity": "a healthy dignified Korean senior lady in her 60s",
+        "face": "warm gentle grandmotherly radiance, pleasant peaceful smile",
+        "hair": "neat silver-gray highlighted short hair, tastefully styled",
+        "body": "active healthy posture, relaxed comfortable proportions",
+        "aesthetic": "tasteful Korean senior fashion, soft knitwear, neat cotton pants, light quilted vests",
+        "shoes_style": "cushioned walking loafers, slip-on comfort shoes, lightweight walking sneakers"
+      }
+    },
+    "male_10s": {
+      "key": "male_10s",
+      "label": "남성 10대",
+      "gender": "male",
+      "age_group": "10s",
+      "anchor": {
+        "identity": "a lively energetic Korean male teenager in his late teens",
+        "face": "youthful charming boyish face, cheerful energetic expression",
+        "hair": "trendy two-block cut with soft textured bangs, natural black hair",
+        "body": "lean youthful teenage build, casual relaxed stance",
+        "aesthetic": "Korean youth street fashion, varsity jackets, hoodies, wide cargo pants",
+        "shoes_style": "chunky sneakers, skate shoes, high-top basketball sneakers"
+      }
+    },
+    "male_20s": {
+      "key": "male_20s",
+      "label": "남성 20대",
+      "gender": "male",
+      "age_group": "20s",
+      "anchor": {
+        "identity": "a stylish handsome Korean young man in his 20s",
+        "face": "clean-cut attractive face, pleasant confident smile",
+        "hair": "stylish dandy cut or natural parted comma hair, dark brown",
+        "body": "fit tall slender proportions, fashionable posture",
+        "aesthetic": "contemporary Korean boyfriend look, minimalist smart street, dandy casual",
+        "shoes_style": "clean court sneakers, derby shoes, chelsea boots, minimal slip-ons"
+      }
+    },
+    "male_30s": {
+      "key": "male_30s",
+      "label": "남성 30대",
+      "gender": "male",
+      "age_group": "30s",
+      "anchor": {
+        "identity": "a confident well-groomed Korean man in his early to mid 30s",
+        "face": "sharp attractive features, steady gentle gaze, well-groomed look",
+        "hair": "neat side-parted pompadour or styled dandy cut, dark black",
+        "body": "broad-shouldered fit athletic build, confident stance",
+        "aesthetic": "smart casual, business casual, modern tailored jackets, clean minimalist slacks",
+        "shoes_style": "penny loafers, leather chelsea boots, white leather minimal sneakers, derbies"
+      }
+    },
+    "male_40s": {
+      "key": "male_40s",
+      "label": "남성 40대",
+      "gender": "male",
+      "age_group": "40s",
+      "anchor": {
+        "identity": "a trustworthy distinguished Korean man in his 40s",
+        "face": "dependable mature features, calm reassuring smile, healthy complexion",
+        "hair": "neat classic gentleman cut, tidy side part, natural dark",
+        "body": "solid mature build, upright steady posture",
+        "aesthetic": "refined casual blazer styles, field jackets, polo knits, tailored cotton trousers",
+        "shoes_style": "classic leather loafers, suede desert boots, heritage leather walking shoes"
+      }
+    },
+    "male_50s": {
+      "key": "male_50s",
+      "label": "남성 50대",
+      "gender": "male",
+      "age_group": "50s",
+      "anchor": {
+        "identity": "a distinguished sophisticated middle-aged Korean man in his 50s",
+        "face": "natural maturity, dignified warm expression, gentle smile",
+        "hair": "neat short gentleman hair with natural graying at temples",
+        "body": "comfortable mature posture, dignified presence",
+        "aesthetic": "distinguished Korean mature fashion, casual sport coats, cardigan layering, neat chinos",
+        "shoes_style": "leather driving shoes, classic loafers, comfortable cushioned dress shoes"
+      }
+    },
+    "male_60s": {
+      "key": "male_60s",
+      "label": "남성 60대",
+      "gender": "male",
+      "age_group": "60s",
+      "anchor": {
+        "identity": "a healthy dignified Korean senior gentleman in his 60s",
+        "face": "kind pleasant expression, gentle smiling eyes, healthy senior radiance",
+        "hair": "neat silver hair, respectfully and cleanly styled",
+        "body": "upright healthy stance, relaxed comfort",
+        "aesthetic": "dignified Korean senior style, houndstooth blazers, zip-up knits, neat cotton slacks",
+        "shoes_style": "orthotic-friendly walking shoes, comfortable moccasins, cushioned slip-on loafers"
+      }
+    }
+  }
+}
