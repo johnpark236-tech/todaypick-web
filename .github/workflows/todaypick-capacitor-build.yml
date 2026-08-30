@@ -104,7 +104,6 @@ jobs:
           if [ -n "$INPUT_VC" ]; then
             VC="$INPUT_VC"
           else
-            # Default to 22 + run_number for continuity
             VC=$((22 + RUN_NUM))
           fi
           echo "BUILD_VERSION_CODE=$VC" >> $GITHUB_ENV
@@ -152,6 +151,7 @@ jobs:
             APK_SHA=$(sha256sum "$NEW_APK" | awk '{print $1}')
             echo "APK_EXISTS=true" >> $GITHUB_ENV
             echo "APK_NAME=TodayPick-capacitor-1.0.0-vc$VC.apk" >> $GITHUB_ENV
+            echo "APK_PATH=$NEW_APK" >> $GITHUB_ENV
             echo "APK_SIZE=$APK_SIZE_MB MB" >> $GITHUB_ENV
             echo "APK_SHA256=$APK_SHA" >> $GITHUB_ENV
           else
@@ -227,7 +227,7 @@ jobs:
           | **AAB SHA256** | `${{ env.AAB_SHA256 || 'N/A' }}` |
           EOF
 
-      - name: Send Telegram Notification on Success
+      - name: Send APK Directly to Telegram on Success
         if: success()
         continue-on-error: true
         env:
@@ -238,20 +238,35 @@ jobs:
             echo "Telegram credentials not configured. Skipping."
             exit 0
           fi
+
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          MSG="✅ TodayPick Capacitor Build PASS%0A%0A"
-          MSG="${MSG}Branch: ${{ github.ref_name }}%0A"
-          MSG="${MSG}Commit: ${SHORT_SHA}%0A"
-          MSG="${MSG}Run: #${{ github.run_number }}%0A"
-          MSG="${MSG}versionCode: ${{ env.BUILD_VERSION_CODE }}%0A%0A"
-          MSG="${MSG}📦 APK: ${{ env.APK_SIZE }}%0A"
-          MSG="${MSG}📦 AAB: ${{ env.AAB_SIZE }}%0A"
-          MSG="${MSG}⏱️ 빌드 시간: ${{ env.TOTAL_BUILD_TIME }}초%0A%0A"
-          MSG="${MSG}🔗 Actions:%0A${RUN_URL}"
+          CAPTION="✅ TodayPick Build PASS
+          Branch: ${{ github.ref_name }}
+          Commit: ${SHORT_SHA}
+          Run: #${{ github.run_number }}
+          versionCode: ${{ env.BUILD_VERSION_CODE }}
+          APK: ${{ env.APK_SIZE }}
+          AAB: ${{ env.AAB_SIZE }}
+          Build: ${{ env.TOTAL_BUILD_TIME }}초
 
-          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage"             -d "chat_id=${TG_CHAT}"             -d "text=${MSG}" > /dev/null
-          echo "Telegram success notification sent."
+          🔧 GitHub Actions 로그:
+          ${RUN_URL}"
+
+          if [ "${{ env.APK_EXISTS }}" = "true" ] && [ -f "${{ env.APK_PATH }}" ]; then
+            RESPONSE=$(curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendDocument" \
+              -F "chat_id=${TG_CHAT}" \
+              -F "document=@${{ env.APK_PATH }}" \
+              -F "caption=${CAPTION}")
+          else
+            RESPONSE=$(curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+              -d "chat_id=${TG_CHAT}" \
+              --data-urlencode "text=${CAPTION}")
+          fi
+
+          echo "$RESPONSE" | jq -e '.ok == true' > /dev/null
+          MESSAGE_ID=$(echo "$RESPONSE" | jq -r '.result.message_id // empty')
+          echo "Telegram API ok=true. message_id=${MESSAGE_ID}"
 
       - name: Send Telegram Notification on Failure
         if: failure()
@@ -266,11 +281,18 @@ jobs:
           fi
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          MSG="❌ TodayPick Capacitor Build FAILED%0A%0A"
-          MSG="${MSG}Branch: ${{ github.ref_name }}%0A"
-          MSG="${MSG}Commit: ${SHORT_SHA}%0A"
-          MSG="${MSG}Run: #${{ github.run_number }}%0A%0A"
-          MSG="${MSG}🔗 Actions 로그 확인:%0A${RUN_URL}"
+          MSG="❌ TodayPick Capacitor Build FAILED
 
-          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage"             -d "chat_id=${TG_CHAT}"             -d "text=${MSG}" > /dev/null
-          echo "Telegram failure notification sent."
+          Branch: ${{ github.ref_name }}
+          Commit: ${SHORT_SHA}
+          Run: #${{ github.run_number }}
+
+          🔧 Actions 로그 확인:
+          ${RUN_URL}"
+
+          RESPONSE=$(curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d "chat_id=${TG_CHAT}" \
+            --data-urlencode "text=${MSG}")
+          echo "$RESPONSE" | jq -e '.ok == true' > /dev/null
+          MESSAGE_ID=$(echo "$RESPONSE" | jq -r '.result.message_id // empty')
+          echo "Telegram failure API ok=true. message_id=${MESSAGE_ID}"
