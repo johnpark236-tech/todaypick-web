@@ -16,8 +16,37 @@
             <span class="app-badge">TodayPick</span>
           </div>
           <div class="mode-tabs">
-            <button class="mode-tab active" data-mode="female">여성</button>
-            <button class="mode-tab" data-mode="male">남성</button>
+            <div class="mode-dropdown-container">
+              <button id="btn-mode-female" class="mode-tab active" data-gender="female">
+                <span class="mode-tab-title">여성</span>
+                <span class="mode-tab-sub" id="lbl-female-age">20대</span>
+                <span class="mode-tab-arrow">▾</span>
+              </button>
+              <div id="dropdown-female" class="mode-dropdown-menu">
+                <button class="dropdown-item" data-group="female_10s">10대</button>
+                <button class="dropdown-item active" data-group="female_20s">20대</button>
+                <button class="dropdown-item" data-group="female_30s">30대</button>
+                <button class="dropdown-item" data-group="female_40s">40대</button>
+                <button class="dropdown-item" data-group="female_50s">50대</button>
+                <button class="dropdown-item" data-group="female_60s">60대</button>
+              </div>
+            </div>
+
+            <div class="mode-dropdown-container">
+              <button id="btn-mode-male" class="mode-tab" data-gender="male">
+                <span class="mode-tab-title">남성</span>
+                <span class="mode-tab-sub" id="lbl-male-age">20대</span>
+                <span class="mode-tab-arrow">▾</span>
+              </button>
+              <div id="dropdown-male" class="mode-dropdown-menu">
+                <button class="dropdown-item" data-group="male_10s">10대</button>
+                <button class="dropdown-item" data-group="male_20s">20대</button>
+                <button class="dropdown-item" data-group="male_30s">30대</button>
+                <button class="dropdown-item" data-group="male_40s">40대</button>
+                <button class="dropdown-item" data-group="male_50s">50대</button>
+                <button class="dropdown-item" data-group="male_60s">60대</button>
+              </div>
+            </div>
           </div>
         </div>
       </header>

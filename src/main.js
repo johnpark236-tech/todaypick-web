@@ -7,10 +7,16 @@ import { CoupangService } from './services/coupang.js';
 import { StorageService } from './services/storage.js';
 import { AudioHub } from './services/audio.js';
 
+// 12 Demographic groups ordered sequentially for vertical swipe navigation
+const ALL_GROUPS = [
+  'female_10s', 'female_20s', 'female_30s', 'female_40s', 'female_50s', 'female_60s',
+  'male_10s', 'male_20s', 'male_30s', 'male_40s', 'male_50s', 'male_60s'
+];
+
 // Application state
 const state = {
   config: null,
-  currentMode: 'female', // 'female' | 'male'
+  currentMode: 'female_20s', // 12 cohorts: female_10s~60s, male_10s~60s
   currentOutfit: null,
   activeView: 'view-home',
   isPriceSheetOpen: false,
@@ -24,6 +30,13 @@ let coupangService = null;
 const dom = {
   greeting: document.getElementById('lbl-greeting'),
   modeTabs: document.querySelectorAll('.mode-tab'),
+  btnModeFemale: document.getElementById('btn-mode-female'),
+  btnModeMale: document.getElementById('btn-mode-male'),
+  dropdownFemale: document.getElementById('dropdown-female'),
+  dropdownMale: document.getElementById('dropdown-male'),
+  lblFemaleAge: document.getElementById('lbl-female-age'),
+  lblMaleAge: document.getElementById('lbl-male-age'),
+  dropdownItems: document.querySelectorAll('.dropdown-item'),
   characterDisplay: document.querySelector('.character-display'),
   mainImg: document.getElementById('main-character-img'),
   thumbCarousel: document.getElementById('thumb-carousel'),
@@ -142,17 +155,45 @@ function populateThumbnails(mode) {
   });
 }
 
-// Switch Character Mode
-function switchMode(mode) {
-  if (state.currentMode === mode && state.currentOutfit) return;
-  state.currentMode = mode;
+// Close all open dropdown menus
+function closeDropdowns() {
+  if (dom.dropdownFemale) dom.dropdownFemale.classList.remove('open');
+  if (dom.dropdownMale) dom.dropdownMale.classList.remove('open');
+}
 
-  dom.modeTabs.forEach(t => {
-    t.classList.toggle('active', t.dataset.mode === mode);
-  });
+// Switch Character Mode across 12 Demographic Groups
+function switchMode(groupKey) {
+  // Alias backward compatibility: 'female' -> 'female_20s', 'male' -> 'male_20s'
+  if (groupKey === 'female') groupKey = 'female_20s';
+  if (groupKey === 'male') groupKey = 'male_20s';
 
-  populateThumbnails(mode);
-  const firstLook = outfitManager.getOutfit(mode);
+  state.currentMode = groupKey;
+
+  const isFemale = groupKey.startsWith('female');
+  const gender = isFemale ? 'female' : 'male';
+  const ageLabel = groupKey.replace(`${gender}_`, '').replace('s', '대');
+
+  // Update tabs active state
+  if (dom.btnModeFemale) dom.btnModeFemale.classList.toggle('active', isFemale);
+  if (dom.btnModeMale) dom.btnModeMale.classList.toggle('active', !isFemale);
+
+  // Update tab sub label
+  if (isFemale && dom.lblFemaleAge) dom.lblFemaleAge.textContent = ageLabel;
+  if (!isFemale && dom.lblMaleAge) dom.lblMaleAge.textContent = ageLabel;
+
+  // Update dropdown item highlights
+  if (dom.dropdownItems) {
+    dom.dropdownItems.forEach(item => {
+      item.classList.toggle('active', item.dataset.group === groupKey);
+    });
+  }
+
+  // Close dropdowns
+  closeDropdowns();
+
+  // Populate thumbnails and render first look of the group
+  populateThumbnails(groupKey);
+  const firstLook = outfitManager.getOutfit(groupKey);
   renderOutfit(firstLook);
 }
 
@@ -402,12 +443,55 @@ function updateBgmButtonUi(isEnabled) {
 }
 
 function setupEventListeners() {
-  // Mode Tabs
-  dom.modeTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
+  // Female tab click -> Toggle Female dropdown
+  if (dom.btnModeFemale) {
+    dom.btnModeFemale.addEventListener('click', (e) => {
+      e.stopPropagation();
       AudioHub.tap();
-      switchMode(tab.dataset.mode);
+      if (!state.currentMode.startsWith('female')) {
+        const curAge = dom.lblFemaleAge ? dom.lblFemaleAge.textContent.replace('대', 's') : '20s';
+        switchMode(`female_${curAge}`);
+      }
+      const isOpen = dom.dropdownFemale && dom.dropdownFemale.classList.contains('open');
+      closeDropdowns();
+      if (!isOpen && dom.dropdownFemale) dom.dropdownFemale.classList.add('open');
     });
+  }
+
+  // Male tab click -> Toggle Male dropdown
+  if (dom.btnModeMale) {
+    dom.btnModeMale.addEventListener('click', (e) => {
+      e.stopPropagation();
+      AudioHub.tap();
+      if (!state.currentMode.startsWith('male')) {
+        const curAge = dom.lblMaleAge ? dom.lblMaleAge.textContent.replace('대', 's') : '20s';
+        switchMode(`male_${curAge}`);
+      }
+      const isOpen = dom.dropdownMale && dom.dropdownMale.classList.contains('open');
+      closeDropdowns();
+      if (!isOpen && dom.dropdownMale) dom.dropdownMale.classList.add('open');
+    });
+  }
+
+  // Dropdown items click
+  if (dom.dropdownItems) {
+    dom.dropdownItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        AudioHub.tap();
+        const targetGroup = item.dataset.group;
+        if (targetGroup) {
+          switchMode(targetGroup);
+        }
+      });
+    });
+  }
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.mode-dropdown-container')) {
+      closeDropdowns();
+    }
   });
 
   // Save button
@@ -697,10 +781,21 @@ function setupSwipeNavigation() {
     }
 
     if (absY > absX) {
-      // 1. VERTICAL SWIPE (Up or Down) -> Toggle Gender
-      const nextMode = state.currentMode === 'female' ? 'male' : 'female';
+      // 1. VERTICAL SWIPE (Up or Down) -> Sequential 12 Demographic Group Switching
+      const curIdx = ALL_GROUPS.indexOf(state.currentMode);
+      const safeIdx = curIdx >= 0 ? curIdx : 1; // Default to female_20s (idx 1)
+      let nextIdx;
+
+      if (deltaY < 0) {
+        // Swipe Up (위로) -> Next Group
+        nextIdx = (safeIdx + 1) % ALL_GROUPS.length;
+      } else {
+        // Swipe Down (아래로) -> Previous Group
+        nextIdx = (safeIdx - 1 + ALL_GROUPS.length) % ALL_GROUPS.length;
+      }
+
       AudioHub.tap();
-      switchMode(nextMode);
+      switchMode(ALL_GROUPS[nextIdx]);
     } else {
       // 2. HORIZONTAL SWIPE
       const looks = outfitManager.getLooks(state.currentMode);
