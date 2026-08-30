@@ -7,7 +7,7 @@
   "screenHeight": 877,
   "mainCharacterScale": 1.0,
   "mainCharacterOffsetY": 0,
-  "thumbnailGap": 8,
+  "thumbnailGap": 4,
   "thumbnailHeight": 110,
   "defaultMode": "female",
   "workerUrl": "https://todaypick-coupang-proxy.johnpark236.workers.dev"

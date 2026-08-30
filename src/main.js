@@ -26,6 +26,7 @@ const dom = {
   mainImg: document.getElementById('main-character-img'),
   thumbCarousel: document.getElementById('thumb-carousel'),
   btnSave: document.getElementById('btn-save-outfit'),
+  btnShare: document.getElementById('btn-share-outfit'),
   btnRandom: document.getElementById('btn-random-pick'),
   btnTogglePrice: document.getElementById('btn-toggle-price'),
   priceSheetBackdrop: document.getElementById('price-sheet-backdrop'),
@@ -124,7 +125,6 @@ function populateThumbnails(mode) {
 
     card.innerHTML = `
       <img class="thumb-img" src="${look.thumbnail}" alt="${look.title}" loading="lazy" />
-      <span class="thumb-label">${String(index + 1).padStart(2, '0')}</span>
     `;
 
     card.addEventListener('click', () => {
@@ -400,6 +400,14 @@ function setupEventListeners() {
     }
   });
 
+  // Share button (Android Native Share / KakaoTalk share support)
+  if (dom.btnShare) {
+    dom.btnShare.addEventListener('click', async () => {
+      AudioHub.tap();
+      await shareCurrentOutfit();
+    });
+  }
+
   // Random pick button
   dom.btnRandom.addEventListener('click', () => {
     AudioHub.tap();
@@ -434,6 +442,39 @@ function setupEventListeners() {
     showToast(`쿠팡 '${kw}' 검색 이동 중...`);
     await coupangService.openInCoupang(searchUrl);
   });
+
+  // Share current outfit via Native Android Share Sheet (KakaoTalk enabled)
+  async function shareCurrentOutfit() {
+    if (!state.currentOutfit) {
+      showToast('공유할 코디가 없습니다.');
+      return;
+    }
+    const outfit = state.currentOutfit;
+    const sharePayload = {
+      title: 'TodayPick 오늘뭐입지',
+      text: `[TodayPick 오늘뭐입지]\n오늘의 추천 코디: ${outfit.title}\nTodayPick에서 스타일링과 최저가 정보를 확인해보세요!`
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(sharePayload);
+        showToast('공유창을 열었습니다.');
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.warn('[Share] navigator.share error:', err);
+        }
+      }
+    } else if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(`${sharePayload.title}\n${sharePayload.text}`);
+        showToast('코디 정보가 클립보드에 복사되었습니다.');
+      } catch {
+        showToast('공유 기능을 지원하지 않는 환경입니다.');
+      }
+    } else {
+      showToast('공유 기능을 사용할 수 없습니다.');
+    }
+  }
 
   // Bottom Navigation
   dom.navItems.forEach(item => {
