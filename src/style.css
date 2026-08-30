@@ -473,25 +473,16 @@ body {
   color: var(--color-primary);
 }
 
-.btn-full-coupang {
+.sheet-disclosure-bar {
   width: 100%;
-  padding: 13px;
-  border: none;
-  background: var(--color-coupang-red);
-  color: #FFFFFF;
-  font-size: 14px;
-  font-weight: 800;
-  border-radius: var(--radius-sm);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(225, 37, 27, 0.25);
-}
-
-.btn-full-coupang:active {
-  filter: brightness(0.92);
+  padding: 8px 4px 4px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  text-align: center;
+  word-break: keep-all;
+  background: transparent;
+  user-select: none;
 }
 
 /* ── SEARCH VIEW ───────────────────────────────────────── */

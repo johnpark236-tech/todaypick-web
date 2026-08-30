@@ -37,7 +37,6 @@ const dom = {
   sheetOutfitName: document.getElementById('sheet-outfit-name'),
   sheetItemsList: document.getElementById('sheet-items-list'),
   sheetTotalPrice: document.getElementById('sheet-total-price'),
-  btnBuyFullOutfit: document.getElementById('btn-buy-full-outfit'),
   navItems: document.querySelectorAll('.nav-item'),
   views: document.querySelectorAll('.view-section'),
   searchInput: document.getElementById('search-input'),
@@ -483,17 +482,6 @@ function setupEventListeners() {
       AudioHub.setSfxVolume(val / 100);
     });
   }
-
-  // Full Outfit Coupang deeplink
-  dom.btnBuyFullOutfit.addEventListener('click', async () => {
-    if (!state.currentOutfit) return;
-    AudioHub.tap();
-    const primaryItem = state.currentOutfit.items[0];
-    const kw = primaryItem?.searchKeyword || primaryItem?.name || state.currentOutfit.title;
-    const searchUrl = `https://www.coupang.com/np/search?component=&q=${encodeURIComponent(kw)}`;
-    showToast(`쿠팡 '${kw}' 검색 이동 중...`);
-    await coupangService.openInCoupang(searchUrl);
-  });
 
   // Share current outfit via Native Android Share Sheet (KakaoTalk enabled)
   async function shareCurrentOutfit() {
