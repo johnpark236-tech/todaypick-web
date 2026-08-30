@@ -22,6 +22,8 @@ android/capacitor-cordova-android-plugins/build/
 .env.*
 *.keystore
 *.jks
+_keystore_base64.txt
+ci-release.keystore
 
 # Editor & OS
 .vscode/*

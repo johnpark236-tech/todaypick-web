@@ -7,7 +7,8 @@ android {
         applicationId "com.todaypick.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 22
+        def vCode = (System.getenv("BUILD_VERSION_CODE") ?: "22").toInteger()
+        versionCode vCode
         versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -18,12 +19,13 @@ android {
     }
     signingConfigs {
         release {
-            def ksPath = System.getenv("TODAYPICK_KEYSTORE_PATH") ?: "C:/c/TodayPick/_keystore/todaypick.keystore"
-            if (file(ksPath).exists()) {
-                storeFile file(ksPath)
-                storePassword System.getenv("TODAYPICK_KEYSTORE_PASS") ?: System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
-                keyAlias System.getenv("TODAYPICK_KEYALIAS_NAME") ?: System.getenv("ANDROID_KEY_ALIAS") ?: "todaypick"
-                keyPassword System.getenv("TODAYPICK_KEYALIAS_PASS") ?: System.getenv("ANDROID_KEY_ALIAS_PASSWORD") ?: ""
+            def ksPath = System.getenv("ANDROID_KEYSTORE_PATH") ?: System.getenv("TODAYPICK_KEYSTORE_PATH") ?: "C:/c/TodayPick/_keystore/todaypick.keystore"
+            def ksFile = file(ksPath)
+            if (ksFile.exists()) {
+                storeFile ksFile
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: System.getenv("TODAYPICK_KEYSTORE_PASS") ?: ""
+                keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: System.getenv("TODAYPICK_KEYALIAS_NAME") ?: "todaypick"
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: System.getenv("TODAYPICK_KEYALIAS_PASS") ?: ""
             }
         }
     }
