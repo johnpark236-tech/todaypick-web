@@ -6,6 +6,7 @@ import { OutfitManager } from './data/outfits.js';
 import { CoupangService } from './services/coupang.js';
 import { StorageService } from './services/storage.js';
 import { AudioHub } from './services/audio.js';
+import { GoogleSyncService } from './services/googleSync.js';
 
 // 12 Demographic groups ordered sequentially for vertical swipe navigation
 const ALL_GROUPS = [
@@ -25,6 +26,7 @@ const state = {
 
 const outfitManager = new OutfitManager();
 let coupangService = null;
+let googleSyncService = null;
 
 // DOM Elements
 const dom = {
@@ -70,6 +72,10 @@ const dom = {
   valGap: document.getElementById('val-gap'),
   btnResetSettings: document.getElementById('btn-reset-settings'),
   btnSaveSettings: document.getElementById('btn-save-settings'),
+  lblGoogleAccountStatus: document.getElementById('lbl-google-account-status'),
+  btnGoogleConnect: document.getElementById('btn-google-connect'),
+  btnCloudLoad: document.getElementById('btn-cloud-load'),
+  lblCloudSyncStatus: document.getElementById('lbl-cloud-sync-status'),
   lblWorkerStatus: document.getElementById('lbl-worker-status'),
   toast: document.getElementById('toast'),
   exitDialogBackdrop: document.getElementById('exit-dialog-backdrop'),
@@ -427,8 +433,82 @@ async function initApp() {
     }
   });
 
+  // Initialize Google Sync Service
+  const clientId = state.config.googleOAuthClientId || '363284724091-g5q91b5vh37hncm6e1v7lnephljhhj27.apps.googleusercontent.com';
+  googleSyncService = new GoogleSyncService(clientId);
+  updateGoogleSyncUi();
+
+  // If already connected, fetch cloud settings in background and merge if newer
+  if (googleSyncService.isConnected()) {
+    googleSyncService.loadSettingsFromCloud().then(res => {
+      if (res.success && res.data?.settings) {
+        const cloudSettings = res.data.settings;
+        console.log('[GoogleSync] Cloud settings found, applying to app:', cloudSettings);
+        applyCloudSettings(cloudSettings);
+      }
+    }).catch(e => console.warn('[GoogleSync] Background load error:', e));
+  }
+
   // Setup Event Listeners
   setupEventListeners();
+}
+
+function updateGoogleSyncUi() {
+  if (!googleSyncService) return;
+  const isConn = googleSyncService.isConnected();
+  if (dom.lblGoogleAccountStatus) {
+    dom.lblGoogleAccountStatus.textContent = isConn ? `${googleSyncService.getUserEmail() || '연결됨'}` : '연결 안 됨';
+    dom.lblGoogleAccountStatus.style.color = isConn ? '#10B981' : 'var(--text-muted)';
+  }
+  if (dom.btnGoogleConnect) {
+    dom.btnGoogleConnect.textContent = isConn ? '연결 해제' : 'Google 계정 연결';
+  }
+  if (dom.lblCloudSyncStatus) {
+    const lastSync = googleSyncService.getLastSyncTime();
+    dom.lblCloudSyncStatus.textContent = lastSync
+      ? `최근 동기화: ${new Date(lastSync).toLocaleTimeString('ko-KR')}`
+      : '클라우드 동기화 대기 중';
+  }
+}
+
+function applyCloudSettings(cs) {
+  if (!cs) return;
+  const scale = cs.mainCharacterScale ?? 1.0;
+  const offsetY = cs.mainCharacterOffsetY ?? 0;
+  const gap = cs.thumbnailGap ?? 4;
+  applyUiSettings(scale, offsetY, gap);
+
+  dom.sliderScale.value = scale;
+  dom.sliderOffsetY.value = offsetY;
+  dom.sliderGap.value = gap;
+  dom.valScale.textContent = `${scale}x`;
+  dom.valOffsetY.textContent = `${offsetY}px`;
+  dom.valGap.textContent = `${gap}px`;
+
+  if (typeof cs.bgmVolume === 'number') {
+    AudioHub.setBgmVolume(cs.bgmVolume);
+    const bgmPct = Math.round(cs.bgmVolume * 100);
+    if (dom.sliderBgmVol) dom.sliderBgmVol.value = bgmPct;
+    if (dom.valBgmVol) dom.valBgmVol.textContent = `${bgmPct}%`;
+  }
+
+  if (typeof cs.sfxVolume === 'number') {
+    AudioHub.setSfxVolume(cs.sfxVolume);
+    const sfxPct = Math.round(cs.sfxVolume * 100);
+    if (dom.sliderSfxVol) dom.sliderSfxVol.value = sfxPct;
+    if (dom.valSfxVol) dom.valSfxVol.textContent = `${sfxPct}%`;
+  }
+
+  if (typeof cs.isBgmEnabled === 'boolean') {
+    AudioHub.setIsBgmEnabled(cs.isBgmEnabled);
+    updateBgmButtonUi(cs.isBgmEnabled);
+  }
+
+  StorageService.saveUiConfig({
+    mainCharacterScale: scale,
+    mainCharacterOffsetY: offsetY,
+    thumbnailGap: gap
+  });
 }
 
 function updateBgmButtonUi(isEnabled) {
@@ -674,17 +754,101 @@ function setupEventListeners() {
   });
 
   // Save Settings
-  dom.btnSaveSettings.addEventListener('click', () => {
+  dom.btnSaveSettings.addEventListener('click', async () => {
+    AudioHub.tap();
     const s = parseFloat(dom.sliderScale.value);
     const o = parseInt(dom.sliderOffsetY.value);
     const g = parseInt(dom.sliderGap.value);
+    const bgmVol = AudioHub.getBgmVolume();
+    const sfxVol = AudioHub.getSfxVolume();
+    const isBgmOn = AudioHub.getIsBgmEnabled();
+
+    // 1. Local Storage Save
     StorageService.saveUiConfig({
       mainCharacterScale: s,
       mainCharacterOffsetY: o,
       thumbnailGap: g
     });
-    showToast('설정이 브라우저에 저장되었습니다.');
+
+    const settingsPayload = {
+      mainCharacterScale: s,
+      mainCharacterOffsetY: o,
+      thumbnailGap: g,
+      bgmVolume: bgmVol,
+      sfxVolume: sfxVol,
+      isBgmEnabled: isBgmOn
+    };
+
+    // 2. Cloud Sync if Google Connected
+    if (googleSyncService && googleSyncService.isConnected()) {
+      showToast('설정을 클라우드에 동기화하는 중...');
+      const res = await googleSyncService.saveSettingsToCloud(settingsPayload);
+      updateGoogleSyncUi();
+      if (res.success) {
+        showToast('로컬 및 Google Drive에 설정이 저장되었습니다!');
+      } else {
+        showToast(`로컬 저장 완료 (클라우드 실패: ${res.reason || '오류'})`);
+      }
+    } else {
+      showToast('설정이 브라우저에 저장되었습니다.');
+    }
   });
+
+  // Google Account Connect / Disconnect
+  if (dom.btnGoogleConnect) {
+    dom.btnGoogleConnect.addEventListener('click', async () => {
+      AudioHub.tap();
+      if (!googleSyncService) return;
+
+      if (googleSyncService.isConnected()) {
+        if (confirm('Google 계정 연결을 해제할까요?')) {
+          googleSyncService.clearSession();
+          updateGoogleSyncUi();
+          showToast('Google 계정 연결이 해제되었습니다.');
+        }
+      } else {
+        showToast('Google 계정 연결 창을 여는 중...');
+        try {
+          const res = await googleSyncService.connect();
+          updateGoogleSyncUi();
+          if (res.success) {
+            showToast(`Google 계정 연결 성공! (${res.email || ''})`);
+            // Try loading settings right after connection
+            const cloudRes = await googleSyncService.loadSettingsFromCloud();
+            if (cloudRes.success && cloudRes.data?.settings) {
+              applyCloudSettings(cloudRes.data.settings);
+              showToast('클라우드에서 설정을 복원했습니다!');
+            }
+          }
+        } catch (err) {
+          console.error('[GoogleSync] Connect error:', err);
+          showToast(`연결 실패: ${err.message || '인증 오류'}`);
+        }
+      }
+    });
+  }
+
+  // Cloud Load Button
+  if (dom.btnCloudLoad) {
+    dom.btnCloudLoad.addEventListener('click', async () => {
+      AudioHub.tap();
+      if (!googleSyncService || !googleSyncService.isConnected()) {
+        showToast('먼저 Google 계정을 연결해 주세요.');
+        return;
+      }
+      showToast('클라우드에서 설정을 불러오는 중...');
+      const res = await googleSyncService.loadSettingsFromCloud();
+      updateGoogleSyncUi();
+      if (res.success && res.data?.settings) {
+        applyCloudSettings(res.data.settings);
+        showToast('클라우드 설정이 성공적으로 복원되었습니다!');
+      } else if (res.reason === 'NO_CLOUD_FILE_YET') {
+        showToast('클라우드에 저장된 설정이 없습니다. 먼저 설정을 저장해 주세요.');
+      } else {
+        showToast(`설정 불러오기 실패: ${res.reason || '네트워크 오류'}`);
+      }
+    });
+  }
 
   // Exit Confirmation Dialog Handlers
   if (dom.btnExitCancel) {
