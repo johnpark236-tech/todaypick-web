@@ -190,6 +190,9 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .character-img {
@@ -200,6 +203,9 @@ body {
   transform: translateY(var(--character-offset-y)) scale(var(--character-scale));
   transition: transform 0.2s ease, opacity 0.15s ease;
   filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.12));
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
 /* Quick Action Buttons (Right Stage) */

@@ -24,6 +24,7 @@ let coupangService = null;
 const dom = {
   greeting: document.getElementById('lbl-greeting'),
   modeTabs: document.querySelectorAll('.mode-tab'),
+  characterDisplay: document.querySelector('.character-display'),
   mainImg: document.getElementById('main-character-img'),
   thumbCarousel: document.getElementById('thumb-carousel'),
   btnSave: document.getElementById('btn-save-outfit'),
@@ -656,8 +657,117 @@ function setupEventListeners() {
     if (e.key === 'Escape') handleBackButton();
   });
 
+  // Main Character Swipe Gesture Navigation
+  setupSwipeNavigation();
+
   // Global test hook for automated verification
   window.testBackNav = handleBackButton;
+}
+
+// Setup Main Character Swipe Navigation
+function setupSwipeNavigation() {
+  const target = dom.characterDisplay || dom.mainImg;
+  if (!target) return;
+
+  let startX = 0;
+  let startY = 0;
+  let isTracking = false;
+  const MIN_SWIPE_DISTANCE = 45; // Minimum px threshold
+
+  const onPointerDown = (clientX, clientY) => {
+    if (state.isPriceSheetOpen || state.isExitDialogOpen) return;
+    startX = clientX;
+    startY = clientY;
+    isTracking = true;
+  };
+
+  const onPointerUp = (clientX, clientY) => {
+    if (!isTracking) return;
+    isTracking = false;
+    if (state.isPriceSheetOpen || state.isExitDialogOpen) return;
+
+    const deltaX = clientX - startX;
+    const deltaY = clientY - startY;
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    // Filter short movements / taps
+    if (absX < MIN_SWIPE_DISTANCE && absY < MIN_SWIPE_DISTANCE) {
+      return;
+    }
+
+    if (absY > absX) {
+      // 1. VERTICAL SWIPE (Up or Down) -> Toggle Gender
+      const nextMode = state.currentMode === 'female' ? 'male' : 'female';
+      AudioHub.tap();
+      switchMode(nextMode);
+    } else {
+      // 2. HORIZONTAL SWIPE
+      const looks = outfitManager.getLooks(state.currentMode);
+      if (!looks || !looks.length) return;
+      const curIdx = looks.findIndex(l => l.id === state.currentOutfit?.id);
+      if (curIdx === -1) return;
+
+      if (deltaX > 0) {
+        // SWIPE RIGHT (Left -> Right): PREVIOUS CHARACTER
+        if (curIdx > 0) {
+          AudioHub.tap();
+          renderOutfit(looks[curIdx - 1]);
+        }
+      } else {
+        // SWIPE LEFT (Right -> Left): NEXT CHARACTER
+        if (curIdx < looks.length - 1) {
+          AudioHub.tap();
+          renderOutfit(looks[curIdx + 1]);
+        }
+      }
+    }
+  };
+
+  // Touch Events (Mobile)
+  target.addEventListener('touchstart', (e) => {
+    if (e.touches && e.touches.length === 1) {
+      onPointerDown(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, { passive: true });
+
+  target.addEventListener('touchend', (e) => {
+    if (e.changedTouches && e.changedTouches.length > 0) {
+      onPointerUp(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+    }
+  }, { passive: true });
+
+  target.addEventListener('touchcancel', () => {
+    isTracking = false;
+  }, { passive: true });
+
+  // Pointer Events (Mouse / Automation fallback)
+  target.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse') {
+      onPointerDown(e.clientX, e.clientY);
+    }
+  });
+
+  target.addEventListener('pointerup', (e) => {
+    if (e.pointerType === 'mouse') {
+      onPointerUp(e.clientX, e.clientY);
+    }
+  });
+
+  target.addEventListener('pointercancel', () => {
+    isTracking = false;
+  });
+
+  // Global test hook for programmatic gesture testing
+  window.testSwipe = (direction, distance = 60) => {
+    let dx = 0, dy = 0;
+    if (direction === 'up') dy = -distance;
+    else if (direction === 'down') dy = distance;
+    else if (direction === 'left') dx = -distance;
+    else if (direction === 'right') dx = distance;
+    onPointerDown(100, 100);
+    onPointerUp(100 + dx, 100 + dy);
+  };
 }
 
 // Start app
