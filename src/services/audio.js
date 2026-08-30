@@ -1,6 +1,7 @@
 /**
  * TodayPick Original Audio Service (AudioHub)
  * Faithful web implementation of Unity AudioHub / BgmManager / SfxManager
+ * Supports mobile and web app lifecycle (background pause & foreground resume)
  */
 
 class AudioService {
@@ -8,6 +9,8 @@ class AudioService {
     this.bgmAudio = null;
     this.tapAudio = null;
     this.hasBgmStarted = false;
+    this.isAppActive = true;
+    this.wasBgmPlayingBeforeBackground = false;
     this.lastTapTime = 0;
     this.retriggerBlockMs = 40; // Unity RetriggerBlockSeconds = 0.04s
     this.bgmVolume = 0.55;       // Unity BgmManager.DefaultVolume = 0.55
@@ -40,7 +43,7 @@ class AudioService {
 
       // 4. Setup one-time user gesture unlock for mobile WebView / browser autoplay policy
       const unlockGesture = () => {
-        if (!this.hasBgmStarted) {
+        if (!this.hasBgmStarted && this.isAppActive) {
           this.tryPlayBgm();
         }
         window.removeEventListener('pointerdown', unlockGesture, true);
@@ -55,8 +58,7 @@ class AudioService {
   }
 
   tryPlayBgm() {
-    if (!this.bgmAudio || this.hasBgmStarted) return;
-    // Set flag immediately to prevent duplicate play calls while promise resolves
+    if (!this.bgmAudio || this.hasBgmStarted || !this.isAppActive) return;
     this.hasBgmStarted = true;
 
     const playPromise = this.bgmAudio.play();
@@ -73,6 +75,8 @@ class AudioService {
    * Plays tap SFX and guarantees BGM is awakened on first interaction.
    */
   tap() {
+    if (!this.isAppActive) return; // Prevent SFX when app is in background
+
     const now = performance.now();
     if (now - this.lastTapTime < this.retriggerBlockMs) {
       return; // Debounce fast duplicate bubbling
@@ -94,6 +98,51 @@ class AudioService {
         }
       }
     } catch {}
+  }
+
+  /**
+   * Lifecycle: Triggered when app enters background.
+   * Pauses BGM immediately preserving playback position, stops any active SFX.
+   */
+  onBackground() {
+    if (!this.isAppActive) return; // Already in background
+    this.isAppActive = false;
+
+    // Remember if BGM was playing before entering background
+    this.wasBgmPlayingBeforeBackground = Boolean(
+      this.bgmAudio && !this.bgmAudio.paused && this.hasBgmStarted
+    );
+
+    // Pause BGM without resetting currentTime
+    if (this.bgmAudio && !this.bgmAudio.paused) {
+      this.bgmAudio.pause();
+    }
+
+    // Stop active SFX and clear
+    if (this.tapAudio) {
+      this.tapAudio.pause();
+      this.tapAudio.currentTime = 0;
+    }
+  }
+
+  /**
+   * Lifecycle: Triggered when app returns to foreground.
+   * Resumes BGM from previous position only if it was playing beforehand.
+   * Does NOT auto-play SFX, but re-enables SFX for subsequent user taps.
+   */
+  onForeground() {
+    if (this.isAppActive) return; // Already in foreground
+    this.isAppActive = true;
+
+    // Resume BGM if it was playing before background
+    if (this.wasBgmPlayingBeforeBackground && this.bgmAudio) {
+      const p = this.bgmAudio.play();
+      if (p !== undefined) {
+        p.catch(() => {
+          this.hasBgmStarted = false;
+        });
+      }
+    }
   }
 
   setBgmVolume(v) {

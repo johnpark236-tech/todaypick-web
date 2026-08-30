@@ -24,8 +24,6 @@ const dom = {
   greeting: document.getElementById('lbl-greeting'),
   modeTabs: document.querySelectorAll('.mode-tab'),
   mainImg: document.getElementById('main-character-img'),
-  outfitTitle: document.getElementById('lbl-outfit-title'),
-  outfitPrice: document.getElementById('lbl-outfit-price'),
   thumbCarousel: document.getElementById('thumb-carousel'),
   btnSave: document.getElementById('btn-save-outfit'),
   btnRandom: document.getElementById('btn-random-pick'),
@@ -95,9 +93,6 @@ function renderOutfit(outfit) {
     dom.mainImg.alt = outfit.title;
     dom.mainImg.style.opacity = '1';
   }, 80);
-
-  dom.outfitTitle.textContent = outfit.title;
-  dom.outfitPrice.textContent = `${Number(outfit.totalPrice || 0).toLocaleString('ko-KR')}원`;
 
   // Update Save button state
   const isSaved = StorageService.isSaved(outfit.id, outfit.mode);
@@ -540,12 +535,29 @@ function setupEventListeners() {
     });
   }
 
-  // Capacitor Native Android Back Button Listener
+  // Capacitor Native Listeners (Back Button & App Lifecycle)
   if (Capacitor.isNativePlatform()) {
     App.addListener('backButton', () => {
       handleBackButton();
     });
+
+    App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) {
+        AudioHub.onForeground();
+      } else {
+        AudioHub.onBackground();
+      }
+    });
   }
+
+  // Browser Fallback for Audio Lifecycle (Visibility Change)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      AudioHub.onBackground();
+    } else {
+      AudioHub.onForeground();
+    }
+  });
 
   // Browser / Testing Support (Escape key triggers back navigation)
   window.addEventListener('keydown', (e) => {

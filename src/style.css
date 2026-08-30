@@ -255,32 +255,6 @@ body {
   font-weight: 700;
 }
 
-/* Outfit Floating Info Banner */
-.stage-outfit-info {
-  position: absolute;
-  left: 14px;
-  bottom: 12px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
-  padding: 6px 12px;
-  border-radius: 12px;
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  flex-direction: column;
-}
-
-.outfit-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-text-main);
-}
-
-.outfit-price-tag {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--color-primary);
-}
-
 /* Carousel / Thumbnail Strip */
 .selection-area {
   height: calc(var(--thumbnail-height) + 20px);
