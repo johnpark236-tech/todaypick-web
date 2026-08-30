@@ -1,6 +1,7 @@
 import './style.css';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
+import { Share } from '@capacitor/share';
 import { OutfitManager } from './data/outfits.js';
 import { CoupangService } from './services/coupang.js';
 import { StorageService } from './services/storage.js';
@@ -29,6 +30,7 @@ const dom = {
   btnShare: document.getElementById('btn-share-outfit'),
   btnRandom: document.getElementById('btn-random-pick'),
   btnTogglePrice: document.getElementById('btn-toggle-price'),
+  btnToggleBgm: document.getElementById('btn-toggle-bgm'),
   priceSheetBackdrop: document.getElementById('price-sheet-backdrop'),
   priceSheetPanel: document.getElementById('price-sheet-panel'),
   btnCloseSheet: document.getElementById('btn-close-sheet'),
@@ -46,6 +48,10 @@ const dom = {
   sliderScale: document.getElementById('slider-scale'),
   sliderOffsetY: document.getElementById('slider-offset-y'),
   sliderGap: document.getElementById('slider-gap'),
+  sliderBgmVol: document.getElementById('slider-bgm-volume'),
+  valBgmVol: document.getElementById('val-bgm-volume'),
+  sliderSfxVol: document.getElementById('slider-sfx-volume'),
+  valSfxVol: document.getElementById('val-sfx-volume'),
   valScale: document.getElementById('val-scale'),
   valOffsetY: document.getElementById('val-offset-y'),
   valGap: document.getElementById('val-gap'),
@@ -357,6 +363,15 @@ async function initApp() {
   dom.valOffsetY.textContent = `${currentOffset}px`;
   dom.valGap.textContent = `${currentGap}px`;
 
+  // Sync Audio Settings
+  const curBgmVol = Math.round(AudioHub.getBgmVolume() * 100);
+  const curSfxVol = Math.round(AudioHub.getSfxVolume() * 100);
+  if (dom.sliderBgmVol) dom.sliderBgmVol.value = curBgmVol;
+  if (dom.valBgmVol) dom.valBgmVol.textContent = `${curBgmVol}%`;
+  if (dom.sliderSfxVol) dom.sliderSfxVol.value = curSfxVol;
+  if (dom.valSfxVol) dom.valSfxVol.textContent = `${curSfxVol}%`;
+  updateBgmButtonUi(AudioHub.getIsBgmEnabled());
+
   // Start with default mode
   switchMode(state.config.defaultMode || 'female');
 
@@ -373,6 +388,17 @@ async function initApp() {
 
   // Setup Event Listeners
   setupEventListeners();
+}
+
+function updateBgmButtonUi(isEnabled) {
+  if (!dom.btnToggleBgm) return;
+  dom.btnToggleBgm.classList.toggle('muted', !isEnabled);
+  const iconOn = dom.btnToggleBgm.querySelector('.icon-bgm-on');
+  const iconOff = dom.btnToggleBgm.querySelector('.icon-bgm-off');
+  if (iconOn && iconOff) {
+    iconOn.style.display = isEnabled ? 'block' : 'none';
+    iconOff.style.display = isEnabled ? 'none' : 'block';
+  }
 }
 
 function setupEventListeners() {
@@ -432,6 +458,32 @@ function setupEventListeners() {
     }
   });
 
+  // BGM Toggle Button (Speaker Icon)
+  if (dom.btnToggleBgm) {
+    dom.btnToggleBgm.addEventListener('click', () => {
+      AudioHub.tap();
+      const isEnabled = AudioHub.toggleBgm();
+      updateBgmButtonUi(isEnabled);
+      showToast(isEnabled ? '배경음을 켰습니다.' : '배경음을 껐습니다.');
+    });
+  }
+
+  // Audio Volume Sliders (Settings View)
+  if (dom.sliderBgmVol) {
+    dom.sliderBgmVol.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      if (dom.valBgmVol) dom.valBgmVol.textContent = `${val}%`;
+      AudioHub.setBgmVolume(val / 100);
+    });
+  }
+  if (dom.sliderSfxVol) {
+    dom.sliderSfxVol.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      if (dom.valSfxVol) dom.valSfxVol.textContent = `${val}%`;
+      AudioHub.setSfxVolume(val / 100);
+    });
+  }
+
   // Full Outfit Coupang deeplink
   dom.btnBuyFullOutfit.addEventListener('click', async () => {
     if (!state.currentOutfit) return;
@@ -452,27 +504,38 @@ function setupEventListeners() {
     const outfit = state.currentOutfit;
     const sharePayload = {
       title: 'TodayPick 오늘뭐입지',
-      text: `[TodayPick 오늘뭐입지]\n오늘의 추천 코디: ${outfit.title}\nTodayPick에서 스타일링과 최저가 정보를 확인해보세요!`
+      text: `[TodayPick 오늘뭐입지]\n오늘의 추천 코디: ${outfit.title}\nTodayPick에서 스타일링과 최저가 정보를 확인해보세요!`,
+      dialogTitle: 'TodayPick 코디 공유'
     };
 
+    // Priority 1: Capacitor Native Share plugin (Android Native Share Sheet with KakaoTalk)
+    try {
+      await Share.share(sharePayload);
+      return;
+    } catch (nativeErr) {
+      if (nativeErr && (nativeErr.name === 'AbortError' || String(nativeErr).includes('canceled') || String(nativeErr).includes('cancelled'))) {
+        return;
+      }
+      console.warn('[Share] Native share note:', nativeErr);
+    }
+
+    // Priority 2: Web Share API fallback (Browser)
     if (navigator.share) {
       try {
         await navigator.share(sharePayload);
-        showToast('공유창을 열었습니다.');
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.warn('[Share] navigator.share error:', err);
-        }
+        return;
+      } catch (webErr) {
+        if (webErr && webErr.name === 'AbortError') return;
+        console.warn('[Share] Web share note:', webErr);
       }
-    } else if (navigator.clipboard) {
+    }
+
+    // Priority 3: Clipboard fallback (Desktop browser without share API)
+    if (navigator.clipboard) {
       try {
         await navigator.clipboard.writeText(`${sharePayload.title}\n${sharePayload.text}`);
         showToast('코디 정보가 클립보드에 복사되었습니다.');
-      } catch {
-        showToast('공유 기능을 지원하지 않는 환경입니다.');
-      }
-    } else {
-      showToast('공유 기능을 사용할 수 없습니다.');
+      } catch {}
     }
   }
 

@@ -248,6 +248,16 @@ body {
   color: #FFFFFF;
 }
 
+.action-btn.btn-bgm {
+  background: #FFFFFF;
+  color: var(--color-text-main);
+}
+
+.action-btn.btn-bgm.muted {
+  background: #F3F4F6;
+  color: #9CA3AF;
+}
+
 .action-btn svg {
   width: 20px;
   height: 20px;
