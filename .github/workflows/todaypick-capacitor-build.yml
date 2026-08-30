@@ -99,11 +99,12 @@ jobs:
       - name: Determine versionCode
         run: |
           INPUT_VC="${{ github.event.inputs.version_code }}"
+          RUN_NUM="${{ github.run_number }}"
           if [ -n "$INPUT_VC" ]; then
             VC="$INPUT_VC"
           else
             # Default to 22 + run_number for continuity
-            VC=$((22 + github.run_number))
+            VC=$((22 + RUN_NUM))
           fi
           echo "BUILD_VERSION_CODE=$VC" >> $GITHUB_ENV
           echo "Using versionCode: $VC"
