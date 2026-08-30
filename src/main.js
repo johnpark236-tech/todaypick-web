@@ -4,6 +4,7 @@ import { App } from '@capacitor/app';
 import { OutfitManager } from './data/outfits.js';
 import { CoupangService } from './services/coupang.js';
 import { StorageService } from './services/storage.js';
+import { AudioHub } from './services/audio.js';
 
 // Application state
 const state = {
@@ -132,6 +133,7 @@ function populateThumbnails(mode) {
     `;
 
     card.addEventListener('click', () => {
+      AudioHub.tap();
       renderOutfit(look);
     });
 
@@ -323,6 +325,7 @@ async function executeSearch(query) {
 
 // Initialize Application
 async function initApp() {
+  AudioHub.init();
   updateGreeting();
 
   // Load config.json
@@ -379,6 +382,7 @@ function setupEventListeners() {
   // Mode Tabs
   dom.modeTabs.forEach(tab => {
     tab.addEventListener('click', () => {
+      AudioHub.tap();
       switchMode(tab.dataset.mode);
     });
   });
@@ -386,6 +390,7 @@ function setupEventListeners() {
   // Save button
   dom.btnSave.addEventListener('click', () => {
     if (!state.currentOutfit) return;
+    AudioHub.tap();
     const isNowSaved = StorageService.isSaved(state.currentOutfit.id, state.currentOutfit.mode);
     if (isNowSaved) {
       StorageService.removeLook(state.currentOutfit.id, state.currentOutfit.mode);
@@ -400,21 +405,32 @@ function setupEventListeners() {
 
   // Random pick button
   dom.btnRandom.addEventListener('click', () => {
+    AudioHub.tap();
     const next = outfitManager.getRandom(state.currentMode, state.currentOutfit?.id);
     renderOutfit(next);
     showToast('새로운 추천 코디를 골랐어요!');
   });
 
   // Price Sheet Toggle
-  dom.btnTogglePrice.addEventListener('click', () => setPriceSheet(true));
-  dom.btnCloseSheet.addEventListener('click', () => setPriceSheet(false));
+  dom.btnTogglePrice.addEventListener('click', () => {
+    AudioHub.tap();
+    setPriceSheet(true);
+  });
+  dom.btnCloseSheet.addEventListener('click', () => {
+    AudioHub.tap();
+    setPriceSheet(false);
+  });
   dom.priceSheetBackdrop.addEventListener('click', (e) => {
-    if (e.target === dom.priceSheetBackdrop) setPriceSheet(false);
+    if (e.target === dom.priceSheetBackdrop) {
+      AudioHub.tap();
+      setPriceSheet(false);
+    }
   });
 
   // Full Outfit Coupang deeplink
   dom.btnBuyFullOutfit.addEventListener('click', async () => {
     if (!state.currentOutfit) return;
+    AudioHub.tap();
     const firstUrl = state.currentOutfit.items[0]?.coupangUrl || 'https://www.coupang.com';
     showToast('쿠팡 제휴 링크 생성 및 이동 중...');
     await coupangService.openInCoupang(firstUrl);
@@ -423,19 +439,25 @@ function setupEventListeners() {
   // Bottom Navigation
   dom.navItems.forEach(item => {
     item.addEventListener('click', () => {
+      AudioHub.tap();
       switchView(item.dataset.target);
     });
   });
 
   // Search
   dom.btnDoSearch.addEventListener('click', () => {
+    AudioHub.tap();
     executeSearch(dom.searchInput.value);
   });
   dom.searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') executeSearch(dom.searchInput.value);
+    if (e.key === 'Enter') {
+      AudioHub.tap();
+      executeSearch(dom.searchInput.value);
+    }
   });
   dom.searchChips.forEach(chip => {
     chip.addEventListener('click', () => {
+      AudioHub.tap();
       executeSearch(chip.dataset.query);
     });
   });
@@ -490,11 +512,15 @@ function setupEventListeners() {
 
   // Exit Confirmation Dialog Handlers
   if (dom.btnExitCancel) {
-    dom.btnExitCancel.addEventListener('click', () => setExitDialog(false));
+    dom.btnExitCancel.addEventListener('click', () => {
+      AudioHub.tap();
+      setExitDialog(false);
+    });
   }
 
   if (dom.btnExitConfirm) {
     dom.btnExitConfirm.addEventListener('click', () => {
+      AudioHub.tap();
       setExitDialog(false);
       if (Capacitor.isNativePlatform()) {
         App.exitApp();
