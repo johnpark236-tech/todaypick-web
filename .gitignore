@@ -1,0 +1,31 @@
+# Logs
+logs/
+*.log
+
+# Dependencies
+node_modules/
+
+# Production builds
+dist/
+dist-ssr/
+
+# Android build outputs and caches
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+*.apk
+*.aab
+
+# Environment & Secrets
+.env
+.env.*
+*.keystore
+*.jks
+
+# Editor & OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db

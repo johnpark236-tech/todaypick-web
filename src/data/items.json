@@ -1,0 +1,474 @@
+{
+  "version": 2,
+  "items": [
+    {
+      "id": "TOP-0001",
+      "slot": "top",
+      "name": "그레이 후드집업",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 크롭 후드집업 그레이",
+      "color": [
+        "gray"
+      ],
+      "fit": "oversized",
+      "style": [
+        "casual",
+        "basic"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "TOP-0002",
+      "slot": "top",
+      "name": "모카 블라우스",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 퍼프소매 스모크 블라우스",
+      "color": [
+        "mocha",
+        "beige"
+      ],
+      "fit": "regular",
+      "style": [
+        "feminine",
+        "romantic"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "TOP-0003",
+      "slot": "top",
+      "name": "흰 반팔티",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 크롭 반팔티 화이트",
+      "color": [
+        "white"
+      ],
+      "fit": "slim",
+      "style": [
+        "minimal",
+        "basic"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "TOP-0004",
+      "slot": "top",
+      "name": "줄무늬 카라티",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 스트라이프 카라 니트 반팔",
+      "color": [
+        "white",
+        "black"
+      ],
+      "fit": "regular",
+      "style": [
+        "preppy",
+        "casual"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "TOP-0005",
+      "slot": "top",
+      "name": "세로줄 가디건",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 세로줄 니트 반팔 가디건",
+      "color": [
+        "white",
+        "gray"
+      ],
+      "fit": "regular",
+      "style": [
+        "minimal",
+        "preppy"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "TOP-0006",
+      "slot": "top",
+      "name": "화이트 민소매",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 크롭 민소매 나시 화이트",
+      "color": [
+        "white"
+      ],
+      "fit": "slim",
+      "style": [
+        "minimal",
+        "basic"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "TOP-0007",
+      "slot": "top",
+      "name": "흰 유넥 반팔티",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 유넥 크롭 반팔티",
+      "color": [
+        "white"
+      ],
+      "fit": "slim",
+      "style": [
+        "minimal",
+        "basic"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "TOP-0008",
+      "slot": "top",
+      "name": "버건디 하이넥",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 하이넥 반팔 니트 버건디",
+      "color": [
+        "burgundy"
+      ],
+      "fit": "slim",
+      "style": [
+        "minimal",
+        "modern"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "TOP-0009",
+      "slot": "top",
+      "name": "블랙 하이넥",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 하이넥 반팔 니트 블랙",
+      "color": [
+        "black"
+      ],
+      "fit": "slim",
+      "style": [
+        "minimal",
+        "modern"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "TOP-0010",
+      "slot": "top",
+      "name": "블랙 민소매",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 크롭 민소매 나시 블랙",
+      "color": [
+        "black"
+      ],
+      "fit": "slim",
+      "style": [
+        "minimal",
+        "basic"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "BOT-0001",
+      "slot": "bottom",
+      "name": "워싱 데님숏팬츠",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 워싱 데님 반바지 차콜",
+      "color": [
+        "charcoal",
+        "gray"
+      ],
+      "fit": "regular",
+      "style": [
+        "casual",
+        "street"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "BOT-0002",
+      "slot": "bottom",
+      "name": "갈색 프릴스커트",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 티어드 프릴 미니스커트 브라운",
+      "color": [
+        "brown"
+      ],
+      "fit": "regular",
+      "style": [
+        "feminine",
+        "romantic"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "BOT-0003",
+      "slot": "bottom",
+      "name": "연청 데님숏팬츠",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 연청 데님 반바지",
+      "color": [
+        "lightblue"
+      ],
+      "fit": "regular",
+      "style": [
+        "casual",
+        "basic"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "BOT-0004",
+      "slot": "bottom",
+      "name": "연청 와이드팬츠",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 와이드 데님 팬츠 연청",
+      "color": [
+        "lightblue"
+      ],
+      "fit": "wide",
+      "style": [
+        "casual",
+        "street"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "BOT-0005",
+      "slot": "bottom",
+      "name": "차콜 숏팬츠",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 차콜 숏팬츠",
+      "color": [
+        "charcoal"
+      ],
+      "fit": "regular",
+      "style": [
+        "sporty",
+        "casual"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "SHO-0001",
+      "slot": "shoes",
+      "name": "크림 삼선스니커",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 삼선 스니커즈 크림",
+      "color": [
+        "cream",
+        "black"
+      ],
+      "fit": "regular",
+      "style": [
+        "casual",
+        "retro"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "SHO-0002",
+      "slot": "shoes",
+      "name": "아이보리 스니커",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 캔버스 스니커즈 아이보리",
+      "color": [
+        "ivory",
+        "pink"
+      ],
+      "fit": "regular",
+      "style": [
+        "casual",
+        "basic"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "SHO-0003",
+      "slot": "shoes",
+      "name": "퍼플 삼선스니커",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 삼선 스니커즈 퍼플",
+      "color": [
+        "purple",
+        "white"
+      ],
+      "fit": "regular",
+      "style": [
+        "casual",
+        "retro"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "SHO-0004",
+      "slot": "shoes",
+      "name": "핑크 스니커즈",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 로우탑 스니커즈 핑크",
+      "color": [
+        "pink",
+        "cream"
+      ],
+      "fit": "regular",
+      "style": [
+        "casual",
+        "street"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    },
+    {
+      "id": "SHO-0005",
+      "slot": "shoes",
+      "name": "화이트 청키화",
+      "price": 0,
+      "brand": null,
+      "coupangKeyword": "여성 청키 스니커즈 화이트",
+      "color": [
+        "white",
+        "brown"
+      ],
+      "fit": "chunky",
+      "style": [
+        "casual",
+        "street"
+      ],
+      "season": [
+        "summer"
+      ],
+      "occasion": [
+        "daily",
+        "campus"
+      ]
+    }
+  ]
+}

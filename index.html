@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>TodayPick — 오늘뭐입지</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main id="app-shell" aria-label="TodayPick App">
+      <!-- Top Header -->
+      <header class="app-header">
+        <div class="header-top-row">
+          <div class="app-title-group">
+            <h1 class="app-greeting" id="lbl-greeting">좋은 하루예요</h1>
+            <span class="app-badge">MVP</span>
+          </div>
+          <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="real">실사</button>
+            <button class="mode-tab" data-mode="female2d">2D 여성</button>
+            <button class="mode-tab" data-mode="male2d">2D 남성</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- View Container -->
+      <div class="view-container">
+        <!-- 1. HOME VIEW -->
+        <section id="view-home" class="view-section active">
+          <div class="stage-area">
+            <div class="character-display">
+              <img id="main-character-img" class="character-img" src="" alt="추천 코디" />
+            </div>
+
+            <!-- Quick Action Floating Buttons -->
+            <div class="stage-quick-actions">
+              <button id="btn-save-outfit" class="action-btn btn-save" aria-label="코디 저장">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                <span class="action-btn-label">저장</span>
+              </button>
+              <button id="btn-random-pick" class="action-btn btn-random" aria-label="랜덤 추천">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                <span class="action-btn-label">추천</span>
+              </button>
+              <button id="btn-toggle-price" class="action-btn btn-price" aria-label="가격 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M8 10h8M8 14h8"/></svg>
+                <span class="action-btn-label">가격</span>
+              </button>
+            </div>
+
+            <!-- Floating Outfit Info -->
+            <div class="stage-outfit-info">
+              <span id="lbl-outfit-title" class="outfit-title">로딩 중...</span>
+              <span id="lbl-outfit-price" class="outfit-price-tag">0원</span>
+            </div>
+          </div>
+
+          <!-- Bottom Thumbnail Strip -->
+          <div class="selection-area">
+            <div id="thumb-carousel" class="thumbnail-carousel"></div>
+          </div>
+        </section>
+
+        <!-- 2. COUPANG SEARCH VIEW -->
+        <section id="view-search" class="view-section">
+          <div class="search-bar-wrap">
+            <input type="text" id="search-input" class="search-input" placeholder="쿠팡 패션 아이템 검색..." />
+            <button id="btn-do-search" class="search-submit-btn">검색</button>
+          </div>
+          <div class="search-chips">
+            <button class="chip-btn" data-query="여성 흰색 운동화">여성 흰색 운동화</button>
+            <button class="chip-btn" data-query="남성 검정 반팔 티셔츠">남성 검정 반팔 티셔츠</button>
+            <button class="chip-btn" data-query="여성 청바지">여성 청바지</button>
+            <button class="chip-btn" data-query="오버핏 후드집업">오버핏 후드집업</button>
+            <button class="chip-btn" data-query="여성 슬랙스">여성 슬랙스</button>
+          </div>
+          <div id="search-results" class="search-results-list">
+            <div class="empty-state">검색어를 입력하거나 추천 태그를 터치하세요.</div>
+          </div>
+        </section>
+
+        <!-- 3. SAVED LOOKS VIEW (MY COORDI) -->
+        <section id="view-saved" class="view-section">
+          <h2 class="section-headline">저장된 코디</h2>
+          <div id="saved-looks-grid" class="saved-grid"></div>
+        </section>
+
+        <!-- 4. SETTINGS VIEW -->
+        <section id="view-settings" class="view-section">
+          <h2 class="section-headline">앱 설정</h2>
+          <div class="settings-group">
+            <h3 class="settings-group-title">UI 오프셋 & 스케일 조정</h3>
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <span>캐릭터 크기 (Scale)</span>
+                <span id="val-scale">1.0x</span>
+              </div>
+              <input type="range" id="slider-scale" class="setting-slider" min="0.7" max="1.4" step="0.05" value="1.0" />
+            </div>
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <span>캐릭터 세로 위치 (Offset Y)</span>
+                <span id="val-offset-y">0px</span>
+              </div>
+              <input type="range" id="slider-offset-y" class="setting-slider" min="-60" max="60" step="2" value="0" />
+            </div>
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <span>썸네일 간격 (Gap)</span>
+                <span id="val-gap">8px</span>
+              </div>
+              <input type="range" id="slider-gap" class="setting-slider" min="2" max="20" step="1" value="8" />
+            </div>
+            <div class="settings-btn-row">
+              <button id="btn-reset-settings" class="btn-secondary">기본값 복원</button>
+              <button id="btn-save-settings" class="btn-primary">설정 저장</button>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <h3 class="settings-group-title">시스템 정보</h3>
+            <div class="info-box">
+              <p><strong>App:</strong> TodayPick 오늘뭐입지 (Capacitor)</p>
+              <p><strong>Package ID:</strong> com.todaypick.app</p>
+              <p><strong>Worker:</strong> todaypick-coupang-proxy</p>
+              <p id="lbl-worker-status"><strong>상태:</strong> 확인 중...</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Price Sheet Drawer -->
+      <div id="price-sheet-backdrop" class="price-sheet-backdrop">
+        <div id="price-sheet-panel" class="price-sheet-panel">
+          <div class="sheet-handle"></div>
+          <div class="sheet-header">
+            <h3 id="sheet-outfit-name">코디 상세 가격</h3>
+            <button id="btn-close-sheet" class="sheet-close-btn">&times;</button>
+          </div>
+          <div id="sheet-items-list" class="items-list"></div>
+          <div class="sheet-total-bar">
+            <span class="total-label">합계 예상 가격</span>
+            <span id="sheet-total-price" class="total-value">0원</span>
+          </div>
+          <button id="btn-buy-full-outfit" class="btn-full-coupang">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            쿠팡에서 코디 보기
+          </button>
+        </div>
+      </div>
+
+      <!-- Bottom Navigation -->
+      <nav class="bottom-nav">
+        <button class="nav-item active" data-target="view-home">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span class="nav-label">홈</span>
+        </button>
+        <button class="nav-item" data-target="view-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="nav-label">쿠팡 검색</span>
+        </button>
+        <button class="nav-item" data-target="view-saved">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          <span class="nav-label">내 코디</span>
+        </button>
+        <button class="nav-item" data-target="view-settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="nav-label">설정</span>
+        </button>
+      </nav>
+
+      <!-- Toast Feedback -->
+      <div id="toast" class="toast-msg"></div>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
