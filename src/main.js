@@ -1,4 +1,6 @@
 import './style.css';
+import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { OutfitManager } from './data/outfits.js';
 import { CoupangService } from './services/coupang.js';
 import { StorageService } from './services/storage.js';
@@ -9,7 +11,8 @@ const state = {
   currentMode: 'real', // 'real' | 'female2d' | 'male2d'
   currentOutfit: null,
   activeView: 'view-home',
-  isPriceSheetOpen: false
+  isPriceSheetOpen: false,
+  isExitDialogOpen: false
 };
 
 const outfitManager = new OutfitManager();
@@ -49,7 +52,10 @@ const dom = {
   btnResetSettings: document.getElementById('btn-reset-settings'),
   btnSaveSettings: document.getElementById('btn-save-settings'),
   lblWorkerStatus: document.getElementById('lbl-worker-status'),
-  toast: document.getElementById('toast')
+  toast: document.getElementById('toast'),
+  exitDialogBackdrop: document.getElementById('exit-dialog-backdrop'),
+  btnExitCancel: document.getElementById('btn-exit-cancel'),
+  btnExitConfirm: document.getElementById('btn-exit-confirm')
 };
 
 // Toast notification
@@ -179,6 +185,38 @@ function setPriceSheet(isOpen) {
       });
     });
   }
+}
+
+// Open / Close Exit Confirmation Dialog (One Dialog Only)
+function setExitDialog(isOpen) {
+  if (state.isExitDialogOpen === isOpen) return; // Prevent duplicate transitions
+  state.isExitDialogOpen = isOpen;
+  if (!dom.exitDialogBackdrop) return;
+  dom.exitDialogBackdrop.classList.toggle('open', isOpen);
+}
+
+// Android Back Navigation Handler with Strict Priority Hierarchy
+function handleBackButton() {
+  // Priority 1: Exit Confirmation Dialog is open -> Close dialog (Cancel exit)
+  if (state.isExitDialogOpen) {
+    setExitDialog(false);
+    return;
+  }
+
+  // Priority 2: Price Sheet Modal is open -> Close Price Sheet only (Do not exit)
+  if (state.isPriceSheetOpen) {
+    setPriceSheet(false);
+    return;
+  }
+
+  // Priority 3: Subroute / Subview active -> Return to HOME (view-home)
+  if (state.activeView !== 'view-home') {
+    switchView('view-home');
+    return;
+  }
+
+  // Priority 4: Complete HOME root state -> Show Exit Confirmation Dialog
+  setExitDialog(true);
 }
 
 // Switch Active View
@@ -449,6 +487,43 @@ function setupEventListeners() {
     });
     showToast('설정이 브라우저에 저장되었습니다.');
   });
+
+  // Exit Confirmation Dialog Handlers
+  if (dom.btnExitCancel) {
+    dom.btnExitCancel.addEventListener('click', () => setExitDialog(false));
+  }
+
+  if (dom.btnExitConfirm) {
+    dom.btnExitConfirm.addEventListener('click', () => {
+      setExitDialog(false);
+      if (Capacitor.isNativePlatform()) {
+        App.exitApp();
+      } else {
+        showToast('웹 환경에서는 앱을 닫을 수 없습니다.');
+      }
+    });
+  }
+
+  if (dom.exitDialogBackdrop) {
+    dom.exitDialogBackdrop.addEventListener('click', (e) => {
+      if (e.target === dom.exitDialogBackdrop) setExitDialog(false);
+    });
+  }
+
+  // Capacitor Native Android Back Button Listener
+  if (Capacitor.isNativePlatform()) {
+    App.addListener('backButton', () => {
+      handleBackButton();
+    });
+  }
+
+  // Browser / Testing Support (Escape key triggers back navigation)
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') handleBackButton();
+  });
+
+  // Global test hook for automated verification
+  window.testBackNav = handleBackButton;
 }
 
 // Start app

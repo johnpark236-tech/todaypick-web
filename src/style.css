@@ -861,3 +861,86 @@ body {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* ── EXIT CONFIRMATION DIALOG ──────────────────────────── */
+.exit-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.exit-dialog-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.exit-dialog-box {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 24px 20px 20px;
+  width: 82%;
+  max-width: 300px;
+  box-shadow: 0 12px 32px rgba(31, 35, 55, 0.2);
+  text-align: center;
+  transform: scale(0.94);
+  transition: transform 0.2s ease;
+}
+
+.exit-dialog-backdrop.open .exit-dialog-box {
+  transform: scale(1);
+}
+
+.exit-dialog-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin-bottom: 22px;
+}
+
+.exit-dialog-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.exit-btn-cancel {
+  flex: 1;
+  padding: 12px 0;
+  border: 1px solid var(--color-border);
+  background: #F7F7FA;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.exit-btn-cancel:active {
+  background: #EBEBF0;
+}
+
+.exit-btn-confirm {
+  flex: 1;
+  padding: 12px 0;
+  border: none;
+  background: var(--color-primary);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(108, 85, 232, 0.3);
+  transition: background 0.15s ease;
+}
+
+.exit-btn-confirm:active {
+  background: var(--color-primary-dark);
+}
