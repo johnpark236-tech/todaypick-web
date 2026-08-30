@@ -9,7 +9,7 @@ import { AudioHub } from './services/audio.js';
 // Application state
 const state = {
   config: null,
-  currentMode: 'real', // 'real' | 'female2d' | 'male2d'
+  currentMode: 'female', // 'female' | 'male'
   currentOutfit: null,
   activeView: 'view-home',
   isPriceSheetOpen: false,
@@ -172,7 +172,7 @@ function setPriceSheet(isOpen) {
           <span class="item-name">${item.name}</span>
           <span class="item-price">${Number(item.price).toLocaleString('ko-KR')}원</span>
         </div>
-        <button class="item-btn-coupang" data-url="${item.coupangUrl}" data-name="${item.name}">
+        <button class="item-btn-coupang" data-keyword="${item.searchKeyword}" data-name="${item.name}">
           쿠팡보기
         </button>
       </div>
@@ -181,9 +181,11 @@ function setPriceSheet(isOpen) {
     // Attach click handlers to "쿠팡보기"
     dom.sheetItemsList.querySelectorAll('.item-btn-coupang').forEach(btn => {
       btn.addEventListener('click', async (e) => {
-        const url = e.currentTarget.dataset.url;
-        showToast('쿠팡 페이지로 이동합니다...');
-        await coupangService.openInCoupang(url);
+        AudioHub.tap();
+        const kw = e.currentTarget.dataset.keyword || e.currentTarget.dataset.name;
+        const searchUrl = `https://www.coupang.com/np/search?component=&q=${encodeURIComponent(kw)}`;
+        showToast(`쿠팡 '${kw}' 검색 중...`);
+        await coupangService.openInCoupang(searchUrl);
       });
     });
   }
@@ -361,7 +363,7 @@ async function initApp() {
   dom.valGap.textContent = `${currentGap}px`;
 
   // Start with default mode
-  switchMode(state.config.defaultMode || 'real');
+  switchMode(state.config.defaultMode || 'female');
 
   // Check Coupang worker health in background
   coupangService.checkHealth().then(h => {
@@ -431,9 +433,11 @@ function setupEventListeners() {
   dom.btnBuyFullOutfit.addEventListener('click', async () => {
     if (!state.currentOutfit) return;
     AudioHub.tap();
-    const firstUrl = state.currentOutfit.items[0]?.coupangUrl || 'https://www.coupang.com';
-    showToast('쿠팡 제휴 링크 생성 및 이동 중...');
-    await coupangService.openInCoupang(firstUrl);
+    const primaryItem = state.currentOutfit.items[0];
+    const kw = primaryItem?.searchKeyword || primaryItem?.name || state.currentOutfit.title;
+    const searchUrl = `https://www.coupang.com/np/search?component=&q=${encodeURIComponent(kw)}`;
+    showToast(`쿠팡 '${kw}' 검색 이동 중...`);
+    await coupangService.openInCoupang(searchUrl);
   });
 
   // Bottom Navigation

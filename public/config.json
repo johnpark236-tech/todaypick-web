@@ -9,6 +9,6 @@
   "mainCharacterOffsetY": 0,
   "thumbnailGap": 8,
   "thumbnailHeight": 110,
-  "defaultMode": "real",
+  "defaultMode": "female",
   "workerUrl": "https://todaypick-coupang-proxy.johnpark236.workers.dev"
 }
