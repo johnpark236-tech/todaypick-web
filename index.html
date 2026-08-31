@@ -142,6 +142,9 @@
               <button id="btn-reset-settings" class="btn-secondary">기본값 복원</button>
               <button id="btn-save-settings" class="btn-primary">설정 저장</button>
             </div>
+            <div style="margin-top: 10px;">
+              <button id="btn-download-backup" class="btn-secondary" style="width: 100%;">설정 백업 다운로드</button>
+            </div>
           </div>
 
           <div class="settings-group">
@@ -159,26 +162,6 @@
                 <span id="val-sfx-volume">50%</span>
               </div>
               <input type="range" id="slider-sfx-volume" class="setting-slider" min="0" max="100" step="1" value="50" />
-            </div>
-          </div>
-
-          <div class="settings-group">
-            <h3 class="settings-group-title">Google 클라우드 동기화</h3>
-            <div class="setting-item">
-              <div class="setting-label-row">
-                <span>Google 계정</span>
-                <span id="lbl-google-account-status" style="font-size:12px; color:var(--text-muted);">연결 안 됨</span>
-              </div>
-              <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">
-                앱 재설치 또는 기기 변경 후에도 내 설정을 안전하게 복원할 수 있습니다.
-              </div>
-              <div class="settings-btn-row" style="margin-top:6px;">
-                <button id="btn-google-connect" class="btn-secondary" style="flex:1;">Google 계정 연결</button>
-                <button id="btn-cloud-load" class="btn-secondary" style="flex:1;">클라우드 복원</button>
-              </div>
-              <div id="lbl-cloud-sync-status" style="font-size:11px; color:var(--text-muted); margin-top:6px; text-align:right;">
-                클라우드 동기화 대기 중
-              </div>
             </div>
           </div>
 

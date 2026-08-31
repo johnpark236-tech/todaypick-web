@@ -10,6 +10,5 @@
   "thumbnailGap": 4,
   "thumbnailHeight": 110,
   "defaultMode": "female",
-  "workerUrl": "https://todaypick-coupang-proxy.johnpark236.workers.dev",
-  "googleOAuthClientId": "363284724091-g5q91b5vh37hncm6e1v7lnephljhhj27.apps.googleusercontent.com"
+  "workerUrl": "https://todaypick-coupang-proxy.johnpark236.workers.dev"
 }
