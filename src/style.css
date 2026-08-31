@@ -94,24 +94,101 @@ body {
 
 .app-title-group {
   display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  max-width: 170px;
+}
+
+.app-title-top {
+  display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
 }
 
 .app-greeting {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--color-text-main);
   letter-spacing: -0.4px;
+  white-space: nowrap;
 }
 
 .app-badge {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--color-primary);
   background: var(--color-primary-light);
-  padding: 2px 6px;
-  border-radius: 6px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.app-version {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+/* Now Playing Row: Marquee Title + Equalizer */
+.now-playing-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 14px;
+  overflow: hidden;
+}
+
+.now-playing-marquee-wrap {
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 120px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+}
+
+.now-playing-title {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  animation: marquee-left-to-right 8s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+/* Marquee: travel distance ~20mm smoothly */
+@keyframes marquee-left-to-right {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(20mm);
+  }
+}
+
+/* Equalizer: 6 vertical reactive bars */
+.equalizer-group {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.eq-bar {
+  width: 2.5px;
+  height: 2px; /* idle default */
+  min-height: 2px;
+  max-height: 12px;
+  background: linear-gradient(to top, var(--color-primary), #a855f7);
+  border-radius: 1px;
+  transition: height 0.08s ease;
 }
 
 /* Character Mode Switcher Tabs */

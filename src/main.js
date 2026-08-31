@@ -6,6 +6,7 @@ import { OutfitManager } from './data/outfits.js';
 import { CoupangService } from './services/coupang.js';
 import { StorageService } from './services/storage.js';
 import { AudioHub } from './services/audio.js';
+import { APP_DISPLAY_VERSION } from './config/version.js';
 
 // 12 Demographic groups ordered sequentially for vertical swipe navigation
 const ALL_GROUPS = [
@@ -29,6 +30,9 @@ let coupangService = null;
 // DOM Elements
 const dom = {
   greeting: document.getElementById('lbl-greeting'),
+  lblAppVersion: document.getElementById('lbl-app-version'),
+  nowPlayingTitle: document.getElementById('now-playing-title'),
+  equalizerBars: document.querySelectorAll('.eq-bar'),
   modeTabs: document.querySelectorAll('.mode-tab'),
   btnModeFemale: document.getElementById('btn-mode-female'),
   btnModeMale: document.getElementById('btn-mode-male'),
@@ -372,6 +376,21 @@ async function executeSearch(query) {
 async function initApp() {
   AudioHub.init();
   updateGreeting();
+
+  // Set Version Badge from Single Source of Truth
+  if (dom.lblAppVersion) {
+    dom.lblAppVersion.textContent = APP_DISPLAY_VERSION;
+  }
+
+  // Bind Now Playing Title & Reactive Equalizer
+  if (dom.equalizerBars && dom.equalizerBars.length) {
+    AudioHub.setEqualizerElements(dom.equalizerBars);
+  }
+  AudioHub.onTrackChange((title) => {
+    if (dom.nowPlayingTitle) {
+      dom.nowPlayingTitle.textContent = title;
+    }
+  });
 
   // Load config.json
   try {

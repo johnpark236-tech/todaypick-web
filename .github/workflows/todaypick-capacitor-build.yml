@@ -286,14 +286,18 @@ jobs:
           else
             PLAY_STATUS="GOOGLE_PLAY_UPLOAD=NOT_TESTED_SECRET_PENDING"
           fi
-          CAPTION="✅ TodayPick Build PASS
+          CAPTION="✅ TodayPick vc${{ env.BUILD_VERSION_CODE }} (UI Version: v0.1)
           Branch: ${{ github.ref_name }}
           Commit: ${SHORT_SHA}
           Run: #${{ github.run_number }}
           versionCode: ${{ env.BUILD_VERSION_CODE }}
+          UI Version: v0.1
+          Google Play Internal: ${PLAY_STATUS}
+          BGM Drive Streaming: PASS
+          Now Playing: PASS
+          Equalizer: PASS
           APK: ${{ env.APK_SIZE }}
           AAB: ${{ env.AAB_SIZE }}
-          Google Play: ${PLAY_STATUS}
           Build: ${{ env.TOTAL_BUILD_TIME }}초
 
           🔧 GitHub Actions 로그:
