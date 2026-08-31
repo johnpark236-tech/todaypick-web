@@ -1137,311 +1137,129 @@ export class OutfitManager {
       {
             "id": "F30_01",
             "mode": "female_30s",
-            "title": "[여성 30대] 네이비 테일러드 자켓 & 베이지 슬랙스 룩",
+            "title": "[여성 30대] 아이보리 린넨 블라우스 & 베이지 미디스커트 룩",
             "image": "/assets/looks/female_30s/LOOK01.webp",
             "thumbnail": "/assets/looks/female_30s/LOOK01.webp",
-            "totalPrice": 142000,
+            "totalPrice": 108000,
             "items": [
-                  {
-                        "slot": "상의",
-                        "name": "테일러드 싱글 린넨 자켓",
-                        "price": 58000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 네이비 싱글 테일러드 자켓"
-                  },
-                  {
-                        "slot": "하의",
-                        "name": "하이웨스트 핀턱 와이드 슬랙스",
-                        "price": 39000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 핀턱 와이드 슬랙스"
-                  },
-                  {
-                        "slot": "신발",
-                        "name": "클래식 레더 페니 로퍼",
-                        "price": 45000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 소가죽 페니 로퍼"
-                  }
+                  { "slot": "상의", "name": "아이보리 반팔 린넨 블라우스", "price": 34000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 아이보리 반팔 린넨 블라우스" },
+                  { "slot": "하의", "name": "베이지 A라인 린넨 미디스커트", "price": 39000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 베이지 A라인 린넨 미디스커트" },
+                  { "slot": "신발", "name": "탄 브라운 스트랩 샌들", "price": 35000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 탄 브라운 스트랩 샌들" }
             ]
       },
       {
             "id": "F30_02",
             "mode": "female_30s",
-            "title": "[여성 30대] 클래식 더블 트렌치코트 & 스트레이트 데님 룩",
+            "title": "[여성 30대] 라이트블루 랩 블라우스 & 화이트 린넨 팬츠 룩",
             "image": "/assets/looks/female_30s/LOOK02.webp",
             "thumbnail": "/assets/looks/female_30s/LOOK02.webp",
-            "totalPrice": 176000,
+            "totalPrice": 112000,
             "items": [
-                  {
-                        "slot": "상의",
-                        "name": "더블버튼 벨티드 롱 트렌치코트",
-                        "price": 89000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 더블 롱 트렌치코트"
-                  },
-                  {
-                        "slot": "하의",
-                        "name": "슬림 스트레이트 중청 데님",
-                        "price": 38000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 슬림 일자 데님 팬츠"
-                  },
-                  {
-                        "slot": "신발",
-                        "name": "블랙 가죽 삭스 앵클부츠",
-                        "price": 49000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 가죽 삭스 앵클부츠"
-                  }
+                  { "slot": "상의", "name": "라이트블루 반팔 랩 블라우스", "price": 38000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 라이트블루 반팔 랩 블라우스" },
+                  { "slot": "하의", "name": "화이트 와이드 린넨 팬츠", "price": 42000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 화이트 와이드 린넨 팬츠" },
+                  { "slot": "신발", "name": "크림 로우 스트랩 샌들", "price": 32000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 크림 로우 스트랩 샌들" }
             ]
       },
       {
             "id": "F30_03",
             "mode": "female_30s",
-            "title": "[여성 30대] 차콜 슬림 셋업 수트 & 스트라이프 셔츠 룩",
+            "title": "[여성 30대] 네이비 벨티드 민소매 미디 원피스 룩",
             "image": "/assets/looks/female_30s/LOOK03.webp",
             "thumbnail": "/assets/looks/female_30s/LOOK03.webp",
-            "totalPrice": 169000,
+            "totalPrice": 99000,
             "items": [
-                  {
-                        "slot": "상의",
-                        "name": "차콜 슬림핏 테일러드 셋업 수트",
-                        "price": 95000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 셋업 정장 수트"
-                  },
-                  {
-                        "slot": "하의",
-                        "name": "스트라이프 코튼 드레스 셔츠",
-                        "price": 32000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 슬림 스트라이프 셔츠"
-                  },
-                  {
-                        "slot": "신발",
-                        "name": "포인티드 스틸레토 펌프스",
-                        "price": 42000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 포인티드 토 펌프스"
-                  }
+                  { "slot": "원피스", "name": "네이비 벨티드 민소매 미디 원피스", "price": 64000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 네이비 벨티드 민소매 미디 원피스" },
+                  { "slot": "신발", "name": "베이지 슬링백 샌들", "price": 35000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 베이지 슬링백 샌들" }
             ]
       },
       {
             "id": "F30_04",
             "mode": "female_30s",
-            "title": "[여성 30대] 루즈핏 캐시미어 니트 & 딥그린 플리츠 스커트 룩",
+            "title": "[여성 30대] 코랄 반팔 니트 & 라이트 데님 팬츠 룩",
             "image": "/assets/looks/female_30s/LOOK04.webp",
             "thumbnail": "/assets/looks/female_30s/LOOK04.webp",
-            "totalPrice": 128000,
+            "totalPrice": 104000,
             "items": [
-                  {
-                        "slot": "상의",
-                        "name": "오트밀 소프트 캐시미어 블렌드 니트",
-                        "price": 48000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 캐시미어 라운드 니트"
-                  },
-                  {
-                        "slot": "하의",
-                        "name": "딥그린 롱 아코디언 플리츠 스커트",
-                        "price": 42000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 롱 플리츠 스커트"
-                  },
-                  {
-                        "slot": "신발",
-                        "name": "그린 메리제인 플랫슈즈",
-                        "price": 38000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 플랫 메리제인"
-                  }
+                  { "slot": "상의", "name": "코랄 라운드넥 반팔 니트", "price": 33000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 코랄 라운드넥 반팔 니트" },
+                  { "slot": "하의", "name": "라이트블루 스트레이트 데님 팬츠", "price": 39000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 라이트블루 스트레이트 데님 팬츠" },
+                  { "slot": "신발", "name": "화이트 클린 스니커즈", "price": 32000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 화이트 클린 로우탑 스니커즈" }
             ]
       },
       {
             "id": "F30_05",
             "mode": "female_30s",
-            "title": "[여성 30대] 블랙 노카라 자켓 & 핀턱 슬랙스 모던 룩",
+            "title": "[여성 30대] 세이지 오픈카라 셔츠 & 아이보리 쇼츠 룩",
             "image": "/assets/looks/female_30s/LOOK05.webp",
             "thumbnail": "/assets/looks/female_30s/LOOK05.webp",
-            "totalPrice": 145000,
+            "totalPrice": 103000,
             "items": [
-                  {
-                        "slot": "상의",
-                        "name": "블랙 슬림 노카라 자켓",
-                        "price": 62000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 블랙 노카라 자켓"
-                  },
-                  {
-                        "slot": "하의",
-                        "name": "블랙 스트레이트 핀턱 슬랙스",
-                        "price": 39000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 스트레이트 슬랙스"
-                  },
-                  {
-                        "slot": "신발",
-                        "name": "블랙 슬링백 플랫슈즈",
-                        "price": 44000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 블랙 슬링백 펌프스"
-                  }
+                  { "slot": "상의", "name": "세이지그린 반팔 오픈카라 셔츠", "price": 36000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 세이지그린 반팔 오픈카라 셔츠" },
+                  { "slot": "하의", "name": "아이보리 테일러드 버뮤다 쇼츠", "price": 35000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 아이보리 테일러드 버뮤다 쇼츠" },
+                  { "slot": "신발", "name": "브라운 레더 플랫 샌들", "price": 32000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 브라운 레더 플랫 샌들" }
             ]
       },
       {
             "id": "F30_06",
             "mode": "female_30s",
-            "title": "[여성 30대] 루즈핏 화이트 셔츠 & 네이비 H라인 스커트 룩",
+            "title": "[여성 30대] 화이트 퍼프 블라우스 & 네이비 플리츠 스커트 룩",
             "image": "/assets/looks/female_30s/LOOK06.webp",
             "thumbnail": "/assets/looks/female_30s/LOOK06.webp",
-            "totalPrice": 117000,
+            "totalPrice": 116000,
             "items": [
-                  {
-                        "slot": "상의",
-                        "name": "프리미엄 옥스퍼드 오버핏 셔츠",
-                        "price": 36000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 루즈핏 화이트 셔츠"
-                  },
-                  {
-                        "slot": "하의",
-                        "name": "하이웨스트 H라인 미디스커트",
-                        "price": 35000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 H라인 미디스커트"
-                  },
-                  {
-                        "slot": "신발",
-                        "name": "블랙 가죽 로퍼",
-                        "price": 46000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 클래식 가죽 로퍼"
-                  }
+                  { "slot": "상의", "name": "화이트 퍼프소매 코튼 블라우스", "price": 39000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 화이트 퍼프소매 코튼 블라우스" },
+                  { "slot": "하의", "name": "네이비 플리츠 미디스커트", "price": 43000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 네이비 플리츠 미디스커트" },
+                  { "slot": "신발", "name": "블랙 메리제인 플랫슈즈", "price": 34000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 블랙 메리제인 플랫슈즈" }
             ]
       },
       {
             "id": "F30_07",
             "mode": "female_30s",
-            "title": "[여성 30대] 소프트 브라운 니트 가디건 & 그레이 테이퍼드 슬랙스 룩",
+            "title": "[여성 30대] 베이지 민소매 니트 & 올리브 린넨 큐롯 룩",
             "image": "/assets/looks/female_30s/LOOK07.webp",
             "thumbnail": "/assets/looks/female_30s/LOOK07.webp",
-            "totalPrice": 125000,
+            "totalPrice": 105000,
             "items": [
-                  {
-                        "slot": "상의",
-                        "name": "V넥 립조직 울 니트 가디건",
-                        "price": 45000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 V넥 울 니트 가디건"
-                  },
-                  {
-                        "slot": "하의",
-                        "name": "테이퍼드 크롭 핀턱 슬랙스",
-                        "price": 38000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 핀턱 테이퍼드 슬랙스"
-                  },
-                  {
-                        "slot": "신발",
-                        "name": "미니멀 레더 코트화",
-                        "price": 42000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 가죽 미니멀 스니커즈"
-                  }
+                  { "slot": "상의", "name": "베이지 슬리브리스 니트 탑", "price": 31000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 베이지 민소매 니트 탑" },
+                  { "slot": "하의", "name": "올리브 린넨 와이드 큐롯 팬츠", "price": 42000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 올리브 린넨 와이드 큐롯 팬츠" },
+                  { "slot": "신발", "name": "탄 우븐 플랫 뮬", "price": 32000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 탄 우븐 플랫 뮬" }
             ]
       },
       {
             "id": "F30_08",
             "mode": "female_30s",
-            "title": "[여성 30대] 브릭 브라운 벨티드 랩 롱원피스 룩",
+            "title": "[여성 30대] 소프트 옐로우 플라워 여름 원피스 룩",
             "image": "/assets/looks/female_30s/LOOK08.webp",
             "thumbnail": "/assets/looks/female_30s/LOOK08.webp",
-            "totalPrice": 136000,
+            "totalPrice": 92000,
             "items": [
-                  {
-                        "slot": "상의",
-                        "name": "벨티드 V넥 랩 플레어 롱원피스",
-                        "price": 56000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 V넥 벨티드 롱원피스"
-                  },
-                  {
-                        "slot": "하의",
-                        "name": "소가죽 스퀘어토 미들 앵클부츠",
-                        "price": 58000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 스퀘어토 앵클부츠"
-                  },
-                  {
-                        "slot": "신발",
-                        "name": "골드 펜던트 넥클리스",
-                        "price": 22000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 심플 골드 목걸이"
-                  }
+                  { "slot": "원피스", "name": "소프트 옐로우 반팔 플라워 원피스", "price": 58000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 소프트 옐로우 반팔 플라워 미디 원피스" },
+                  { "slot": "신발", "name": "크림 플랫 슈즈", "price": 34000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 크림 플랫 슈즈" }
             ]
       },
       {
             "id": "F30_09",
             "mode": "female_30s",
-            "title": "[여성 30대] 보트넥 스트라이프 니트 & 화이트 와이드 슬랙스 룩",
+            "title": "[여성 30대] 블랙 미니멀 티셔츠 & 카키 A라인 스커트 룩",
             "image": "/assets/looks/female_30s/LOOK09.webp",
             "thumbnail": "/assets/looks/female_30s/LOOK09.webp",
-            "totalPrice": 112000,
+            "totalPrice": 96000,
             "items": [
-                  {
-                        "slot": "상의",
-                        "name": "보트넥 파리지앵 스트라이프 니트",
-                        "price": 34000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 보트넥 스트라이프 니트"
-                  },
-                  {
-                        "slot": "하의",
-                        "name": "화이트 하이웨스트 와이드 팬츠",
-                        "price": 42000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 화이트 와이드 슬랙스"
-                  },
-                  {
-                        "slot": "신발",
-                        "name": "스트랩 레더 샌들 슬리퍼",
-                        "price": 36000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 가죽 스트랩 샌들"
-                  }
+                  { "slot": "상의", "name": "블랙 미니멀 반팔 티셔츠", "price": 24000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 블랙 미니멀 반팔 티셔츠" },
+                  { "slot": "하의", "name": "카키 하이웨스트 A라인 스커트", "price": 38000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 카키 하이웨스트 A라인 스커트" },
+                  { "slot": "신발", "name": "화이트 레더 스니커즈", "price": 34000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 화이트 레더 로우탑 스니커즈" }
             ]
       },
       {
             "id": "F30_10",
             "mode": "female_30s",
-            "title": "[여성 30대] 파스텔 핑크 자켓 & 크롭 일자 데님 룩",
+            "title": "[여성 30대] 라벤더 반팔 가디건 & 크림 스트레이트 슬랙스 룩",
             "image": "/assets/looks/female_30s/LOOK10.webp",
             "thumbnail": "/assets/looks/female_30s/LOOK10.webp",
-            "totalPrice": 148000,
+            "totalPrice": 109000,
             "items": [
-                  {
-                        "slot": "상의",
-                        "name": "싱글 투버튼 파스텔 테일러드 자켓",
-                        "price": 64000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 파스텔 테일러드 자켓"
-                  },
-                  {
-                        "slot": "하의",
-                        "name": "크롭 스트레이트 연청 데님",
-                        "price": 39000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 크롭 일자 청바지"
-                  },
-                  {
-                        "slot": "신발",
-                        "name": "누드톤 포인티드 펌프스",
-                        "price": 45000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 스킨톤 슬링백 힐"
-                  }
+                  { "slot": "상의", "name": "라벤더 반팔 니트 가디건", "price": 36000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 여름 라벤더 반팔 니트 가디건" },
+                  { "slot": "하의", "name": "크림 스트레이트 슬랙스", "price": 42000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 30대 크림 스트레이트 슬랙스" },
+                  { "slot": "신발", "name": "베이지 포인티드 플랫슈즈", "price": 31000, "coupangUrl": "https://www.coupang.com", "searchKeyword": "여성 베이지 포인티드 플랫슈즈" }
             ]
       }
 ];

@@ -24,7 +24,12 @@
       "status": "ACTIVE",
       "approved_date": "2026-08-31",
       "asset_dir": "/assets/looks/female_30s",
-      "look_count": 10
+      "look_count": 10,
+      "quality_tier": "HIGH_QUALITY_SINGLE_SHEET_UPGRADE",
+      "updated_at": "2026-08-31T21:20:00+09:00",
+      "scale_reference": "female_20s_main_visual",
+      "season": "summer",
+      "qa_status": "PASS"
     },
     "female_40s": {
       "status": "ACTIVE",

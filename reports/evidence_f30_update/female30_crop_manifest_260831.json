@@ -1,0 +1,66 @@
+{
+  "work_order": "WO-260831-F30-LOOKS-UPDATE",
+  "created_at": "2026-08-31T07:30:34.867421+00:00",
+  "source_sheet": "C:\\c\\todaypick-web\\reports\\evidence_f30_update\\female30_summer_sheet_260831.png",
+  "output_dir": "C:\\c\\todaypick-web\\public\\assets\\looks\\female_30s",
+  "crop": {
+    "source_grid": "5x2",
+    "target_size": [
+      442,
+      973
+    ],
+    "mode": "full-height-center-crop-to-app-aspect"
+  },
+  "files": [
+    {
+      "path": "C:\\c\\todaypick-web\\public\\assets\\looks\\female_30s\\LOOK01.webp",
+      "sha256": "fd1156ec22991caa0e81bddddd50208ec30eef57f7ac6c3b5cc8464a6f2a6888",
+      "bytes": 47142
+    },
+    {
+      "path": "C:\\c\\todaypick-web\\public\\assets\\looks\\female_30s\\LOOK02.webp",
+      "sha256": "cbf925f3415527ca023694ca8ae1d2e302988ce3e7dd8ef8dca17f148106c9d2",
+      "bytes": 41228
+    },
+    {
+      "path": "C:\\c\\todaypick-web\\public\\assets\\looks\\female_30s\\LOOK03.webp",
+      "sha256": "d102be192638551faced872df6d1a27ad112073544521b745a282dd27c309755",
+      "bytes": 40316
+    },
+    {
+      "path": "C:\\c\\todaypick-web\\public\\assets\\looks\\female_30s\\LOOK04.webp",
+      "sha256": "9b56a8273d611eb62c0bfa1451907939de2051145fab3edb683bd9ec0ceede15",
+      "bytes": 48694
+    },
+    {
+      "path": "C:\\c\\todaypick-web\\public\\assets\\looks\\female_30s\\LOOK05.webp",
+      "sha256": "5173a593a2cbc4b442a44dd9fcfc6a4054ff6386e694e06109f2241e799ba264",
+      "bytes": 50992
+    },
+    {
+      "path": "C:\\c\\todaypick-web\\public\\assets\\looks\\female_30s\\LOOK06.webp",
+      "sha256": "2ca5d8138a83432b241a552c74eac9d01f120e25820507361b2b48cec58d142e",
+      "bytes": 47262
+    },
+    {
+      "path": "C:\\c\\todaypick-web\\public\\assets\\looks\\female_30s\\LOOK07.webp",
+      "sha256": "a9d87551e011ef32e9a7cf12bb5b2891226e2c0bab867153995b55f92d3540aa",
+      "bytes": 44452
+    },
+    {
+      "path": "C:\\c\\todaypick-web\\public\\assets\\looks\\female_30s\\LOOK08.webp",
+      "sha256": "bd190bb80bbbd480b34bfc2be9227ddc2c77c36234cd00cfe63597babffcc746",
+      "bytes": 61212
+    },
+    {
+      "path": "C:\\c\\todaypick-web\\public\\assets\\looks\\female_30s\\LOOK09.webp",
+      "sha256": "e3dbe832ee947268da54ff9c8bb340ec3fbb451824e7f4cd1db5373848d498ee",
+      "bytes": 40892
+    },
+    {
+      "path": "C:\\c\\todaypick-web\\public\\assets\\looks\\female_30s\\LOOK10.webp",
+      "sha256": "efd4f355f5191dec97f4319a1fa40cac083a06c1cbd5f042b2eaf7480bb2ff75",
+      "bytes": 39364
+    }
+  ]
+}
