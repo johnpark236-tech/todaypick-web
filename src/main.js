@@ -242,18 +242,18 @@ function setPriceSheet(isOpen) {
           <span class="item-price">${Number(item.price).toLocaleString('ko-KR')}원</span>
         </div>
         <button class="item-btn-coupang" data-keyword="${item.searchKeyword}" data-name="${item.name}">
-          쿠팡보기
+          쿠팡에서 보기
         </button>
       </div>
     `).join('');
 
-    // Attach click handlers to "쿠팡보기"
+    // Attach click handlers to the external Coupang view buttons.
     dom.sheetItemsList.querySelectorAll('.item-btn-coupang').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         AudioHub.tap();
         const kw = e.currentTarget.dataset.keyword || e.currentTarget.dataset.name;
         const searchUrl = `https://www.coupang.com/np/search?component=&q=${encodeURIComponent(kw)}`;
-        showToast(`쿠팡 '${kw}' 검색 중...`);
+        showToast(`쿠팡에서 '${kw}' 보기로 이동합니다.`);
         await coupangService.openInCoupang(searchUrl);
       });
     });
@@ -375,7 +375,7 @@ async function executeSearch(query) {
             <h4 class="product-title">${p.productName}</h4>
             <div class="product-bottom-row">
               <span class="product-price-txt">${priceFmt}원</span>
-              <button class="product-btn-buy" data-url="${prodUrl}">쿠팡 구매</button>
+              <button class="product-btn-buy" data-url="${prodUrl}">쿠팡에서 보기</button>
             </div>
           </div>
         </article>
@@ -385,7 +385,7 @@ async function executeSearch(query) {
     dom.searchResults.querySelectorAll('.product-btn-buy').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const url = e.currentTarget.dataset.url;
-        showToast('쿠팡 제휴 링크로 이동 중...');
+        showToast('외부 쿠팡 페이지로 이동합니다.');
         await coupangService.openInCoupang(url);
       });
     });
