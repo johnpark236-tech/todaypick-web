@@ -1,14 +1,37 @@
 /**
- * TodayPick Audio Service (AudioHub) - vc51
- * Android uses native MediaPlayer after downloading remote Drive MP3s to app cache.
- * Browser keeps the existing HTMLAudioElement fallback for local development.
+ * TodayPick Audio Service (AudioHub) - vc54
+ * - Local Bundled 5-Track BGM Sequential Playlist (HTML5 Audio Engine)
+ * - Single HTMLAudioElement instance for seamless local playback
+ * - Zero remote download / zero external network dependency
+ * - User BGM ON/OFF & Volume controls with persistence
+ * - Independent SFX volume & ON/OFF controls with persistence
+ * - Mobile lifecycle aware (pause on background, resume on foreground)
+ * - Now Playing title broadcast & Rainbow CSS Equalizer support
  */
 
-import { Capacitor, registerPlugin } from '@capacitor/core';
-import { BGM_PLAYLIST } from '../data/bgmManifest.js';
+const BGM_TRACKS = [
+  {
+    title: 'The Perfect Fit',
+    src: '/audio/The_Perfect_Fit.mp3'
+  },
+  {
+    title: 'Ice Cubes in the Sun',
+    src: '/audio/Ice_Cubes_in_the_Sun.mp3'
+  },
+  {
+    title: 'Seven AM Sharp',
+    src: '/audio/Seven_AM_Sharp.mp3'
+  },
+  {
+    title: 'Sunday Hanger',
+    src: '/audio/Sunday_Hanger.mp3'
+  },
+  {
+    title: 'Morning Palette',
+    src: '/audio/Morning_Palette.mp3'
+  }
+];
 
-const TodayPickAudio = registerPlugin('TodayPickAudio');
-const CACHE_NAME = 'todaypick_bgm_cache_v1';
 const SFX_ENABLED_KEY = 'todaypick_sfx_enabled';
 const BGM_ENABLED_KEY = 'todaypick_bgm_enabled';
 const BGM_VOLUME_KEY = 'todaypick_bgm_volume';
@@ -23,8 +46,6 @@ class AudioService {
     this.wasBgmPlayingBeforeBackground = false;
     this.lastTapTime = 0;
     this.retriggerBlockMs = 40;
-    this.nativeAudioReady = false;
-    this.isNativeAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 
     const savedBgmEnabled = localStorage.getItem(BGM_ENABLED_KEY);
     this.isBgmEnabled = savedBgmEnabled !== 'false';
@@ -38,12 +59,9 @@ class AudioService {
     const savedSfxVol = localStorage.getItem(SFX_VOLUME_KEY);
     this.sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.35;
 
-    this.playlist = BGM_PLAYLIST || [];
+    this.bgmTracks = BGM_TRACKS;
     this.currentTrackIndex = 0;
     this.isInitialized = false;
-
-    this.blobUrlMap = new Map();
-    this.downloadingSet = new Set();
     this.trackChangeListeners = [];
   }
 
@@ -52,16 +70,28 @@ class AudioService {
     this.isInitialized = true;
 
     try {
+      this.bgmAudio = new Audio();
+      this.bgmAudio.loop = false;
+      this.bgmAudio.volume = this.bgmVolume;
+      this.bgmAudio.preload = 'auto';
+
+      this.currentTrackIndex = 0;
+      this.loadTrack(this.currentTrackIndex);
+
+      this.bgmAudio.addEventListener('ended', () => {
+        console.log('[AudioHub] Track completed. Advancing to next track.');
+        this.nextTrack();
+      });
+
+      this.bgmAudio.addEventListener('error', (e) => {
+        console.warn('[AudioHub] Track playback error on index', this.currentTrackIndex, e);
+        setTimeout(() => this.nextTrack(), 1000);
+      });
+
       this.tapAudio = new Audio('/audio/sfx_tap.wav');
       this.tapAudio.volume = this.sfxVolume;
       this.tapAudio.muted = !this.isSfxEnabled || this.sfxVolume <= 0;
       this.tapAudio.preload = 'auto';
-
-      if (this.isNativeAndroid) {
-        this.configureNativeAudio();
-      } else {
-        this.initWebBgm();
-      }
 
       const unlockGesture = () => {
         if (this.isBgmEnabled && !this.hasBgmStarted && this.isAppActive) {
@@ -81,128 +111,27 @@ class AudioService {
     }
   }
 
-  initWebBgm() {
-    this.bgmAudio = new Audio();
-    this.bgmAudio.loop = false;
+  loadTrack(index) {
+    if (!this.bgmAudio || !this.bgmTracks.length) return;
+    this.currentTrackIndex = ((index % this.bgmTracks.length) + this.bgmTracks.length) % this.bgmTracks.length;
+    const track = this.bgmTracks[this.currentTrackIndex];
+    this.bgmAudio.src = track.src;
     this.bgmAudio.volume = this.bgmVolume;
-    this.bgmAudio.preload = 'auto';
-
-    this.bgmAudio.addEventListener('ended', () => {
-      console.log('[AudioHub] Track completed. Advancing to next track.');
-      this.nextTrack();
-    });
-
-    this.bgmAudio.addEventListener('error', (e) => {
-      console.warn('[AudioHub] Playback error on track', this.currentTrackIndex, e);
-      setTimeout(() => this.nextTrack(), 1000);
-    });
-
-    if (this.playlist.length > 0) {
-      this.applyCurrentTrack();
-    }
-  }
-
-  async configureNativeAudio() {
-    try {
-      const res = await TodayPickAudio.configure({
-        enabled: this.isBgmEnabled,
-        volume: this.bgmVolume,
-        tracks: this.playlist
-      });
-      this.nativeAudioReady = true;
-      console.log('[AudioHub] Native Android audio configured:', res);
-      this.notifyTrackChange(this.playlist[this.currentTrackIndex]?.title || '');
-    } catch (err) {
-      this.nativeAudioReady = false;
-      console.warn('[AudioHub] Native audio configure failed; using web fallback:', err.message);
-      this.initWebBgm();
-    }
-  }
-
-  async resolveTrackUrl(track) {
-    if (!track) return null;
-    if (this.blobUrlMap.has(track.id)) return this.blobUrlMap.get(track.id);
-
-    try {
-      if ('caches' in window) {
-        const cache = await caches.open(CACHE_NAME);
-        const cachedResp = await cache.match(track.url);
-        if (cachedResp) {
-          const blob = await cachedResp.blob();
-          if (blob && blob.size > 10000) {
-            const blobUrl = URL.createObjectURL(blob);
-            this.blobUrlMap.set(track.id, blobUrl);
-            console.log(`[AudioHub] Loaded ${track.fileName} from app cache (${blob.size} bytes)`);
-            return blobUrl;
-          }
-        }
-
-        if (!this.downloadingSet.has(track.id)) {
-          this.downloadingSet.add(track.id);
-          fetch(track.url, { mode: 'cors' })
-            .then(async (resp) => {
-              if (resp.ok) {
-                const clone = resp.clone();
-                const blob = await resp.blob();
-                if (blob && blob.size > 10000) {
-                  await cache.put(track.url, clone);
-                  const blobUrl = URL.createObjectURL(blob);
-                  this.blobUrlMap.set(track.id, blobUrl);
-                  console.log(`[AudioHub] Downloaded and cached ${track.fileName} (${blob.size} bytes)`);
-                  if (this.playlist[this.currentTrackIndex]?.id === track.id && this.bgmAudio && !this.bgmAudio.src) {
-                    this.bgmAudio.src = blobUrl;
-                    if (this.isBgmEnabled && this.isAppActive) this.bgmAudio.play().catch(() => {});
-                  }
-                }
-              }
-            })
-            .catch((err) => {
-              console.warn(`[AudioHub] Background cache fetch note for ${track.fileName}:`, err.message);
-            })
-            .finally(() => {
-              this.downloadingSet.delete(track.id);
-            });
-        }
-      }
-    } catch (e) {
-      console.warn('[AudioHub] Cache storage note:', e.message);
-    }
-
-    return track.url;
-  }
-
-  async applyCurrentTrack() {
-    const track = this.playlist[this.currentTrackIndex];
-    if (!track) return;
     this.notifyTrackChange(track.title);
-    if (this.isNativeAndroid && this.nativeAudioReady) return;
-    if (!this.bgmAudio) return;
-
-    const playUrl = await this.resolveTrackUrl(track);
-    if (playUrl) this.bgmAudio.src = playUrl;
   }
 
-  async nextTrack() {
-    if (!this.playlist.length) return;
-    this.currentTrackIndex = (this.currentTrackIndex + 1) % this.playlist.length;
-    await this.applyCurrentTrack();
-
-    if (this.isNativeAndroid && this.nativeAudioReady) {
-      try {
-        await TodayPickAudio.playTrack({ index: this.currentTrackIndex });
-        this.hasBgmStarted = true;
-      } catch (err) {
-        this.hasBgmStarted = false;
-        console.warn('[AudioHub] Native next track failed:', err.message);
-      }
-      return;
-    }
+  nextTrack() {
+    if (!this.bgmTracks.length) return;
+    this.currentTrackIndex = (this.currentTrackIndex + 1) % this.bgmTracks.length;
+    this.loadTrack(this.currentTrackIndex);
 
     if (this.isBgmEnabled && this.isAppActive && this.bgmAudio) {
       this.bgmAudio.currentTime = 0;
       const p = this.bgmAudio.play();
       if (p !== undefined) {
-        p.then(() => { this.hasBgmStarted = true; }).catch((err) => {
+        p.then(() => {
+          this.hasBgmStarted = true;
+        }).catch((err) => {
           console.log('[AudioHub] Playback deferred:', err.message);
           this.hasBgmStarted = false;
         });
@@ -218,31 +147,23 @@ class AudioService {
 
   onTrackChange(callback) {
     this.trackChangeListeners.push(callback);
-    if (this.playlist[this.currentTrackIndex]) callback(this.playlist[this.currentTrackIndex].title);
+    if (this.bgmTracks[this.currentTrackIndex]) {
+      callback(this.bgmTracks[this.currentTrackIndex].title);
+    }
   }
 
   setEqualizerElements() {
     // Decoupled: Equalizer is handled entirely via Rainbow CSS Animation.
   }
 
-  async tryPlayBgm() {
-    if (!this.isAppActive || !this.isBgmEnabled) return;
+  tryPlayBgm() {
+    if (!this.bgmAudio || !this.isAppActive || !this.isBgmEnabled) return;
 
-    if (this.isNativeAndroid && this.nativeAudioReady) {
-      try {
-        await TodayPickAudio.playTrack({ index: this.currentTrackIndex });
-        this.hasBgmStarted = true;
-      } catch (err) {
-        this.hasBgmStarted = false;
-        console.log('[AudioHub] Native playback awaiting retry:', err.message);
-      }
-      return;
-    }
-
-    if (!this.bgmAudio) return;
     const p = this.bgmAudio.play();
     if (p !== undefined) {
-      p.then(() => { this.hasBgmStarted = true; }).catch((err) => {
+      p.then(() => {
+        this.hasBgmStarted = true;
+      }).catch((err) => {
         this.hasBgmStarted = false;
         console.log('[AudioHub] Playback awaiting user touch:', err.message);
       });
@@ -253,20 +174,18 @@ class AudioService {
     this.isBgmEnabled = !this.isBgmEnabled;
     localStorage.setItem(BGM_ENABLED_KEY, String(this.isBgmEnabled));
 
-    if (this.isNativeAndroid && this.nativeAudioReady) {
-      if (this.isBgmEnabled) this.tryPlayBgm();
-      else TodayPickAudio.pauseBgm().catch(() => {});
-      return this.isBgmEnabled;
-    }
-
     if (this.isBgmEnabled) {
       if (this.isAppActive && this.bgmAudio) {
-        this.bgmAudio.play().then(() => { this.hasBgmStarted = true; }).catch(() => {
+        this.bgmAudio.play().then(() => {
+          this.hasBgmStarted = true;
+        }).catch(() => {
           this.hasBgmStarted = false;
         });
       }
-    } else if (this.bgmAudio && !this.bgmAudio.paused) {
-      this.bgmAudio.pause();
+    } else {
+      if (this.bgmAudio && !this.bgmAudio.paused) {
+        this.bgmAudio.pause();
+      }
     }
     return this.isBgmEnabled;
   }
@@ -306,12 +225,9 @@ class AudioService {
     if (!this.isAppActive) return;
     this.isAppActive = false;
 
-    if (this.isNativeAndroid && this.nativeAudioReady) {
-      this.wasBgmPlayingBeforeBackground = this.isBgmEnabled && this.hasBgmStarted;
-      TodayPickAudio.pauseBgm().catch(() => {});
-    } else {
-      this.wasBgmPlayingBeforeBackground = Boolean(this.bgmAudio && !this.bgmAudio.paused);
-      if (this.bgmAudio && !this.bgmAudio.paused) this.bgmAudio.pause();
+    this.wasBgmPlayingBeforeBackground = Boolean(this.bgmAudio && !this.bgmAudio.paused);
+    if (this.bgmAudio && !this.bgmAudio.paused) {
+      this.bgmAudio.pause();
     }
 
     if (this.tapAudio) {
@@ -323,15 +239,18 @@ class AudioService {
   onForeground() {
     if (this.isAppActive) return;
     this.isAppActive = true;
-    if (this.isBgmEnabled && this.wasBgmPlayingBeforeBackground) this.tryPlayBgm();
+    if (this.isBgmEnabled && this.wasBgmPlayingBeforeBackground && this.bgmAudio) {
+      this.bgmAudio.play().then(() => {
+        this.hasBgmStarted = true;
+      }).catch(() => {
+        this.hasBgmStarted = false;
+      });
+    }
   }
 
   setBgmVolume(v) {
     this.bgmVolume = Math.max(0, Math.min(1, v));
     localStorage.setItem(BGM_VOLUME_KEY, String(this.bgmVolume));
-    if (this.isNativeAndroid && this.nativeAudioReady) {
-      TodayPickAudio.setBgmVolume({ volume: this.bgmVolume }).catch(() => {});
-    }
     if (this.bgmAudio) this.bgmAudio.volume = this.bgmVolume;
   }
 

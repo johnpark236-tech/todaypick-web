@@ -50,10 +50,19 @@ t_npm = round(time.time() - t0, 2)
 if p_npm.returncode != 0:
     print("NPM BUILD FAILED:\n", p_npm.stderr)
     sys.exit(1)
-if any((ROOT_DIR / "dist").rglob("*.mp3")) or any((ROOT_DIR / "dist").rglob("*.ogg")):
-    print("NPM BUILD FAILED: embedded BGM audio file remained in dist")
+REQUIRED_BGM = [
+    'The_Perfect_Fit.mp3',
+    'Ice_Cubes_in_the_Sun.mp3',
+    'Seven_AM_Sharp.mp3',
+    'Sunday_Hanger.mp3',
+    'Morning_Palette.mp3'
+]
+dist_audio = ROOT_DIR / "dist" / "audio"
+missing_bgm = [f for f in REQUIRED_BGM if not (dist_audio / f).exists()]
+if missing_bgm:
+    print(f"NPM BUILD FAILED: Missing required embedded BGM files: {missing_bgm}")
     sys.exit(1)
-print(f"  -> npm build OK; embedded BGM removed ({t_npm}s)")
+print(f"  -> npm build OK; 5 embedded BGM files verified ({t_npm}s)")
 
 # 2. Capacitor Sync
 print("\n[2/5] Syncing Capacitor android...")
@@ -136,7 +145,9 @@ if send_message:
         f"Package ID: com.todaypick.app\n"
         f"VersionCode: {ANDROID_VERSION_CODE}\n"
         f"UI Version: {APP_DISPLAY_VERSION}\n"
-        "Embedded BGM MP3/OGG: NO\n"
+        "Embedded BGM MP3: YES (5 tracks)\n"
+        "BGM Storage: LOCAL_BUNDLED\n"
+        "BGM Engine: HTML5_AUDIO\n"
         f"Drive: {'PASS' if drive_copied else 'FAIL'}\n\n"
         "--- 소요 시간 ---\n"
         f"Vite 빌드: {t_npm}초\n"

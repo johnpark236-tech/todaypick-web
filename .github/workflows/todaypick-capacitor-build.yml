@@ -64,11 +64,13 @@ jobs:
         run: |
           T0=$(date +%s)
           npm run build
-          if find dist -type f \( -name '*.mp3' -o -name '*.ogg' \) | grep -q .; then
-            echo "ERROR: embedded BGM audio remained in dist"
-            find dist -type f \( -name '*.mp3' -o -name '*.ogg' \)
-            exit 1
-          fi
+          for f in The_Perfect_Fit.mp3 Ice_Cubes_in_the_Sun.mp3 Seven_AM_Sharp.mp3 Sunday_Hanger.mp3 Morning_Palette.mp3; do
+            if [ ! -f "dist/audio/$f" ]; then
+              echo "ERROR: required BGM audio missing in dist: $f"
+              exit 1
+            fi
+          done
+          echo "Verified 5 embedded BGM audio files in dist/audio"
           T1=$(date +%s)
           echo "NPM_BUILD_TIME=$((T1 - T0))" >> $GITHUB_ENV
           UI_VERSION=$(node -e "import('./src/config/version.js').then(m=>console.log(m.APP_DISPLAY_VERSION))")
@@ -304,7 +306,7 @@ jobs:
           UI Version: ${{ env.APP_DISPLAY_VERSION }}
           Google Play Internal: ${PLAY_STATUS}
           In-App Update: READY FOR TEST
-          BGM Native Android Cache: READY FOR REAL DEVICE TEST
+          BGM Local Bundled Audio: PASS (5 tracks embedded)
           Rainbow Equalizer: PASS (Always Animated Spectrum)
           APK: ${{ env.APK_SIZE }}
           AAB: ${{ env.AAB_SIZE }}
