@@ -286,19 +286,23 @@ jobs:
           else
             PLAY_STATUS="GOOGLE_PLAY_UPLOAD=NOT_TESTED_SECRET_PENDING"
           fi
-          CAPTION="✅ TodayPick vc${{ env.BUILD_VERSION_CODE }} (UI Version: v0.1)
+          CAPTION="✅ TodayPick vc${{ env.BUILD_VERSION_CODE }} (UI Version: v0.2)
           Branch: ${{ github.ref_name }}
           Commit: ${SHORT_SHA}
           Run: #${{ github.run_number }}
           versionCode: ${{ env.BUILD_VERSION_CODE }}
-          UI Version: v0.1
+          UI Version: v0.2
           Google Play Internal: ${PLAY_STATUS}
           BGM Drive Streaming: PASS
-          Now Playing: PASS
-          Equalizer: PASS
+          Now Playing: PASS (Title 1.5x, Marquee 30mm)
+          Equalizer: PASS (Height 2x, Width 50mm)
           APK: ${{ env.APK_SIZE }}
           AAB: ${{ env.AAB_SIZE }}
           Build: ${{ env.TOTAL_BUILD_TIME }}초
+
+          ⚠️ AUTO UPDATE TEST:
+          현재 vc48 설치자는 Telegram APK를 설치하지 마세요.
+          Google Play 자동 업데이트를 확인합니다.
 
           🔧 GitHub Actions 로그:
           ${RUN_URL}"

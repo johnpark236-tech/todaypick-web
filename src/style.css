@@ -29,6 +29,12 @@
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
+
+  /* vc49 Now Playing & Equalizer Customizable Variables */
+  --now-playing-title-scale: 1.5;
+  --marquee-dist: 30mm;
+  --eq-height-scale: 2.0;
+  --eq-width: 50mm;
 }
 
 * {
@@ -74,8 +80,9 @@ body {
 
 /* Top App Header */
 .app-header {
-  height: 72px;
-  padding: 12px 16px 8px;
+  min-height: 74px;
+  height: auto;
+  padding: 10px 16px 8px;
   background: var(--color-bg-panel);
   border-bottom-left-radius: var(--radius-lg);
   border-bottom-right-radius: var(--radius-lg);
@@ -97,7 +104,7 @@ body {
   flex-direction: column;
   gap: 3px;
   min-width: 0;
-  max-width: 170px;
+  max-width: 210px;
 }
 
 .app-title-top {
@@ -134,60 +141,64 @@ body {
   opacity: 0.85;
 }
 
-/* Now Playing Row: Marquee Title + Equalizer */
+/* Now Playing Row: Scaled Marquee Title + Equalizer */
 .now-playing-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 14px;
+  gap: 8px;
+  min-height: calc(14px * var(--eq-height-scale, 2.0));
   overflow: hidden;
+  margin-top: 2px;
 }
 
 .now-playing-marquee-wrap {
   overflow: hidden;
   white-space: nowrap;
-  max-width: 120px;
-  height: 14px;
+  max-width: 140px;
+  min-height: calc(14px * var(--now-playing-title-scale, 1.5));
   display: flex;
   align-items: center;
 }
 
 .now-playing-title {
   display: inline-block;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-text-muted);
+  font-size: calc(11px * var(--now-playing-title-scale, 1.5));
+  font-weight: 700;
+  color: var(--color-text-main);
+  opacity: 0.88;
   white-space: nowrap;
   animation: marquee-left-to-right 8s ease-in-out infinite alternate;
   will-change: transform;
 }
 
-/* Marquee: travel distance ~20mm smoothly */
+/* Marquee: travel distance customizable (default 30mm) */
 @keyframes marquee-left-to-right {
   0% {
     transform: translateX(0);
   }
   100% {
-    transform: translateX(20mm);
+    transform: translateX(var(--marquee-dist, 30mm));
   }
 }
 
-/* Equalizer: 6 vertical reactive bars */
+/* Equalizer: customizable width (default 50mm) & height (default 2x = 24px) */
 .equalizer-group {
   display: inline-flex;
   align-items: flex-end;
-  gap: 2px;
-  height: 12px;
+  justify-content: space-between;
+  width: var(--eq-width, 50mm);
+  height: calc(12px * var(--eq-height-scale, 2.0));
   flex-shrink: 0;
+  padding: 0 1px;
 }
 
 .eq-bar {
-  width: 2.5px;
+  width: 3.5px;
   height: 2px; /* idle default */
   min-height: 2px;
-  max-height: 12px;
-  background: linear-gradient(to top, var(--color-primary), #a855f7);
-  border-radius: 1px;
+  max-height: calc(12px * var(--eq-height-scale, 2.0));
+  background: linear-gradient(to top, var(--color-primary), #9333ea);
+  border-radius: 1.5px;
   transition: height 0.08s ease;
 }
 

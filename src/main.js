@@ -72,6 +72,14 @@ const dom = {
   valScale: document.getElementById('val-scale'),
   valOffsetY: document.getElementById('val-offset-y'),
   valGap: document.getElementById('val-gap'),
+  sliderTitleScale: document.getElementById('slider-title-scale'),
+  valTitleScale: document.getElementById('val-title-scale'),
+  sliderMarqueeDist: document.getElementById('slider-marquee-dist'),
+  valMarqueeDist: document.getElementById('val-marquee-dist'),
+  sliderEqHeight: document.getElementById('slider-eq-height'),
+  valEqHeight: document.getElementById('val-eq-height'),
+  sliderEqWidth: document.getElementById('slider-eq-width'),
+  valEqWidth: document.getElementById('val-eq-width'),
   btnResetSettings: document.getElementById('btn-reset-settings'),
   btnSaveSettings: document.getElementById('btn-save-settings'),
   btnDownloadBackup: document.getElementById('btn-download-backup'),
@@ -105,6 +113,14 @@ function applyUiSettings(scale, offsetY, gap) {
   document.documentElement.style.setProperty('--character-scale', scale);
   document.documentElement.style.setProperty('--character-offset-y', `${offsetY}px`);
   document.documentElement.style.setProperty('--thumbnail-gap', `${gap}px`);
+}
+
+// Apply Now Playing & Equalizer UI settings
+function applyNowPlayingSettings(titleScale, marqueeDist, eqHeight, eqWidth) {
+  document.documentElement.style.setProperty('--now-playing-title-scale', titleScale);
+  document.documentElement.style.setProperty('--marquee-dist', `${marqueeDist}mm`);
+  document.documentElement.style.setProperty('--eq-height-scale', eqHeight);
+  document.documentElement.style.setProperty('--eq-width', `${eqWidth}mm`);
 }
 
 // Render Outfit in Home stage
@@ -433,6 +449,23 @@ async function initApp() {
   if (dom.valSfxVol) dom.valSfxVol.textContent = `${curSfxVol}%`;
   updateBgmButtonUi(AudioHub.getIsBgmEnabled());
 
+  // Sync Now Playing & Equalizer UI Settings (vc49 Defaults: 1.5x, 30mm, 2.0x, 50mm)
+  const currentTitleScale = storedUi?.nowPlayingTitleScale ?? 1.5;
+  const currentMarqueeDist = storedUi?.marqueeDistanceMm ?? 30;
+  const currentEqHeight = storedUi?.equalizerHeightScale ?? 2.0;
+  const currentEqWidth = storedUi?.equalizerWidthMm ?? 50;
+
+  applyNowPlayingSettings(currentTitleScale, currentMarqueeDist, currentEqHeight, currentEqWidth);
+
+  if (dom.sliderTitleScale) dom.sliderTitleScale.value = currentTitleScale;
+  if (dom.valTitleScale) dom.valTitleScale.textContent = `${currentTitleScale}x`;
+  if (dom.sliderMarqueeDist) dom.sliderMarqueeDist.value = currentMarqueeDist;
+  if (dom.valMarqueeDist) dom.valMarqueeDist.textContent = `${currentMarqueeDist}mm`;
+  if (dom.sliderEqHeight) dom.sliderEqHeight.value = currentEqHeight;
+  if (dom.valEqHeight) dom.valEqHeight.textContent = `${currentEqHeight}x`;
+  if (dom.sliderEqWidth) dom.sliderEqWidth.value = currentEqWidth;
+  if (dom.valEqWidth) dom.valEqWidth.textContent = `${currentEqWidth}mm`;
+
   // Start with default mode
   switchMode(state.config.defaultMode || 'female');
 
@@ -683,6 +716,26 @@ function setupEventListeners() {
     applyUiSettings(parseFloat(dom.sliderScale.value), parseFloat(dom.sliderOffsetY.value), val);
   });
 
+  // Now Playing & Equalizer Live Update Sliders
+  const updateNowPlayingLivePreview = () => {
+    const tScale = parseFloat(dom.sliderTitleScale?.value) || 1.5;
+    const mDist = parseInt(dom.sliderMarqueeDist?.value) || 30;
+    const eqH = parseFloat(dom.sliderEqHeight?.value) || 2.0;
+    const eqW = parseInt(dom.sliderEqWidth?.value) || 50;
+
+    if (dom.valTitleScale) dom.valTitleScale.textContent = `${tScale.toFixed(1)}x`;
+    if (dom.valMarqueeDist) dom.valMarqueeDist.textContent = `${mDist}mm`;
+    if (dom.valEqHeight) dom.valEqHeight.textContent = `${eqH.toFixed(1)}x`;
+    if (dom.valEqWidth) dom.valEqWidth.textContent = `${eqW}mm`;
+
+    applyNowPlayingSettings(tScale, mDist, eqH, eqW);
+  };
+
+  if (dom.sliderTitleScale) dom.sliderTitleScale.addEventListener('input', updateNowPlayingLivePreview);
+  if (dom.sliderMarqueeDist) dom.sliderMarqueeDist.addEventListener('input', updateNowPlayingLivePreview);
+  if (dom.sliderEqHeight) dom.sliderEqHeight.addEventListener('input', updateNowPlayingLivePreview);
+  if (dom.sliderEqWidth) dom.sliderEqWidth.addEventListener('input', updateNowPlayingLivePreview);
+
   // Reset Settings
   dom.btnResetSettings.addEventListener('click', () => {
     StorageService.clearUiConfig();
@@ -696,6 +749,18 @@ function setupEventListeners() {
     dom.valOffsetY.textContent = `${o}px`;
     dom.valGap.textContent = `${g}px`;
     applyUiSettings(s, o, g);
+
+    // Reset Now Playing & Equalizer to vc49 Defaults
+    if (dom.sliderTitleScale) dom.sliderTitleScale.value = 1.5;
+    if (dom.valTitleScale) dom.valTitleScale.textContent = '1.5x';
+    if (dom.sliderMarqueeDist) dom.sliderMarqueeDist.value = 30;
+    if (dom.valMarqueeDist) dom.valMarqueeDist.textContent = '30mm';
+    if (dom.sliderEqHeight) dom.sliderEqHeight.value = 2.0;
+    if (dom.valEqHeight) dom.valEqHeight.textContent = '2.0x';
+    if (dom.sliderEqWidth) dom.sliderEqWidth.value = 50;
+    if (dom.valEqWidth) dom.valEqWidth.textContent = '50mm';
+    applyNowPlayingSettings(1.5, 30, 2.0, 50);
+
     showToast('설정이 기본값으로 복원되었습니다.');
   });
 
@@ -711,6 +776,11 @@ function setupEventListeners() {
     const sfxVol = AudioHub.getSfxVolume();
     const isBgmOn = AudioHub.getIsBgmEnabled();
 
+    const nowPlayingTitleScale = parseFloat(dom.sliderTitleScale?.value) || 1.5;
+    const marqueeDistanceMm = parseInt(dom.sliderMarqueeDist?.value) || 30;
+    const equalizerHeightScale = parseFloat(dom.sliderEqHeight?.value) || 2.0;
+    const equalizerWidthMm = parseInt(dom.sliderEqWidth?.value) || 50;
+
     // Local Storage Save & Merge
     StorageService.saveUiConfig({
       mainCharacterScale: s,
@@ -720,7 +790,11 @@ function setupEventListeners() {
       genderButtonScale: modeScale,
       bgmVolume: bgmVol,
       sfxVolume: sfxVol,
-      isBgmEnabled: isBgmOn
+      isBgmEnabled: isBgmOn,
+      nowPlayingTitleScale,
+      marqueeDistanceMm,
+      equalizerHeightScale,
+      equalizerWidthMm
     });
 
     showToast('설정이 휴대폰에 저장되었습니다.');
@@ -739,7 +813,7 @@ function setupEventListeners() {
 
         const backupData = {
           app: 'TodayPick',
-          backupVersion: 1,
+          backupVersion: 2,
           exportedAt: now.toISOString(),
           settings: {
             mainCharacterScale: storedUi.mainCharacterScale ?? parseFloat(dom.sliderScale.value) ?? 1.0,
@@ -748,7 +822,11 @@ function setupEventListeners() {
             genderButtonScale: storedUi.genderButtonScale ?? storedUi.modeButtonScale ?? 2.0,
             bgmVolume: storedUi.bgmVolume ?? AudioHub.getBgmVolume() ?? 0.55,
             sfxVolume: storedUi.sfxVolume ?? AudioHub.getSfxVolume() ?? 0.50,
-            isBgmEnabled: storedUi.isBgmEnabled ?? AudioHub.getIsBgmEnabled() ?? true
+            isBgmEnabled: storedUi.isBgmEnabled ?? AudioHub.getIsBgmEnabled() ?? true,
+            nowPlayingTitleScale: storedUi.nowPlayingTitleScale ?? parseFloat(dom.sliderTitleScale?.value) ?? 1.5,
+            marqueeDistanceMm: storedUi.marqueeDistanceMm ?? parseInt(dom.sliderMarqueeDist?.value) ?? 30,
+            equalizerHeightScale: storedUi.equalizerHeightScale ?? parseFloat(dom.sliderEqHeight?.value) ?? 2.0,
+            equalizerWidthMm: storedUi.equalizerWidthMm ?? parseInt(dom.sliderEqWidth?.value) ?? 50
           }
         };
 

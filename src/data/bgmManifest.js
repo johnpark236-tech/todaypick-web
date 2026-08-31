@@ -1,5 +1,5 @@
 /**
- * TodayPick BGM Streaming Manifest
+ * TodayPick BGM Streaming Manifest (vc49)
  * Audio files are hosted on Google Drive (NOT embedded in APK/AAB bundle)
  */
 export const BGM_PLAYLIST = [
