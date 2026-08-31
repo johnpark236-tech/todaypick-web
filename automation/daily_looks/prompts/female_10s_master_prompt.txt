@@ -1,0 +1,33 @@
+High-quality 2D digital anime fashion lookbook sheet featuring a single consistent teenage Korean female character in 10 different casual summer outfits.
+Layout: A clean 5 columns by 2 rows grid containing exactly 10 distinct full-body fashion lookbook illustrations on one single sheet.
+
+Character Consistency:
+The character is the same teenage Korean high school girl across all 10 cuts: youthful, bright, gentle natural smile, neat medium shoulder-length dark brown hair, clean skin, natural light makeup, fresh and lovely teenage charm.
+
+Scale & Framing (Matching Female 20s Gold Quality):
+- In each cell, the character is prominently sized, standing upright in full-body view from head to toe with zero cropping of hair or shoes.
+- Large, clear character proportions filling the cell height gracefully, not small or distant.
+- Generous, warm, aesthetically pleasing indoor room background in soft beige, warm ivory, and natural sunlight (modern clean bedroom, cozy aesthetic living space).
+- Background scale is natural and spacious behind the character.
+- Perfectly centered, vertically aligned, cleanly separated cells for seamless cropping.
+
+10 Distinct Summer Outfits (No heavy outerwear, summer season only):
+1. Daily School Casual: Crisp white short-sleeve collared polo shirt, beige pleated tennis mini skirt, white canvas sneakers, white socks.
+2. Weekend Cafe Casual: Pastel sky-blue striped oversized short-sleeve linen shirt, light-wash denim shorts, comfortable velcro summer sandals.
+3. Sunny Floral Dress: Pastel soft-yellow puff-sleeve floral cotton-linen summer mini dress with subtle sweetheart neckline, cream Mary Jane shoes.
+4. Denim Skirt Look: Baby pink short-sleeve graphic tee, A-line mid-wash denim mini skirt, casual white low-top sneakers.
+5. Mint Blouse & Skirt: Mint pastel round-neck puff-sleeve summer blouse, flowing white pleated skirt, classic brown penny loafers.
+6. Sporty Summer Hood: Heather gray short-sleeve cropped hoodie, relaxed black lightweight cooling cargo pants, retro sneakers.
+7. Pastel Ribbed Knit: Soft lavender short-sleeve ribbed knit cardigan buttoned up, cream tailored cotton shorts, beige platform slides.
+8. Sailor Preppy Look: Navy blue short-sleeve sailor-collar preppy blouse with neat ribbon, charcoal pleated tennis skirt, black oxfords.
+9. Crisp Summer Outing: Butter cream short-sleeve tailored boxy shirt, light khaki high-waisted pintuck shorts, minimal cream slip-on shoes.
+10. Elegant Casual Knit: Pale blue square-neck fine-gauge short-sleeve knit, relaxed ivory straight-leg linen trousers, minimal flat mules.
+
+CRITICAL QUALITY CONSTRAINTS:
+- Do not include any text, labels, captions, numbers, or style titles anywhere in the image.
+- Each cell must be cleanly cuttable for app use.
+- Character scale and background scale should visually match the female 20s reference quality.
+- Summer outfits only.
+- No heavy outerwear.
+- Full-body visible from head to toe.
+- Consistent art style, crisp clean line art, soft anime cel-shading, vibrant natural lighting.

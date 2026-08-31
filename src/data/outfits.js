@@ -831,310 +831,303 @@ export class OutfitManager {
       {
             "id": "F10_01",
             "mode": "female_10s",
-            "title": "[여성 10대] 스쿨 캐주얼 오버핏 후드 & 테니스 스커트 룩",
+            "title": "[여성 10대] 화이트 카라 반팔티 & 베이지 테니스 스커트 룩",
             "image": "/assets/looks/female_10s/LOOK01.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK01.webp",
-            "totalPrice": 79900,
+            "totalPrice": 67700,
             "items": [
                   {
                         "slot": "상의",
-                        "name": "오버핏 스트링 후드티",
-                        "price": 28000,
+                        "name": "화이트 슬림 카라 반팔 티셔츠",
+                        "price": 18900,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 오버핏 기모 후드티"
+                        "searchKeyword": "여성 화이트 카라 반팔티"
                   },
                   {
                         "slot": "하의",
-                        "name": "플리츠 테니스 미니스커트",
-                        "price": 19900,
+                        "name": "베이지 A라인 플리츠 테니스 스커트",
+                        "price": 19800,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 플리츠 테니스 스커트"
+                        "searchKeyword": "여성 베이지 테니스 스커트"
                   },
                   {
                         "slot": "신발",
-                        "name": "캔버스 하이탑 스니커즈",
-                        "price": 32000,
+                        "name": "화이트 캔버스 로우탑 스니커즈",
+                        "price": 29000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 캔버스 하이탑 스니커즈"
+                        "searchKeyword": "여성 화이트 캔버스 스니커즈"
                   }
             ]
       },
       {
             "id": "F10_02",
             "mode": "female_10s",
-            "title": "[여성 10대] 데님 오버롤 원피스 & 스트라이프 티 룩",
+            "title": "[여성 10대] 스카이블루 스트라이프 린넨 셔츠 & 데님 쇼츠 룩",
             "image": "/assets/looks/female_10s/LOOK02.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK02.webp",
-            "totalPrice": 79000,
+            "totalPrice": 72000,
             "items": [
                   {
                         "slot": "상의",
-                        "name": "스트라이프 긴팔 티셔츠",
-                        "price": 16000,
+                        "name": "스카이블루 스트라이프 루즈핏 반팔 셔츠",
+                        "price": 24000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 스트라이프 긴팔 티셔츠"
+                        "searchKeyword": "여성 스트라이프 반팔 린넨 셔츠"
                   },
                   {
                         "slot": "하의",
-                        "name": "데님 서스펜더 오버롤 원피스",
-                        "price": 34000,
+                        "name": "라이트블루 롤업 데님 숏팬츠",
+                        "price": 22000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 데님 멜빵 원피스"
+                        "searchKeyword": "여성 데님 숏팬츠 반바지"
                   },
                   {
                         "slot": "신발",
-                        "name": "클래식 로우탑 스니커즈",
-                        "price": 29000,
+                        "name": "더블 스트랩 컴포트 샌들",
+                        "price": 26000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "캐주얼 로우탑 스니커즈"
+                        "searchKeyword": "여성 스트랩 컴포트 샌들"
                   }
             ]
       },
       {
             "id": "F10_03",
             "mode": "female_10s",
-            "title": "[여성 10대] 프레피 니트 베스트 & 셔츠 레이어드 룩",
+            "title": "[여성 10대] 소프트 옐로우 퍼프소매 플라워 원피스 룩",
             "image": "/assets/looks/female_10s/LOOK03.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK03.webp",
-            "totalPrice": 82000,
+            "totalPrice": 61000,
             "items": [
                   {
-                        "slot": "상의",
-                        "name": "V넥 케이블 니트 베스트",
-                        "price": 22000,
+                        "slot": "원피스",
+                        "name": "파스텔 옐로우 잔꽃 플라워 퍼프 린넨 원피스",
+                        "price": 33000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 V넥 케이블 니트 조끼"
-                  },
-                  {
-                        "slot": "하의",
-                        "name": "플리츠 A라인 스커트",
-                        "price": 21000,
-                        "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 플리츠 A라인 스커트"
+                        "searchKeyword": "여성 옐로우 잔꽃 플라워 린넨 원피스"
                   },
                   {
                         "slot": "신발",
-                        "name": "레이스업 워커 부츠",
-                        "price": 39000,
+                        "name": "크림 화이트 라운드 슬립온",
+                        "price": 28000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 레이스업 워커 부츠"
+                        "searchKeyword": "여성 화이트 단화 슬립온"
                   }
             ]
       },
       {
             "id": "F10_04",
             "mode": "female_10s",
-            "title": "[여성 10대] 오버핏 맨투맨 & 베이지 와이드 카고팬츠 룩",
+            "title": "[여성 10대] 베이비핑크 반팔 그래픽티 & A라인 데님 스커트 룩",
             "image": "/assets/looks/female_10s/LOOK04.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK04.webp",
-            "totalPrice": 100000,
+            "totalPrice": 70800,
             "items": [
                   {
                         "slot": "상의",
-                        "name": "레터링 오버핏 크루넥 맨투맨",
-                        "price": 26000,
+                        "name": "베이비핑크 레터링 반팔 티셔츠",
+                        "price": 17900,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 오버핏 레터링 맨투맨"
+                        "searchKeyword": "여성 핑크 반팔 레터링 티셔츠"
                   },
                   {
                         "slot": "하의",
-                        "name": "베이지 와이드 포켓 카고팬츠",
-                        "price": 32000,
+                        "name": "A라인 중청 데님 미니스커트",
+                        "price": 23900,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 와이드 카고팬츠"
+                        "searchKeyword": "여성 A라인 데님 미니스커트"
                   },
                   {
                         "slot": "신발",
-                        "name": "청키 어글리 스니커즈",
-                        "price": 42000,
+                        "name": "화이트 레이스업 하이탑 스니커즈",
+                        "price": 29000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 청키 어글리 슈즈"
+                        "searchKeyword": "화이트 캔버스 하이탑 스니커즈"
                   }
             ]
       },
       {
             "id": "F10_05",
             "mode": "female_10s",
-            "title": "[여성 10대] 플로럴 미니 원피스 & 케이블 가디건 룩",
+            "title": "[여성 10대] 파스텔 민트 퍼프 블라우스 & 화이트 플리츠 스커트 룩",
             "image": "/assets/looks/female_10s/LOOK05.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK05.webp",
-            "totalPrice": 98000,
+            "totalPrice": 74500,
             "items": [
                   {
                         "slot": "상의",
-                        "name": "오버사이즈 V넥 니트 가디건",
-                        "price": 31000,
+                        "name": "파스텔 민트 스퀘어넥 퍼프 반팔 블라우스",
+                        "price": 24500,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 루즈핏 케이블 가디건"
+                        "searchKeyword": "여성 민트 퍼프소매 반팔 블라우스"
                   },
                   {
                         "slot": "하의",
-                        "name": "플로럴 프린트 플레어 미니원피스",
-                        "price": 29000,
+                        "name": "화이트 플리츠 셔링 플레어 스커트",
+                        "price": 22000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 플로럴 미니 원피스"
+                        "searchKeyword": "여성 화이트 플리츠 미니스커트"
                   },
                   {
                         "slot": "신발",
-                        "name": "화이트 첼시 앵클부츠",
-                        "price": 38000,
+                        "name": "미니멀 플랫 슈즈",
+                        "price": 28000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 화이트 첼시 앵클부츠"
+                        "searchKeyword": "여성 화이트 플랫 슈즈"
                   }
             ]
       },
       {
             "id": "F10_06",
             "mode": "female_10s",
-            "title": "[여성 10대] 오버핏 니트 가디건 & 스트레이트 연청 데님 룩",
+            "title": "[여성 10대] 그레이 크롭 반팔 후디 & 블랙 쿨링 카고팬츠 룩",
             "image": "/assets/looks/female_10s/LOOK06.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK06.webp",
-            "totalPrice": 84000,
+            "totalPrice": 87000,
             "items": [
                   {
                         "slot": "상의",
-                        "name": "루즈핏 브이넥 니트 가디건",
-                        "price": 29000,
+                        "name": "멜란지 그레이 크롭 반팔 후드티",
+                        "price": 22000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 루즈핏 니트 가디건"
+                        "searchKeyword": "여성 크롭 반팔 후드티"
                   },
                   {
                         "slot": "하의",
-                        "name": "하이웨스트 일자 데님 팬츠",
-                        "price": 28000,
+                        "name": "블랙 와이드 쿨링 조거 카고팬츠",
+                        "price": 27000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 하이웨스트 일자 데님"
+                        "searchKeyword": "여성 와이드 쿨링 카고팬츠"
                   },
                   {
                         "slot": "신발",
-                        "name": "코튼 캔버스 토트 & 스니커즈",
-                        "price": 27000,
+                        "name": "청키 볼드 레트로 스니커즈",
+                        "price": 38000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 코튼 캔버스 스니커즈"
+                        "searchKeyword": "여성 어글리 볼드 스니커즈"
                   }
             ]
       },
       {
             "id": "F10_07",
             "mode": "female_10s",
-            "title": "[여성 10대] 아가일 니트 베스트 & 슬릿 미니스커트 룩",
+            "title": "[여성 10대] 라벤더 골지 반팔 가디건 & 크림 코튼 쇼츠 룩",
             "image": "/assets/looks/female_10s/LOOK07.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK07.webp",
-            "totalPrice": 78000,
+            "totalPrice": 70900,
             "items": [
                   {
                         "slot": "상의",
-                        "name": "클래식 아가일 니트 조끼",
-                        "price": 23000,
+                        "name": "라벤더 파스텔 슬림 골지 반팔 가디건",
+                        "price": 21900,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 아가일 패턴 니트 베스트"
+                        "searchKeyword": "여성 라벤더 반팔 골지 가디건"
                   },
                   {
                         "slot": "하의",
-                        "name": "사이드 슬릿 H라인 미니스커트",
-                        "price": 22000,
+                        "name": "크림 아이보리 코튼 밴딩 반바지",
+                        "price": 19000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 슬릿 H라인 스커트"
+                        "searchKeyword": "여성 코튼 쇼츠 반바지"
                   },
                   {
                         "slot": "신발",
-                        "name": "스트랩 메리제인 슈즈",
-                        "price": 33000,
+                        "name": "베이지 슬립온 에스파드류",
+                        "price": 30000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 플랫 메리제인 슈즈"
+                        "searchKeyword": "여성 에스파드류 슬립온"
                   }
             ]
       },
       {
             "id": "F10_08",
             "mode": "female_10s",
-            "title": "[여성 10대] 크롭 데님 자켓 & 플리츠 스커트 룩",
+            "title": "[여성 10대] 네이비 세일러 칼라 블라우스 & 그레이 테니스 스커트 룩",
             "image": "/assets/looks/female_10s/LOOK08.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK08.webp",
-            "totalPrice": 90000,
+            "totalPrice": 77000,
             "items": [
                   {
                         "slot": "상의",
-                        "name": "다크블루 크롭 데님 자켓",
-                        "price": 38000,
+                        "name": "네이비 리본 타이 세일러 반팔 블라우스",
+                        "price": 25000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 크롭 청자켓"
+                        "searchKeyword": "여성 세일러 카라 반팔 블라우스"
                   },
                   {
                         "slot": "하의",
-                        "name": "블랙 플리츠 테니스 스커트",
-                        "price": 21000,
+                        "name": "그레이 플리츠 테니스 미니스커트",
+                        "price": 20000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 블랙 플리츠 스커트"
+                        "searchKeyword": "여성 그레이 테니스 스커트"
                   },
                   {
                         "slot": "신발",
-                        "name": "화이트 코트 스니커즈",
-                        "price": 31000,
+                        "name": "클래식 블랙 페니 로퍼",
+                        "price": 32000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 화이트 코트화"
+                        "searchKeyword": "여성 블랙 페니 로퍼"
                   }
             ]
       },
       {
             "id": "F10_09",
             "mode": "female_10s",
-            "title": "[여성 10대] 스트라이프 니트 스웨터 & 코듀로이 와이드 팬츠 룩",
+            "title": "[여성 10대] 버터크림 박시 반팔 셔츠 & 핀턱 버뮤다 쇼츠 룩",
             "image": "/assets/looks/female_10s/LOOK09.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK09.webp",
-            "totalPrice": 99000,
+            "totalPrice": 73800,
             "items": [
                   {
                         "slot": "상의",
-                        "name": "루즈핏 보더 스트라이프 스웨터",
-                        "price": 30000,
+                        "name": "버터크림 오픈카라 박시 반팔 셔츠",
+                        "price": 23900,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 보더 스트라이프 니트"
+                        "searchKeyword": "여성 반팔 오픈카라 린넨 셔츠"
                   },
                   {
                         "slot": "하의",
-                        "name": "브라운 코듀로이 와이드 팬츠",
-                        "price": 33000,
+                        "name": "베이지 카키 투핀턱 버뮤다 숏팬츠",
+                        "price": 21900,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 코듀로이 와이드 팬츠"
+                        "searchKeyword": "여성 핀턱 버뮤다 쇼츠"
                   },
                   {
                         "slot": "신발",
-                        "name": "스웨이드 로우 스니커즈",
-                        "price": 36000,
+                        "name": "브라운 크로스 스트랩 슬리퍼 샌들",
+                        "price": 28000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 스웨이드 스니커즈"
+                        "searchKeyword": "여성 크로스 스트랩 샌들"
                   }
             ]
       },
       {
             "id": "F10_10",
             "mode": "female_10s",
-            "title": "[여성 10대] 파스텔 맨투맨 & 핑크 플리츠 스커트 룩",
+            "title": "[여성 10대] 스카이블루 스퀘어넥 반팔 니트 & 아이보리 와이드 슬랙스 룩",
             "image": "/assets/looks/female_10s/LOOK10.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK10.webp",
-            "totalPrice": 74000,
+            "totalPrice": 78900,
             "items": [
                   {
                         "slot": "상의",
-                        "name": "소프트 파스텔 루즈핏 맨투맨",
-                        "price": 25000,
+                        "name": "소프트 스카이블루 스퀘어넥 슬림 반팔 니트",
+                        "price": 21900,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 소프트 파스텔 맨투맨"
+                        "searchKeyword": "여성 스퀘어넥 반팔 여름 니트"
                   },
                   {
                         "slot": "하의",
-                        "name": "베이비핑크 플리츠 미니스커트",
-                        "price": 21000,
+                        "name": "아이보리 린넨 와이드 롱 슬랙스",
+                        "price": 28000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 핑크 플리츠 스커트"
+                        "searchKeyword": "여성 린넨 와이드 슬랙스"
                   },
                   {
                         "slot": "신발",
-                        "name": "클래식 화이트 스니커즈",
-                        "price": 28000,
+                        "name": "화이트 심플 로우 스니커즈",
+                        "price": 29000,
                         "coupangUrl": "https://www.coupang.com",
-                        "searchKeyword": "여성 클래식 화이트 스니커즈"
+                        "searchKeyword": "여성 화이트 심플 스니커즈"
                   }
             ]
       }
