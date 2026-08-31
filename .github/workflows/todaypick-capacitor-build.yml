@@ -231,7 +231,6 @@ jobs:
           releaseFiles: ${{ env.AAB_PATH }}
           track: internal
           status: completed
-          changesNotSentForReview: true
 
       - name: Cleanup Keystore
         if: always()
