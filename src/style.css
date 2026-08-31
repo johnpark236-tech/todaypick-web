@@ -162,22 +162,24 @@ body {
 
 .now-playing-title {
   display: inline-block;
+  flex-shrink: 0;
   font-size: calc(11px * var(--now-playing-title-scale, 1.5));
   font-weight: 700;
   color: var(--color-text-main);
   opacity: 0.88;
   white-space: nowrap;
-  animation: marquee-left-to-right 8s ease-in-out infinite alternate;
+  padding-left: 100%;
+  animation: marquee-right-to-left 10s linear infinite;
   will-change: transform;
 }
 
-/* Marquee: travel distance customizable (default 30mm) */
-@keyframes marquee-left-to-right {
+/* Marquee: strictly right-to-left continuous scroll (no bounce, no rightward movement) */
+@keyframes marquee-right-to-left {
   0% {
     transform: translateX(0);
   }
   100% {
-    transform: translateX(var(--marquee-dist, 30mm));
+    transform: translateX(-100%);
   }
 }
 
