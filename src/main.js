@@ -7,6 +7,7 @@ import { CoupangService } from './services/coupang.js';
 import { StorageService } from './services/storage.js';
 import { AudioHub } from './services/audio.js';
 import { APP_DISPLAY_VERSION } from './config/version.js';
+import { UpdaterService } from './services/updater.js';
 
 // 12 Demographic groups ordered sequentially for vertical swipe navigation
 const ALL_GROUPS = [
@@ -87,7 +88,11 @@ const dom = {
   toast: document.getElementById('toast'),
   exitDialogBackdrop: document.getElementById('exit-dialog-backdrop'),
   btnExitCancel: document.getElementById('btn-exit-cancel'),
-  btnExitConfirm: document.getElementById('btn-exit-confirm')
+  btnExitConfirm: document.getElementById('btn-exit-confirm'),
+  inappUpdateDialog: document.getElementById('inapp-update-dialog'),
+  lblUpdateDesc: document.getElementById('update-dialog-desc'),
+  btnUpdateLater: document.getElementById('btn-update-later'),
+  btnUpdateNow: document.getElementById('btn-update-now')
 };
 
 // Toast notification
@@ -488,6 +493,24 @@ async function initApp() {
 
   // Setup Event Listeners
   setupEventListeners();
+
+  // Check Google Play In-App Updates asynchronously
+  setTimeout(() => {
+    UpdaterService.checkAndPrompt({
+      dialog: dom.inappUpdateDialog,
+      desc: dom.lblUpdateDesc
+    });
+  }, 1200);
+
+  // Global helper for In-App update testing & evidence capture
+  window.testShowUpdatePrompt = (versionName = 'v0.3', versionCode = 50) => {
+    if (dom.lblUpdateDesc) {
+      dom.lblUpdateDesc.textContent = `TodayPick 새 버전(${versionName} / vc${versionCode})이 준비되었습니다. 지금 업데이트하시겠습니까?`;
+    }
+    if (dom.inappUpdateDialog) {
+      dom.inappUpdateDialog.style.display = 'flex';
+    }
+  };
 }
 
 function updateBgmButtonUi(isEnabled) {
@@ -889,6 +912,24 @@ function setupEventListeners() {
   if (dom.exitDialogBackdrop) {
     dom.exitDialogBackdrop.addEventListener('click', (e) => {
       if (e.target === dom.exitDialogBackdrop) setExitDialog(false);
+    });
+  }
+
+  // In-App Update Modal Listeners
+  if (dom.btnUpdateLater) {
+    dom.btnUpdateLater.addEventListener('click', () => {
+      AudioHub.tap();
+      if (dom.inappUpdateDialog) dom.inappUpdateDialog.style.display = 'none';
+      UpdaterService.isDismissedThisSession = true;
+    });
+  }
+
+  if (dom.btnUpdateNow) {
+    dom.btnUpdateNow.addEventListener('click', async () => {
+      AudioHub.tap();
+      if (dom.inappUpdateDialog) dom.inappUpdateDialog.style.display = 'none';
+      showToast('Google Play 업데이트를 시작합니다...');
+      await UpdaterService.startUpdateFlow();
     });
   }
 

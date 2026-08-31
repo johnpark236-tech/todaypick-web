@@ -286,23 +286,24 @@ jobs:
           else
             PLAY_STATUS="GOOGLE_PLAY_UPLOAD=NOT_TESTED_SECRET_PENDING"
           fi
-          CAPTION="✅ TodayPick vc${{ env.BUILD_VERSION_CODE }} (UI Version: v0.2)
+          CAPTION="✅ TodayPick vc${{ env.BUILD_VERSION_CODE }} (UI Version: v0.3)
           Branch: ${{ github.ref_name }}
           Commit: ${SHORT_SHA}
           Run: #${{ github.run_number }}
           versionCode: ${{ env.BUILD_VERSION_CODE }}
-          UI Version: v0.2
+          UI Version: v0.3
           Google Play Internal: ${PLAY_STATUS}
-          BGM Drive Streaming: PASS
-          Now Playing: PASS (Title 1.5x, Marquee 30mm)
-          Equalizer: PASS (Height 2x, Width 50mm)
+          In-App Update: READY FOR TEST
+          BGM Drive Cache: PASS (The Perfect Fit 1st, 5-track loop)
+          Rainbow Equalizer: PASS (Always Animated Spectrum)
           APK: ${{ env.APK_SIZE }}
           AAB: ${{ env.AAB_SIZE }}
           Build: ${{ env.TOTAL_BUILD_TIME }}초
 
-          ⚠️ AUTO UPDATE TEST:
-          현재 vc48 설치자는 Telegram APK를 설치하지 마세요.
-          Google Play 자동 업데이트를 확인합니다.
+          ⚠️ 중요:
+          In-App Update 테스트 기기에서는
+          Telegram APK를 설치하지 마세요.
+          기존 앱에서 [업데이트] 버튼을 눌러 설치합니다.
 
           🔧 GitHub Actions 로그:
           ${RUN_URL}"

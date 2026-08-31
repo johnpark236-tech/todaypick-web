@@ -1,16 +1,19 @@
 /**
- * TodayPick Audio Service (AudioHub) - vc49
- * - Solves BGM silence root causes:
- *   1. Eliminates Web Audio createMediaElementSource CORS muting trap
- *   2. Native speaker audio playback guaranteed via HTMLAudioElement
- *   3. Touch/gesture autoplay unlock for Android WebView
- *   4. Eliminates confusing 'Silent Mode' UI text
- *   5. Seamless 5-track Google Drive streaming loop
- *   6. Dynamic reactive Equalizer synced to active playback
- *   7. Full Volume and BGM ON/OFF control with persistence
+ * TodayPick Audio Service (AudioHub) - vc50
+ * - Reliable Drive BGM Cache Architecture:
+ *   1. Remote Source: Google Drive
+ *   2. Download on demand via CacheStorage Blob
+ *   3. Zero MP3s embedded in APK/AAB bundle
+ *   4. Local Blob URL playback eliminating WebView CORS/Range streaming issues
+ *   5. Seamless 5-track loop: The Perfect Fit -> Ice Cubes in the Sun -> Seven AM Sharp -> Sunday Hanger -> Morning Palette
+ *   6. Single Audio instance strictly preventing simultaneous duplicates
+ *   7. Decoupled from Equalizer (Zero Web Audio Analyser blocking)
+ *   8. Full Volume and BGM ON/OFF control with persistence
  */
 
 import { BGM_PLAYLIST } from '../data/bgmManifest.js';
+
+const CACHE_NAME = 'todaypick_bgm_cache_v1';
 
 class AudioService {
   constructor() {
@@ -36,15 +39,13 @@ class AudioService {
     this.playlist = BGM_PLAYLIST || [];
     this.currentTrackIndex = 0;
     this.isInitialized = false;
-    this.consecutiveFailures = 0;
 
-    // UI Listeners & Elements
+    // Blob URL cache in memory
+    this.blobUrlMap = new Map();
+    this.downloadingSet = new Set();
+
+    // UI Listeners
     this.trackChangeListeners = [];
-    this.equalizerBars = [];
-    this.eqAnimationId = null;
-
-    // AudioContext for system audio timing
-    this.audioCtx = null;
   }
 
   init() {
@@ -58,37 +59,30 @@ class AudioService {
       this.bgmAudio.volume = this.bgmVolume;
       this.bgmAudio.preload = 'auto';
 
-      // Load initial track
-      if (this.playlist.length > 0) {
-        this.applyCurrentTrack();
-      }
-
-      // Track Ended Event -> Sequential progression
+      // 2. Track Ended Event -> Sequential progression
       this.bgmAudio.addEventListener('ended', () => {
-        console.log('[AudioHub] Track ended. Advancing to next track.');
+        console.log('[AudioHub] Track completed. Advancing to next track.');
         this.nextTrack();
       });
 
-      // Error handler -> gracefully retry or advance
+      // 3. Audio Error Handler -> Fallback to next track
       this.bgmAudio.addEventListener('error', (e) => {
-        console.warn('[AudioHub] Track stream notice on index', this.currentTrackIndex, e);
-        this.consecutiveFailures++;
-        if (this.consecutiveFailures < this.playlist.length) {
-          setTimeout(() => this.nextTrack(), 1000);
-        } else {
-          // Reset failure counter after cycling through once to prevent loop flood
-          this.consecutiveFailures = 0;
-        }
+        console.warn('[AudioHub] Playback error on track', this.currentTrackIndex, e);
+        setTimeout(() => this.nextTrack(), 1000);
       });
 
-      // SFX Audio element (touch tap)
+      // 4. SFX Audio element (touch tap)
       this.tapAudio = new Audio('/audio/sfx_tap.wav');
       this.tapAudio.volume = this.sfxVolume;
       this.tapAudio.preload = 'auto';
 
-      // One-time user gesture unlock for mobile WebView autoplay policy
+      // 5. Pre-warm first track cache & apply title
+      if (this.playlist.length > 0) {
+        this.applyCurrentTrack();
+      }
+
+      // 6. User gesture unlock for mobile WebView autoplay policy
       const unlockGesture = () => {
-        this.unlockAudio();
         if (this.isBgmEnabled && !this.hasBgmStarted && this.isAppActive) {
           this.tryPlayBgm();
         }
@@ -97,9 +91,6 @@ class AudioService {
       window.addEventListener('pointerdown', unlockGesture, { passive: true });
       window.addEventListener('touchstart', unlockGesture, { passive: true });
       window.addEventListener('keydown', unlockGesture, { passive: true });
-
-      // Start Equalizer animation loop
-      this.startEqualizerLoop();
 
       // Initial attempt to play if enabled
       if (this.isBgmEnabled) {
@@ -110,33 +101,88 @@ class AudioService {
     }
   }
 
-  unlockAudio() {
-    if (!this.audioCtx) {
-      try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (AudioContext) {
-          this.audioCtx = new AudioContext();
+  /**
+   * Resolves audio source URL: checks memory blob, then CacheStorage, then downloads.
+   */
+  async resolveTrackUrl(track) {
+    if (!track) return null;
+
+    // Check in-memory object URL
+    if (this.blobUrlMap.has(track.id)) {
+      return this.blobUrlMap.get(track.id);
+    }
+
+    // Try CacheStorage
+    try {
+      if ('caches' in window) {
+        const cache = await caches.open(CACHE_NAME);
+        const cachedResp = await cache.match(track.url);
+        if (cachedResp) {
+          const blob = await cachedResp.blob();
+          if (blob && blob.size > 10000) {
+            const blobUrl = URL.createObjectURL(blob);
+            this.blobUrlMap.set(track.id, blobUrl);
+            console.log(`[AudioHub] Loaded ${track.fileName} from app cache (${blob.size} bytes)`);
+            return blobUrl;
+          }
         }
-      } catch {}
+
+        // Download in background if not already downloading
+        if (!this.downloadingSet.has(track.id)) {
+          this.downloadingSet.add(track.id);
+          fetch(track.url, { mode: 'cors' })
+            .then(async (resp) => {
+              if (resp.ok) {
+                const clone = resp.clone();
+                const blob = await resp.blob();
+                if (blob && blob.size > 10000) {
+                  await cache.put(track.url, clone);
+                  const blobUrl = URL.createObjectURL(blob);
+                  this.blobUrlMap.set(track.id, blobUrl);
+                  console.log(`[AudioHub] Downloaded and cached ${track.fileName} (${blob.size} bytes)`);
+                  // If current track is still waiting for src, apply it
+                  if (this.playlist[this.currentTrackIndex]?.id === track.id && this.bgmAudio && !this.bgmAudio.src) {
+                    this.bgmAudio.src = blobUrl;
+                    if (this.isBgmEnabled && this.isAppActive) {
+                      this.bgmAudio.play().catch(() => {});
+                    }
+                  }
+                }
+              }
+            })
+            .catch((err) => {
+              console.warn(`[AudioHub] Background cache fetch note for ${track.fileName}:`, err.message);
+            })
+            .finally(() => {
+              this.downloadingSet.delete(track.id);
+            });
+        }
+      }
+    } catch (e) {
+      console.warn('[AudioHub] Cache storage note:', e.message);
     }
-    if (this.audioCtx && this.audioCtx.state === 'suspended') {
-      this.audioCtx.resume().catch(() => {});
-    }
+
+    // Fallback: direct streaming URL while downloading
+    return track.url;
   }
 
-  applyCurrentTrack() {
+  async applyCurrentTrack() {
     if (!this.bgmAudio || !this.playlist.length) return;
     const track = this.playlist[this.currentTrackIndex];
     if (!track) return;
-    
-    this.bgmAudio.src = track.url;
+
     this.notifyTrackChange(track.title);
+
+    const playUrl = await this.resolveTrackUrl(track);
+    if (playUrl) {
+      this.bgmAudio.src = playUrl;
+    }
   }
 
-  nextTrack() {
+  async nextTrack() {
     if (!this.playlist.length) return;
     this.currentTrackIndex = (this.currentTrackIndex + 1) % this.playlist.length;
-    this.applyCurrentTrack();
+    await this.applyCurrentTrack();
 
     if (this.isBgmEnabled && this.isAppActive && this.bgmAudio) {
       this.bgmAudio.currentTime = 0;
@@ -165,65 +211,12 @@ class AudioService {
     }
   }
 
-  setEqualizerElements(elements) {
-    this.equalizerBars = Array.from(elements);
-  }
-
-  startEqualizerLoop() {
-    let lastTime = 0;
-    const intervalMs = 50; // ~20fps power-efficient mobile rendering
-
-    const tick = (timestamp) => {
-      if (timestamp - lastTime >= intervalMs) {
-        lastTime = timestamp;
-        this.updateEqualizer();
-      }
-      this.eqAnimationId = requestAnimationFrame(tick);
-    };
-
-    this.eqAnimationId = requestAnimationFrame(tick);
-  }
-
-  updateEqualizer() {
-    if (!this.equalizerBars || !this.equalizerBars.length) return;
-
-    // Check if BGM is actively outputting sound
-    const isPlaying = Boolean(
-      this.isBgmEnabled &&
-      this.isAppActive &&
-      this.bgmAudio &&
-      !this.bgmAudio.paused &&
-      !this.bgmAudio.ended
-    );
-
-    if (!isPlaying) {
-      // Idle state: all bars resting at minimum height
-      this.equalizerBars.forEach(bar => {
-        bar.style.height = '2px';
-      });
-      return;
-    }
-
-    // Dynamic rhythmic visualization reacting to audio playback
-    const now = performance.now() / 140;
-    const numBars = this.equalizerBars.length;
-    
-    this.equalizerBars.forEach((bar, idx) => {
-      // Combine multiple harmonic frequencies for organic sound wave look
-      const wave1 = Math.sin(now * 1.5 + idx * 0.9);
-      const wave2 = Math.cos(now * 0.8 + idx * 1.3);
-      const wave3 = Math.sin(now * 2.2 + idx * 0.5);
-      const norm = Math.max(0, Math.min(1, (wave1 + wave2 + wave3 + 3) / 6));
-      
-      // Scale from 2px to 24px (2x height)
-      const h = Math.max(2, Math.min(24, Math.round(2 + norm * 22)));
-      bar.style.height = `${h}px`;
-    });
+  setEqualizerElements() {
+    // Decoupled: Equalizer is handled entirely via Rainbow CSS Animation
   }
 
   tryPlayBgm() {
     if (!this.bgmAudio || !this.isAppActive || !this.isBgmEnabled) return;
-    this.unlockAudio();
 
     const p = this.bgmAudio.play();
     if (p !== undefined) {
@@ -241,7 +234,6 @@ class AudioService {
     localStorage.setItem('todaypick_bgm_enabled', String(this.isBgmEnabled));
 
     if (this.isBgmEnabled) {
-      this.unlockAudio();
       if (this.isAppActive && this.bgmAudio) {
         this.bgmAudio.play().then(() => {
           this.hasBgmStarted = true;
@@ -268,7 +260,6 @@ class AudioService {
     if (now - this.lastTapTime < this.retriggerBlockMs) return;
     this.lastTapTime = now;
 
-    this.unlockAudio();
     if (this.isBgmEnabled && (!this.hasBgmStarted || (this.bgmAudio && this.bgmAudio.paused))) {
       this.tryPlayBgm();
     }
@@ -305,7 +296,6 @@ class AudioService {
     this.isAppActive = true;
 
     if (this.isBgmEnabled && this.wasBgmPlayingBeforeBackground && this.bgmAudio) {
-      this.unlockAudio();
       this.bgmAudio.play().then(() => {
         this.hasBgmStarted = true;
       }).catch(() => {
