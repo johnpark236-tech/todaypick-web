@@ -786,15 +786,16 @@ export class OutfitManager {
   constructor() {
     this.categories = {};
 
-    // 1. Female 20s (Existing canonical female looks)
-    this.categories.female_20s = FEMALE_LOOKS.map(look => {
+    // 1. Female 20s (Canonical female looks mapped to new 10-cut assets)
+    this.categories.female_20s = FEMALE_LOOKS.slice(0, 10).map((look, index) => {
+      const fileNo = String(index + 1).padStart(2, '0');
       const totalPrice = look.items.reduce((acc, it) => acc + it.price, 0);
       return {
         id: look.id,
         mode: 'female_20s',
         title: `[여성 20대] ${look.title}`,
-        image: `/assets/looks/real/${look.id}.jpg`,
-        thumbnail: `/assets/looks/real/${look.id}.jpg`,
+        image: `/assets/looks/female_20s/LOOK${fileNo}.webp`,
+        thumbnail: `/assets/looks/female_20s/LOOK${fileNo}.webp`,
         totalPrice,
         items: look.items.map(it => ({
           slot: it.slot,
@@ -806,15 +807,16 @@ export class OutfitManager {
       };
     });
 
-    // 2. Male 20s (Existing canonical male looks)
-    this.categories.male_20s = MALE_LOOKS.map(look => {
+    // 2. Male 20s (Canonical male looks mapped to new 10-cut assets)
+    this.categories.male_20s = MALE_LOOKS.slice(0, 10).map((look, index) => {
+      const fileNo = String(index + 1).padStart(2, '0');
       const totalPrice = look.items.reduce((acc, it) => acc + it.price, 0);
       return {
         id: look.id,
         mode: 'male_20s',
         title: `[남성 20대] ${look.title}`,
-        image: `/assets/looks/male2d/${look.id}.webp`,
-        thumbnail: `/assets/looks/male2d/${look.id}.webp`,
+        image: `/assets/looks/male_20s/LOOK${fileNo}.webp`,
+        thumbnail: `/assets/looks/male_20s/LOOK${fileNo}.webp`,
         totalPrice,
         items: look.items.map(it => ({
           slot: it.slot,
