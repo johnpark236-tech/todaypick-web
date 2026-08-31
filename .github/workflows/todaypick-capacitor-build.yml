@@ -169,6 +169,7 @@ jobs:
             AAB_SHA=$(sha256sum "$NEW_AAB" | awk '{print $1}')
             echo "AAB_EXISTS=true" >> $GITHUB_ENV
             echo "AAB_NAME=TodayPick-capacitor-1.0.0-vc$VC.aab" >> $GITHUB_ENV
+            echo "AAB_PATH=$NEW_AAB" >> $GITHUB_ENV
             echo "AAB_SIZE=$AAB_SIZE_MB MB" >> $GITHUB_ENV
             echo "AAB_SHA256=$AAB_SHA" >> $GITHUB_ENV
           else
@@ -210,7 +211,16 @@ jobs:
             echo "Notice: PLAY_CONSOLE_SERVICE_ACCOUNT_JSON secret not set. Skipping Google Play upload."
           fi
 
-      - name: Upload to Google Play Console Internal Testing
+      - name: Verify AAB File for Google Play
+        if: success() && env.AAB_EXISTS == 'true' && steps.play_creds.outputs.CONFIGURED == 'true'
+        run: |
+          if [ -z "${{ env.AAB_PATH }}" ] || [ ! -f "${{ env.AAB_PATH }}" ]; then
+            echo "ERROR: AAB_PATH missing or file does not exist: ${{ env.AAB_PATH }}"
+            exit 1
+          fi
+          echo "AAB file verified: ${{ env.AAB_PATH }} ($(stat -c%s "${{ env.AAB_PATH }}") bytes)"
+
+      - name: Upload to Google Play Console Internal Testing (third-party r0adkll/upload-google-play@v1)
         if: success() && env.AAB_EXISTS == 'true' && steps.play_creds.outputs.CONFIGURED == 'true'
         id: play_upload
         continue-on-error: true
@@ -251,7 +261,7 @@ jobs:
           | **APK SHA256** | `${{ env.APK_SHA256 || 'N/A' }}` |
           | **AAB Artifact** | `${{ env.AAB_NAME || 'N/A' }}` (${{ env.AAB_SIZE || 'N/A' }}) |
           | **AAB SHA256** | `${{ env.AAB_SHA256 || 'N/A' }}` |
-          | **Google Play Internal** | ${{ steps.play_creds.outputs.CONFIGURED == 'true' && (steps.play_upload.outcome == 'success' && '✅ Uploaded to Internal Track' || '⚠️ Upload Failed (See Logs)') || '⏸️ Skipped (Secret Pending)' }} |
+          | **Google Play Internal** | ${{ steps.play_creds.outputs.CONFIGURED == 'true' && (steps.play_upload.outcome == 'success' && '✅ Uploaded to Internal Track (PASS)' || '❌ GOOGLE_PLAY_UPLOAD=FAIL (See Logs)') || '⏸️ NOT_TESTED_SECRET_PENDING' }} |
           EOF
 
       - name: Send APK Directly to Telegram on Success
@@ -268,7 +278,15 @@ jobs:
 
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          PLAY_STATUS="${{ steps.play_creds.outputs.CONFIGURED == 'true' && (steps.play_upload.outcome == 'success' && 'Internal Track Uploaded' || 'Upload Failed') || 'Skipped (Secret Pending)' }}"
+          if [ "${{ steps.play_creds.outputs.CONFIGURED }}" = "true" ]; then
+            if [ "${{ steps.play_upload.outcome }}" = "success" ]; then
+              PLAY_STATUS="GOOGLE_PLAY_UPLOAD=PASS"
+            else
+              PLAY_STATUS="GOOGLE_PLAY_UPLOAD=FAIL"
+            fi
+          else
+            PLAY_STATUS="GOOGLE_PLAY_UPLOAD=NOT_TESTED_SECRET_PENDING"
+          fi
           CAPTION="✅ TodayPick Build PASS
           Branch: ${{ github.ref_name }}
           Commit: ${SHORT_SHA}

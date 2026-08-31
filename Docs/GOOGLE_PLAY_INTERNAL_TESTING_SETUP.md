@@ -1,8 +1,7 @@
 # Google Play Console Internal Testing Track 자동 배포 가이드
 
 **프로젝트**: TodayPick (com.todaypick.app)  
-**배포 방식**: GitHub Actions CI/CD 자동 업로드 (
-0adkll/upload-google-play@v1)  
+**배포 방식**: GitHub Actions CI/CD 자동 업로드 (third-party GitHub Action r0adkll/upload-google-play@v1)  
 **대상 트랙**: Internal Testing (내부 테스트)
 
 ---
