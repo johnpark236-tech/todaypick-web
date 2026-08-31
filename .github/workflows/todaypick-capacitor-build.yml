@@ -197,6 +197,32 @@ jobs:
           path: android/app/build/outputs/bundle/release/*.aab
           retention-days: 7
 
+      - name: Check Google Play Credentials
+        id: play_creds
+        env:
+          PLAY_SECRET: ${{ secrets.PLAY_CONSOLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$PLAY_SECRET" ]; then
+            echo "CONFIGURED=true" >> $GITHUB_OUTPUT
+            echo "Google Play service account secret is configured."
+          else
+            echo "CONFIGURED=false" >> $GITHUB_OUTPUT
+            echo "Notice: PLAY_CONSOLE_SERVICE_ACCOUNT_JSON secret not set. Skipping Google Play upload."
+          fi
+
+      - name: Upload to Google Play Console Internal Testing
+        if: success() && env.AAB_EXISTS == 'true' && steps.play_creds.outputs.CONFIGURED == 'true'
+        id: play_upload
+        continue-on-error: true
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_CONSOLE_SERVICE_ACCOUNT_JSON }}
+          packageName: com.todaypick.app
+          releaseFiles: ${{ env.AAB_PATH }}
+          track: internal
+          status: completed
+          changesNotSentForReview: true
+
       - name: Cleanup Keystore
         if: always()
         run: |
@@ -225,6 +251,7 @@ jobs:
           | **APK SHA256** | `${{ env.APK_SHA256 || 'N/A' }}` |
           | **AAB Artifact** | `${{ env.AAB_NAME || 'N/A' }}` (${{ env.AAB_SIZE || 'N/A' }}) |
           | **AAB SHA256** | `${{ env.AAB_SHA256 || 'N/A' }}` |
+          | **Google Play Internal** | ${{ steps.play_creds.outputs.CONFIGURED == 'true' && (steps.play_upload.outcome == 'success' && '✅ Uploaded to Internal Track' || '⚠️ Upload Failed (See Logs)') || '⏸️ Skipped (Secret Pending)' }} |
           EOF
 
       - name: Send APK Directly to Telegram on Success
@@ -241,6 +268,7 @@ jobs:
 
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          PLAY_STATUS="${{ steps.play_creds.outputs.CONFIGURED == 'true' && (steps.play_upload.outcome == 'success' && 'Internal Track Uploaded' || 'Upload Failed') || 'Skipped (Secret Pending)' }}"
           CAPTION="✅ TodayPick Build PASS
           Branch: ${{ github.ref_name }}
           Commit: ${SHORT_SHA}
@@ -248,6 +276,7 @@ jobs:
           versionCode: ${{ env.BUILD_VERSION_CODE }}
           APK: ${{ env.APK_SIZE }}
           AAB: ${{ env.AAB_SIZE }}
+          Google Play: ${PLAY_STATUS}
           Build: ${{ env.TOTAL_BUILD_TIME }}초
 
           🔧 GitHub Actions 로그:
