@@ -27,6 +27,8 @@ on:
       - 'public/**'
       - 'package.json'
       - 'package-lock.json'
+      - 'vite.config.js'
+      - 'scripts/**'
       - 'capacitor.config.*'
       - 'android/**'
       - '.github/workflows/**'
@@ -62,8 +64,15 @@ jobs:
         run: |
           T0=$(date +%s)
           npm run build
+          if find dist -type f \( -name '*.mp3' -o -name '*.ogg' \) | grep -q .; then
+            echo "ERROR: embedded BGM audio remained in dist"
+            find dist -type f \( -name '*.mp3' -o -name '*.ogg' \)
+            exit 1
+          fi
           T1=$(date +%s)
           echo "NPM_BUILD_TIME=$((T1 - T0))" >> $GITHUB_ENV
+          UI_VERSION=$(node -e "import('./src/config/version.js').then(m=>console.log(m.APP_DISPLAY_VERSION))")
+          echo "APP_DISPLAY_VERSION=$UI_VERSION" >> $GITHUB_ENV
 
       - name: Setup Java JDK 21
         uses: actions/setup-java@v4
@@ -252,6 +261,7 @@ jobs:
           | **Commit** | `${{ github.sha }}` |
           | **Run Number** | `${{ github.run_number }}` |
           | **versionCode** | `${{ env.BUILD_VERSION_CODE }}` |
+          | **UI Version** | `${{ env.APP_DISPLAY_VERSION }}` |
           | **Vite Build Time** | `${{ env.NPM_BUILD_TIME }}s` |
           | **Cap Sync Time** | `${{ env.CAP_SYNC_TIME }}s` |
           | **Gradle Build Time** | `${{ env.GRADLE_BUILD_TIME }}s` |
@@ -286,15 +296,15 @@ jobs:
           else
             PLAY_STATUS="GOOGLE_PLAY_UPLOAD=NOT_TESTED_SECRET_PENDING"
           fi
-          CAPTION="✅ TodayPick vc${{ env.BUILD_VERSION_CODE }} (UI Version: v0.3)
+          CAPTION="✅ TodayPick vc${{ env.BUILD_VERSION_CODE }} (UI Version: ${{ env.APP_DISPLAY_VERSION }})
           Branch: ${{ github.ref_name }}
           Commit: ${SHORT_SHA}
           Run: #${{ github.run_number }}
           versionCode: ${{ env.BUILD_VERSION_CODE }}
-          UI Version: v0.3
+          UI Version: ${{ env.APP_DISPLAY_VERSION }}
           Google Play Internal: ${PLAY_STATUS}
           In-App Update: READY FOR TEST
-          BGM Drive Cache: PASS (The Perfect Fit 1st, 5-track loop)
+          BGM Native Android Cache: READY FOR REAL DEVICE TEST
           Rainbow Equalizer: PASS (Always Animated Spectrum)
           APK: ${{ env.APK_SIZE }}
           AAB: ${{ env.AAB_SIZE }}

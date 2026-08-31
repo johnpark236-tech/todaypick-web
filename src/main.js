@@ -70,6 +70,7 @@ const dom = {
   valBgmVol: document.getElementById('val-bgm-volume'),
   sliderSfxVol: document.getElementById('slider-sfx-volume'),
   valSfxVol: document.getElementById('val-sfx-volume'),
+  toggleSfx: document.getElementById('toggle-sfx-enabled'),
   valScale: document.getElementById('val-scale'),
   valOffsetY: document.getElementById('val-offset-y'),
   valGap: document.getElementById('val-gap'),
@@ -448,10 +449,12 @@ async function initApp() {
   // Sync Audio Settings
   const curBgmVol = Math.round(AudioHub.getBgmVolume() * 100);
   const curSfxVol = Math.round(AudioHub.getSfxVolume() * 100);
+  const curSfxEnabled = AudioHub.getIsSfxEnabled();
   if (dom.sliderBgmVol) dom.sliderBgmVol.value = curBgmVol;
   if (dom.valBgmVol) dom.valBgmVol.textContent = `${curBgmVol}%`;
   if (dom.sliderSfxVol) dom.sliderSfxVol.value = curSfxVol;
   if (dom.valSfxVol) dom.valSfxVol.textContent = `${curSfxVol}%`;
+  if (dom.toggleSfx) dom.toggleSfx.checked = curSfxEnabled;
   updateBgmButtonUi(AudioHub.getIsBgmEnabled());
 
   // Sync Now Playing & Equalizer UI Settings (vc49 Defaults: 1.5x, 30mm, 2.0x, 50mm)
@@ -503,7 +506,7 @@ async function initApp() {
   }, 1200);
 
   // Global helper for In-App update testing & evidence capture
-  window.testShowUpdatePrompt = (versionName = 'v0.3', versionCode = 50) => {
+  window.testShowUpdatePrompt = (versionName = 'v0.4', versionCode = 51) => {
     if (dom.lblUpdateDesc) {
       dom.lblUpdateDesc.textContent = `TodayPick 새 버전(${versionName} / vc${versionCode})이 준비되었습니다. 지금 업데이트하시겠습니까?`;
     }
@@ -649,6 +652,12 @@ function setupEventListeners() {
       AudioHub.setSfxVolume(val / 100);
     });
   }
+  if (dom.toggleSfx) {
+    dom.toggleSfx.addEventListener('change', (e) => {
+      AudioHub.setSfxEnabled(e.target.checked);
+      showToast(e.target.checked ? '효과음을 켰습니다.' : '효과음을 껐습니다.');
+    });
+  }
 
   // Share current outfit via Native Android Share Sheet (KakaoTalk enabled)
   async function shareCurrentOutfit() {
@@ -784,6 +793,12 @@ function setupEventListeners() {
     if (dom.valEqWidth) dom.valEqWidth.textContent = '50mm';
     applyNowPlayingSettings(1.5, 30, 2.0, 50);
 
+    AudioHub.setSfxEnabled(true);
+    AudioHub.setSfxVolume(0.35);
+    if (dom.toggleSfx) dom.toggleSfx.checked = true;
+    if (dom.sliderSfxVol) dom.sliderSfxVol.value = 35;
+    if (dom.valSfxVol) dom.valSfxVol.textContent = '35%';
+
     showToast('설정이 기본값으로 복원되었습니다.');
   });
 
@@ -798,6 +813,7 @@ function setupEventListeners() {
     const bgmVol = AudioHub.getBgmVolume();
     const sfxVol = AudioHub.getSfxVolume();
     const isBgmOn = AudioHub.getIsBgmEnabled();
+    const isSfxOn = AudioHub.getIsSfxEnabled();
 
     const nowPlayingTitleScale = parseFloat(dom.sliderTitleScale?.value) || 1.5;
     const marqueeDistanceMm = parseInt(dom.sliderMarqueeDist?.value) || 30;
@@ -814,6 +830,7 @@ function setupEventListeners() {
       bgmVolume: bgmVol,
       sfxVolume: sfxVol,
       isBgmEnabled: isBgmOn,
+      isSfxEnabled: isSfxOn,
       nowPlayingTitleScale,
       marqueeDistanceMm,
       equalizerHeightScale,
@@ -844,8 +861,9 @@ function setupEventListeners() {
             thumbnailGap: storedUi.thumbnailGap ?? parseInt(dom.sliderGap.value) ?? 4,
             genderButtonScale: storedUi.genderButtonScale ?? storedUi.modeButtonScale ?? 2.0,
             bgmVolume: storedUi.bgmVolume ?? AudioHub.getBgmVolume() ?? 0.55,
-            sfxVolume: storedUi.sfxVolume ?? AudioHub.getSfxVolume() ?? 0.50,
+            sfxVolume: storedUi.sfxVolume ?? AudioHub.getSfxVolume() ?? 0.35,
             isBgmEnabled: storedUi.isBgmEnabled ?? AudioHub.getIsBgmEnabled() ?? true,
+            isSfxEnabled: storedUi.isSfxEnabled ?? AudioHub.getIsSfxEnabled() ?? true,
             nowPlayingTitleScale: storedUi.nowPlayingTitleScale ?? parseFloat(dom.sliderTitleScale?.value) ?? 1.5,
             marqueeDistanceMm: storedUi.marqueeDistanceMm ?? parseInt(dom.sliderMarqueeDist?.value) ?? 30,
             equalizerHeightScale: storedUi.equalizerHeightScale ?? parseFloat(dom.sliderEqHeight?.value) ?? 2.0,
@@ -928,8 +946,13 @@ function setupEventListeners() {
     dom.btnUpdateNow.addEventListener('click', async () => {
       AudioHub.tap();
       if (dom.inappUpdateDialog) dom.inappUpdateDialog.style.display = 'none';
-      showToast('Google Play 업데이트를 시작합니다...');
-      await UpdaterService.startUpdateFlow();
+      if (UpdaterService.updateDownloaded) {
+        showToast('업데이트를 적용합니다...');
+        await UpdaterService.completeUpdate();
+      } else {
+        showToast('Google Play 업데이트를 시작합니다...');
+        await UpdaterService.startUpdateFlow();
+      }
     });
   }
 

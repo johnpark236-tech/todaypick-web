@@ -5,6 +5,7 @@ import time
 import shutil
 import hashlib
 import subprocess
+import re
 from pathlib import Path
 
 # Ensure UTF-8 output
@@ -29,6 +30,12 @@ LOGS_DIR = ROOT_DIR / "logs"
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 DRIVE_TESTER_DIR = Path(r"G:\내 드라이브\TT_Project\TodayPick\tester")
 
+version_text = (ROOT_DIR / "src" / "config" / "version.js").read_text(encoding="utf-8")
+display_match = re.search(r"APP_DISPLAY_VERSION\s*=\s*'([^']+)'", version_text)
+code_match = re.search(r"ANDROID_VERSION_CODE\s*=\s*(\d+)", version_text)
+APP_DISPLAY_VERSION = display_match.group(1) if display_match else "v0.4"
+ANDROID_VERSION_CODE = int(code_match.group(1)) if code_match else 51
+
 t_start = time.time()
 
 print("==================================================")
@@ -36,14 +43,17 @@ print(" TodayPick Capacitor MVP -- Build & Notify Pipeline")
 print("==================================================")
 
 # 1. NPM Build
-print("\n[1/5] Building Web bundle (vite build)...")
+print("\n[1/5] Building Web bundle (npm run build)...")
 t0 = time.time()
-p_npm = subprocess.run(["cmd.exe", "/c", "npx", "vite", "build"], cwd=ROOT_DIR, capture_output=True, encoding="utf-8", errors="replace")
+p_npm = subprocess.run(["cmd.exe", "/c", "npm", "run", "build"], cwd=ROOT_DIR, capture_output=True, encoding="utf-8", errors="replace")
 t_npm = round(time.time() - t0, 2)
 if p_npm.returncode != 0:
     print("NPM BUILD FAILED:\n", p_npm.stderr)
     sys.exit(1)
-print(f"  -> Vite build OK ({t_npm}s)")
+if any((ROOT_DIR / "dist").rglob("*.mp3")) or any((ROOT_DIR / "dist").rglob("*.ogg")):
+    print("NPM BUILD FAILED: embedded BGM audio file remained in dist")
+    sys.exit(1)
+print(f"  -> npm build OK; embedded BGM removed ({t_npm}s)")
 
 # 2. Capacitor Sync
 print("\n[2/5] Syncing Capacitor android...")
@@ -94,8 +104,8 @@ print(f"  -> AAB: {aab_path.name} ({aab_mb} MB, SHA256: {aab_sha[:16]}...)")
 print("\n[4/5] Copying to Google Drive tester folder...")
 t0 = time.time()
 drive_copied = False
-target_apk_name = "TodayPick-capacitor-mvp-260830.apk"
-target_aab_name = "TodayPick-capacitor-mvp-260830.aab"
+target_apk_name = f"TodayPick-{APP_DISPLAY_VERSION}-vc{ANDROID_VERSION_CODE}-audio-update-rootfix-260831.apk"
+target_aab_name = f"TodayPick-{APP_DISPLAY_VERSION}-vc{ANDROID_VERSION_CODE}-audio-update-rootfix-260831.aab"
 
 try:
     if DRIVE_TESTER_DIR.exists():
@@ -118,12 +128,15 @@ t0 = time.time()
 telegram_status = "SKIPPED"
 if send_message:
     msg = (
-        "[TodayPick Capacitor MVP Build PASS]\n\n"
+        f"[TodayPick {APP_DISPLAY_VERSION} vc{ANDROID_VERSION_CODE} Audio/Update Rootfix Build PASS]\n\n"
         f"APK: {target_apk_name}\n"
-        f"Size: {apk_mb} MB (Unity 대비 93% 경량화)\n"
+        f"Size: {apk_mb} MB\n"
         f"AAB: {target_aab_name} ({aab_mb} MB)\n"
         f"Signing: todaypick.keystore (Release)\n"
         f"Package ID: com.todaypick.app\n"
+        f"VersionCode: {ANDROID_VERSION_CODE}\n"
+        f"UI Version: {APP_DISPLAY_VERSION}\n"
+        "Embedded BGM MP3/OGG: NO\n"
         f"Drive: {'PASS' if drive_copied else 'FAIL'}\n\n"
         "--- 소요 시간 ---\n"
         f"Vite 빌드: {t_npm}초\n"
@@ -157,6 +170,8 @@ lines = [
     f"DRIVE_COPY={'PASS' if drive_copied else 'FAIL'}",
     f"TELEGRAM={telegram_status}",
     "PACKAGE_ID=com.todaypick.app",
+    f"VERSION_CODE={ANDROID_VERSION_CODE}",
+    f"UI_VERSION={APP_DISPLAY_VERSION}",
     "PHONE_TEST_READY=YES"
 ]
 res_file.write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -2,6 +2,7 @@ package com.todaypick.app;
 
 import android.app.Activity;
 import android.content.IntentSender;
+import android.content.pm.PackageInfo;
 import android.util.Log;
 
 import com.getcapacitor.JSObject;
@@ -66,6 +67,7 @@ public class AppUpdatePlugin extends Plugin {
             JSObject ret = new JSObject();
             ret.put("updateAvailability", availability);
             ret.put("availableVersionCode", availableVersionCode);
+            ret.put("installedVersionCode", getInstalledVersionCode());
             ret.put("isUpdateAvailable", isAvailable);
             ret.put("isImmediateAllowed", appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE));
             ret.put("isFlexibleAllowed", appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE));
@@ -97,6 +99,10 @@ public class AppUpdatePlugin extends Plugin {
         int updateType = currentUpdateInfo.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE) 
                 ? AppUpdateType.FLEXIBLE 
                 : AppUpdateType.IMMEDIATE;
+        if (!currentUpdateInfo.isUpdateTypeAllowed(updateType)) {
+            call.reject("No allowed Google Play update type is available");
+            return;
+        }
 
         try {
             appUpdateManager.startUpdateFlowForResult(
@@ -118,12 +124,51 @@ public class AppUpdatePlugin extends Plugin {
     @PluginMethod
     public void completeUpdate(PluginCall call) {
         if (appUpdateManager != null) {
-            appUpdateManager.completeUpdate();
-            JSObject ret = new JSObject();
-            ret.put("completed", true);
-            call.resolve(ret);
+            appUpdateManager.completeUpdate().addOnSuccessListener(unused -> {
+                JSObject ret = new JSObject();
+                ret.put("completed", true);
+                call.resolve(ret);
+            }).addOnFailureListener(e -> {
+                Log.w(TAG, "completeUpdate failed: " + e.getMessage());
+                call.reject("completeUpdate failed: " + e.getMessage());
+            });
         } else {
             call.reject("AppUpdateManager is null");
+        }
+    }
+
+    @Override
+    protected void handleOnResume() {
+        super.handleOnResume();
+        if (appUpdateManager == null) return;
+        appUpdateManager.getAppUpdateInfo().addOnSuccessListener(appUpdateInfo -> {
+            if (appUpdateInfo.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
+                Activity activity = getActivity();
+                if (activity == null) return;
+                try {
+                    appUpdateManager.startUpdateFlowForResult(
+                        appUpdateInfo,
+                        activity,
+                        AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build(),
+                        1001
+                    );
+                } catch (IntentSender.SendIntentException e) {
+                    Log.e(TAG, "resume update flow failed", e);
+                }
+            }
+        });
+    }
+
+    private long getInstalledVersionCode() {
+        try {
+            PackageInfo info = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                return info.getLongVersionCode();
+            }
+            return info.versionCode;
+        } catch (Exception e) {
+            Log.w(TAG, "installed version check failed: " + e.getMessage());
+            return -1;
         }
     }
 }

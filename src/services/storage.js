@@ -112,8 +112,9 @@ function collectPersistedSettings() {
     ui: StorageService.getUiConfig() || {},
     audio: {
       bgmEnabled: localStorage.getItem('todaypick_bgm_enabled') !== 'false',
+      sfxEnabled: localStorage.getItem('todaypick_sfx_enabled') !== 'false',
       bgmVolume: Number(localStorage.getItem('todaypick_bgm_volume') ?? 0.55),
-      sfxVolume: Number(localStorage.getItem('todaypick_sfx_volume') ?? 0.50)
+      sfxVolume: Number(localStorage.getItem('todaypick_sfx_volume') ?? 0.35)
     }
   };
 }
@@ -128,6 +129,9 @@ function restorePersistedSettings(payload) {
   if (settings.audio && typeof settings.audio === 'object') {
     if (typeof settings.audio.bgmEnabled === 'boolean') {
       localStorage.setItem('todaypick_bgm_enabled', String(settings.audio.bgmEnabled));
+    }
+    if (typeof settings.audio.sfxEnabled === 'boolean') {
+      localStorage.setItem('todaypick_sfx_enabled', String(settings.audio.sfxEnabled));
     }
     if (Number.isFinite(Number(settings.audio.bgmVolume))) {
       localStorage.setItem('todaypick_bgm_volume', String(settings.audio.bgmVolume));

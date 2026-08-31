@@ -922,6 +922,25 @@ body {
   accent-color: var(--color-primary);
 }
 
+.setting-toggle-item {
+  margin-top: -4px;
+}
+
+.setting-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.setting-toggle-row input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--color-primary);
+}
+
 .settings-btn-row {
   display: flex;
   gap: 10px;
