@@ -7,7 +7,7 @@ android {
         applicationId "com.todaypick.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        def vCode = (System.getenv("BUILD_VERSION_CODE") ?: "51").toInteger()
+        def vCode = (System.getenv("BUILD_VERSION_CODE") ?: "52").toInteger()
         versionCode vCode
         versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
