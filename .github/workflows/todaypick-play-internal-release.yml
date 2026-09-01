@@ -1,53 +1,72 @@
-name: TodayPick Capacitor CI Build
+name: TodayPick Play Internal Release
 
 on:
   workflow_dispatch:
     inputs:
-      build_target:
-        description: 'Build Target (all, apk, aab)'
+      version_code:
+        description: 'Explicit Android versionCode (Required positive integer e.g. 73)'
         required: true
-        default: 'all'
+        type: string
+      track:
+        description: 'Google Play Track (Strictly locked to internal)'
+        required: true
+        default: 'internal'
         type: choice
         options:
-          - all
-          - apk
-          - aab
-      version_code:
-        description: 'Custom Android versionCode (Leave empty for auto: 22 + run_number)'
-        required: false
-        default: ''
-        type: string
-  push:
-    branches:
-      - master
-      - main
-    paths:
-      - 'index.html'
-      - 'src/**'
-      - 'public/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'vite.config.js'
-      - 'scripts/**'
-      - 'capacitor.config.*'
-      - 'android/**'
-      - '.github/workflows/**'
-  pull_request:
-    branches:
-      - master
-      - main
+          - internal
+      release_authorization:
+        description: 'Explicit Release Authorization (Must be RELEASE_AUTHORIZED)'
+        required: true
+        default: 'NO'
+        type: choice
+        options:
+          - 'NO'
+          - 'RELEASE_AUTHORIZED'
 
 concurrency:
-  group: todaypick-capacitor-${{ github.ref }}
-  cancel-in-progress: true
+  group: todaypick-play-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  build:
-    name: Build & Package (No Play Release)
+  release:
+    name: Verify & Release to Play Internal
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
+      - name: Release Gate Check
+        run: |
+          echo "=================================================="
+          echo "TodayPick Play Release Gate Verification"
+          echo "=================================================="
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "FATAL: Release workflow must ONLY be triggered via workflow_dispatch!"
+            exit 1
+          fi
+
+          AUTH="${{ github.event.inputs.release_authorization }}"
+          if [ "$AUTH" != "RELEASE_AUTHORIZED" ]; then
+            echo "FATAL: Release not authorized. Got '$AUTH', expected 'RELEASE_AUTHORIZED'."
+            exit 1
+          fi
+
+          TRACK="${{ github.event.inputs.track }}"
+          if [ "$TRACK" != "internal" ]; then
+            echo "FATAL: Target track '$TRACK' is forbidden. Only 'internal' is permitted."
+            exit 1
+          fi
+
+          VC="${{ github.event.inputs.version_code }}"
+          if ! [[ "$VC" =~ ^[0-9]+$ ]] || [ "$VC" -le 0 ]; then
+            echo "FATAL: version_code must be a positive integer. Got: '$VC'"
+            exit 1
+          fi
+
+          echo "RELEASE_AUTHORIZED=YES"
+          echo "TARGET_TRACK=internal"
+          echo "VERSION_CODE=$VC"
+          echo "PRE_RELEASE_GATE=PASS"
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -108,26 +127,20 @@ jobs:
             echo "ANDROID_KEYSTORE_PATH=$GITHUB_WORKSPACE/android/app/ci-release.keystore" >> $GITHUB_ENV
             echo "Keystore decoded successfully."
           else
-            echo "KEYSTORE_EXISTS=false" >> $GITHUB_ENV
-            echo "WARNING: ANDROID_KEYSTORE_BASE64 secret not set."
+            echo "ERROR: ANDROID_KEYSTORE_BASE64 secret is not configured."
+            exit 1
           fi
 
-      - name: Determine versionCode
+      - name: Enforce Explicit versionCode
         run: |
-          INPUT_VC="${{ github.event.inputs.version_code }}"
-          RUN_NUM="${{ github.run_number }}"
-          if [ -n "$INPUT_VC" ]; then
-            VC="$INPUT_VC"
-          else
-            VC=$((22 + RUN_NUM))
-          fi
+          VC="${{ github.event.inputs.version_code }}"
           echo "BUILD_VERSION_CODE=$VC" >> $GITHUB_ENV
-          echo "Using versionCode: $VC"
+          echo "Enforced explicit release versionCode: $VC"
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Build Android Packages (Release APK & AAB)
+      - name: Build Android Release AAB
         working-directory: android
         env:
           BUILD_VERSION_CODE: ${{ env.BUILD_VERSION_CODE }}
@@ -135,46 +148,18 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          BUILD_TARGET: ${{ github.event.inputs.build_target || 'all' }}
         run: |
           T0=$(date +%s)
-          TASKS=""
-          if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "apk" ]; then
-            TASKS="$TASKS assembleRelease"
-          fi
-          if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "aab" ]; then
-            TASKS="$TASKS bundleRelease"
-          fi
-          echo "Running Gradle tasks: $TASKS"
-          ./gradlew $TASKS
+          echo "Building signed release bundle for versionCode: ${{ env.BUILD_VERSION_CODE }}"
+          ./gradlew bundleRelease
           T1=$(date +%s)
           echo "GRADLE_BUILD_TIME=$((T1 - T0))" >> $GITHUB_ENV
 
-      - name: Standardize and Measure Artifacts
+      - name: Standardize and Measure AAB Artifact
         id: artifacts
         run: |
           VC="${{ env.BUILD_VERSION_CODE }}"
-          APK_DIR="android/app/build/outputs/apk/release"
           AAB_DIR="android/app/build/outputs/bundle/release"
-
-          APK_FILE=$(find "$APK_DIR" -name "*.apk" | head -n 1)
-          if [ -n "$APK_FILE" ]; then
-            NEW_APK="$APK_DIR/TodayPick-capacitor-1.0.0-vc$VC.apk"
-            mv "$APK_FILE" "$NEW_APK"
-            APK_SIZE_BYTES=$(stat -c%s "$NEW_APK")
-            APK_SIZE_MB=$(echo "scale=2; $APK_SIZE_BYTES / 1048576" | bc)
-            APK_SHA=$(sha256sum "$NEW_APK" | awk '{print $1}')
-            echo "APK_EXISTS=true" >> $GITHUB_ENV
-            echo "APK_NAME=TodayPick-capacitor-1.0.0-vc$VC.apk" >> $GITHUB_ENV
-            echo "APK_PATH=$NEW_APK" >> $GITHUB_ENV
-            echo "APK_SIZE=$APK_SIZE_MB MB" >> $GITHUB_ENV
-            echo "APK_SHA256=$APK_SHA" >> $GITHUB_ENV
-          else
-            echo "APK_EXISTS=false" >> $GITHUB_ENV
-            echo "APK_SIZE=N/A" >> $GITHUB_ENV
-            echo "APK_SHA256=N/A" >> $GITHUB_ENV
-          fi
-
           AAB_FILE=$(find "$AAB_DIR" -name "*.aab" | head -n 1)
           if [ -n "$AAB_FILE" ]; then
             NEW_AAB="$AAB_DIR/TodayPick-capacitor-1.0.0-vc$VC.aab"
@@ -187,31 +172,53 @@ jobs:
             echo "AAB_PATH=$NEW_AAB" >> $GITHUB_ENV
             echo "AAB_SIZE=$AAB_SIZE_MB MB" >> $GITHUB_ENV
             echo "AAB_SHA256=$AAB_SHA" >> $GITHUB_ENV
+            echo "Verified release AAB artifact: $NEW_AAB ($AAB_SIZE_MB MB, SHA256: $AAB_SHA)"
           else
-            echo "AAB_EXISTS=false" >> $GITHUB_ENV
-            echo "AAB_SIZE=N/A" >> $GITHUB_ENV
-            echo "AAB_SHA256=N/A" >> $GITHUB_ENV
+            echo "ERROR: AAB build output not found in $AAB_DIR"
+            exit 1
           fi
 
           END_TIME=$(date +%s)
           TOTAL_SEC=$((END_TIME - START_TIME))
           echo "TOTAL_BUILD_TIME=$TOTAL_SEC" >> $GITHUB_ENV
 
-      - name: Upload Release APK Artifact
-        if: env.APK_EXISTS == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: TodayPick-Capacitor-APK-${{ github.run_number }}
-          path: android/app/build/outputs/apk/release/*.apk
-          retention-days: 7
-
       - name: Upload Release AAB Artifact
-        if: env.AAB_EXISTS == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: TodayPick-Capacitor-AAB-${{ github.run_number }}
+          name: TodayPick-Capacitor-Release-AAB-vc${{ env.BUILD_VERSION_CODE }}
           path: android/app/build/outputs/bundle/release/*.aab
-          retention-days: 7
+          retention-days: 30
+
+      - name: Verify Google Play Credentials
+        id: play_creds
+        env:
+          PLAY_SECRET: ${{ secrets.PLAY_CONSOLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$PLAY_SECRET" ]; then
+            echo "CONFIGURED=true" >> $GITHUB_OUTPUT
+            echo "Google Play service account secret is present."
+          else
+            echo "FATAL: PLAY_CONSOLE_SERVICE_ACCOUNT_JSON secret is not configured."
+            exit 1
+          fi
+
+      - name: Verify AAB File Integrity for Play Release
+        run: |
+          if [ -z "${{ env.AAB_PATH }}" ] || [ ! -f "${{ env.AAB_PATH }}" ]; then
+            echo "FATAL: AAB_PATH missing or invalid: ${{ env.AAB_PATH }}"
+            exit 1
+          fi
+          echo "AAB file ready for upload: ${{ env.AAB_PATH }} ($(stat -c%s "${{ env.AAB_PATH }}") bytes)"
+
+      - name: Upload to Google Play Console Internal Testing
+        id: play_upload
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_CONSOLE_SERVICE_ACCOUNT_JSON }}
+          packageName: com.todaypick.app
+          releaseFiles: ${{ env.AAB_PATH }}
+          track: internal
+          status: completed
 
       - name: Cleanup Keystore
         if: always()
@@ -219,33 +226,28 @@ jobs:
           rm -f android/app/ci-release.keystore
           echo "Keystore cleaned up."
 
-      - name: Generate GitHub Job Summary
+      - name: Generate Release Job Summary
         if: always()
         run: |
           cat << 'EOF' >> $GITHUB_STEP_SUMMARY
-          ## 🚀 TodayPick Capacitor Build Summary
+          ## 🚀 TodayPick Play Internal Release Summary
 
           | Property | Value |
           | :--- | :--- |
           | **Status** | ${{ job.status }} |
           | **Package ID** | `com.todaypick.app` |
-          | **Branch** | `${{ github.ref_name }}` |
-          | **Commit** | `${{ github.sha }}` |
-          | **Run Number** | `${{ github.run_number }}` |
+          | **Target Track** | `internal` |
           | **versionCode** | `${{ env.BUILD_VERSION_CODE }}` |
           | **UI Version** | `${{ env.APP_DISPLAY_VERSION }}` |
-          | **Vite Build Time** | `${{ env.NPM_BUILD_TIME }}s` |
-          | **Cap Sync Time** | `${{ env.CAP_SYNC_TIME }}s` |
-          | **Gradle Build Time** | `${{ env.GRADLE_BUILD_TIME }}s` |
-          | **Total Pipeline Time** | `${{ env.TOTAL_BUILD_TIME }}s` |
-          | **APK Artifact** | `${{ env.APK_NAME || 'N/A' }}` (${{ env.APK_SIZE || 'N/A' }}) |
-          | **APK SHA256** | `${{ env.APK_SHA256 || 'N/A' }}` |
+          | **Trigger** | `${{ github.event_name }}` |
+          | **Commit** | `${{ github.sha }}` |
+          | **Run Number** | `${{ github.run_number }}` |
           | **AAB Artifact** | `${{ env.AAB_NAME || 'N/A' }}` (${{ env.AAB_SIZE || 'N/A' }}) |
           | **AAB SHA256** | `${{ env.AAB_SHA256 || 'N/A' }}` |
-          | **Google Play Release** | 🔒 SEPARATED (Build-only workflow. Use 'todaypick-play-internal-release.yml' for Play release) |
+          | **Play Upload Result** | ${{ steps.play_upload.outcome == 'success' && '✅ Uploaded to Internal Track (PASS)' || '❌ FAILED' }} |
           EOF
 
-      - name: Send APK Directly to Telegram on Success
+      - name: Send Telegram Notification on Release Success
         if: success()
         continue-on-error: true
         env:
@@ -256,42 +258,26 @@ jobs:
             echo "Telegram credentials not configured. Skipping."
             exit 0
           fi
-
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          CAPTION="✅ TodayPick vc${{ env.BUILD_VERSION_CODE }} (UI Version: ${{ env.APP_DISPLAY_VERSION }})
-          Branch: ${{ github.ref_name }}
-          Commit: ${SHORT_SHA}
-          Run: #${{ github.run_number }}
+          CAPTION="🚀 TodayPick Google Play Internal Release SUCCESS!
+          Package: com.todaypick.app
+          Track: internal
           versionCode: ${{ env.BUILD_VERSION_CODE }}
           UI Version: ${{ env.APP_DISPLAY_VERSION }}
-          Google Play Release: SEPARATED (Build Only)
-          In-App Update: READY FOR TEST
-          BGM Local Bundled Audio: PASS (5 tracks embedded)
-          Rainbow Equalizer: PASS (Always Animated Spectrum)
-          APK: ${{ env.APK_SIZE }}
+          Commit: ${SHORT_SHA}
           AAB: ${{ env.AAB_SIZE }}
-          Build: ${{ env.TOTAL_BUILD_TIME }}초
+          SHA256: ${{ env.AAB_SHA256 }}
+          Build Time: ${{ env.TOTAL_BUILD_TIME }}s
 
-          🔧 GitHub Actions 로그:
+          🔧 GitHub Actions Run:
           ${RUN_URL}"
 
-          if [ "${{ env.APK_EXISTS }}" = "true" ] && [ -f "${{ env.APK_PATH }}" ]; then
-            RESPONSE=$(curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendDocument" \
-              -F "chat_id=${TG_CHAT}" \
-              -F "document=@${{ env.APK_PATH }}" \
-              -F "caption=${CAPTION}")
-          else
-            RESPONSE=$(curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
-              -d "chat_id=${TG_CHAT}" \
-              --data-urlencode "text=${CAPTION}")
-          fi
+          curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d "chat_id=${TG_CHAT}" \
+            --data-urlencode "text=${CAPTION}" || true
 
-          echo "$RESPONSE" | jq -e '.ok == true' > /dev/null
-          MESSAGE_ID=$(echo "$RESPONSE" | jq -r '.result.message_id // empty')
-          echo "Telegram API ok=true. message_id=${MESSAGE_ID}"
-
-      - name: Send Telegram Notification on Failure
+      - name: Send Telegram Notification on Release Failure
         if: failure()
         continue-on-error: true
         env:
@@ -304,18 +290,15 @@ jobs:
           fi
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          MSG="❌ TodayPick Capacitor Build FAILED
-
-          Branch: ${{ github.ref_name }}
+          MSG="❌ TodayPick Play Internal Release FAILED
+          versionCode: ${{ env.BUILD_VERSION_CODE || github.event.inputs.version_code }}
+          Track: internal
           Commit: ${SHORT_SHA}
           Run: #${{ github.run_number }}
 
-          🔧 Actions 로그 확인:
+          🔧 Actions Log:
           ${RUN_URL}"
 
-          RESPONSE=$(curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+          curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             -d "chat_id=${TG_CHAT}" \
-            --data-urlencode "text=${MSG}")
-          echo "$RESPONSE" | jq -e '.ok == true' > /dev/null
-          MESSAGE_ID=$(echo "$RESPONSE" | jq -r '.result.message_id // empty')
-          echo "Telegram failure API ok=true. message_id=${MESSAGE_ID}"
+            --data-urlencode "text=${MSG}" || true
