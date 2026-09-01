@@ -35,3 +35,20 @@ Thumbs.db
 # Daily Look Automation Outputs
 automation/daily_looks/output/
 
+# PoC 임시 파일 (APK 포함 금지, GitHub commit 금지)
+poc/
+docs/*POC*
+docs/*poc*
+src/media/
+poc_file_ids.json
+
+# Chat and Handoff Docs (Git 저장소 제외)
+chat_*.md
+chat/
+
+# Drive credentials (절대 commit 금지)
+secrets/
+google_drive_credentials.json
+google_drive_token.json
+*.token.json
+

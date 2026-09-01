@@ -1,0 +1,16 @@
+{
+  "_comment": "TodayPick update manifest mock — 테스트 시 latestVersionCode를 조정하세요.",
+  "_testCases": {
+    "CASE_A_no_popup":     "latestVersionCode=68, minimumVersionCode=68",
+    "CASE_B_optional":     "latestVersionCode=69, minimumVersionCode=68  (현재 설정)",
+    "CASE_C_force":        "latestVersionCode=69, minimumVersionCode=69"
+  },
+  "latestVersionCode": 69,
+  "latestUiVersion": "v0.69",
+  "minimumVersionCode": 68,
+  "forceUpdate": false,
+  "message": "새 버전이 준비되었습니다.",
+  "playStoreUrl": "https://play.google.com/store/apps/details?id=com.todaypick.app",
+  "checkIntervalMinutes": 30,
+  "releasedAt": "2026-09-01"
+}

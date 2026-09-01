@@ -294,16 +294,65 @@
       <!-- In-App Update Modal -->
       <div id="inapp-update-dialog" class="update-dialog-backdrop" style="display: none;">
         <div class="update-dialog-card">
-          <div class="update-dialog-icon">🎉</div>
-          <h3 class="update-dialog-title">새 버전이 있습니다</h3>
-          <p class="update-dialog-desc" id="update-dialog-desc">TodayPick 최신 업데이트를 사용할 수 있습니다.</p>
+          <div class="update-dialog-icon" id="update-dialog-icon">🎉</div>
+          <h3 class="update-dialog-title" id="update-dialog-title">새 버전이 준비되었습니다</h3>
+          <p class="update-dialog-desc" id="update-dialog-desc">새로운 기능과 개선사항을 적용하려면 업데이트하세요.</p>
+          <div class="update-dialog-versions" id="update-dialog-versions">
+            <span>현재&nbsp;<strong id="update-ver-current">v0.73</strong></span>
+            <span class="update-ver-arrow">→</span>
+            <span>최신&nbsp;<strong id="update-ver-latest">—</strong></span>
+          </div>
           <div class="update-dialog-btn-row">
             <button id="btn-update-later" class="btn-update-secondary">나중에</button>
-            <button id="btn-update-now" class="btn-update-primary">업데이트</button>
+            <button id="btn-update-now" class="btn-update-primary">지금 업데이트</button>
           </div>
         </div>
       </div>
+
+      <!-- Share Naming Modal (vc72) -->
+      <div id="share-name-modal" class="snm-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="snm-headline">
+        <div class="snm-card">
+          <p class="snm-headline" id="snm-headline">이 코디, 뭐라고 부를까요?</p>
+
+          <!-- 추천 이름 3개 -->
+          <div class="snm-recs" id="snm-recs" role="listbox" aria-label="추천 코디명">
+            <button class="snm-rec-btn snm-rec-selected" id="snm-rec-0" role="option" aria-selected="true" data-idx="0">
+              <span class="snm-rec-num">①</span>
+              <span class="snm-rec-text" id="snm-rec-text-0">추천 1</span>
+            </button>
+            <button class="snm-rec-btn" id="snm-rec-1" role="option" aria-selected="false" data-idx="1">
+              <span class="snm-rec-num">②</span>
+              <span class="snm-rec-text" id="snm-rec-text-1">추천 2</span>
+            </button>
+            <button class="snm-rec-btn" id="snm-rec-2" role="option" aria-selected="false" data-idx="2">
+              <span class="snm-rec-num">③</span>
+              <span class="snm-rec-text" id="snm-rec-text-2">추천 3</span>
+            </button>
+          </div>
+
+          <!-- 직접 수정 입력창 -->
+          <label class="snm-input-label" for="snm-name-input">직접 수정</label>
+          <input
+            id="snm-name-input"
+            class="snm-name-input"
+            type="text"
+            maxlength="50"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
+            placeholder="코디명을 입력하세요"
+          />
+
+          <!-- 버튼 -->
+          <div class="snm-btn-row">
+            <button class="snm-btn-cancel" id="snm-btn-cancel">취소</button>
+            <button class="snm-btn-share" id="snm-btn-share">공유하기</button>
+          </div>
+        </div>
+      </div>
+
     </main>
+
 
     <script type="module" src="/src/main.js"></script>
   </body>

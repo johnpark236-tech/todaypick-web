@@ -1,0 +1,114 @@
+{
+  "version": 2,
+
+  "templates": {
+    "funny": [
+      "오늘 좀 되는 사람 Pick",
+      "조용히 다 이긴 Pick",
+      "약속 없는데 생길 Pick",
+      "꾸안꾸인 척 다 꾸민 Pick",
+      "퇴근하고 갑자기 예뻐진 Pick",
+      "사진 백 장 건지는 Pick",
+      "내가 나한테 반한 Pick",
+      "오늘 알고리즘이 밀어주는 Pick",
+      "무심한 척 계획 다 한 Pick",
+      "괜히 미러 셀카 찍는 Pick",
+      "분명 잘 입었는데 왜 이뻐 Pick",
+      "출근하다 갑자기 화보 찍는 Pick",
+      "오늘 저 사람 누구야 Pick",
+      "약속 없어도 입고 싶은 Pick",
+      "아무것도 안 했는데 힙한 Pick",
+      "오늘 나 진짜 잘 입었다 Pick",
+      "내 스타일을 찾은 날 Pick",
+      "이 코디 오늘 너무하다 Pick",
+      "오늘 하루 버틸 수 있는 Pick",
+      "자신감 레벨 업 Pick"
+    ],
+
+    "emotional": [
+      "오후 네 시 갤러리 Pick",
+      "성수 갤러리 Pick",
+      "주말의 작은 사치 Pick",
+      "선선한 오후 Pick",
+      "아몬드 크림 Pick",
+      "가을 햇살 Pick",
+      "한강 노을 Pick",
+      "오늘 하루를 위한 Pick",
+      "취향 저격 Pick",
+      "조용한 여유 Pick",
+      "나만의 감성 Pick",
+      "오후 세 시 커피 Pick",
+      "소소한 행복 Pick",
+      "여백이 있는 날 Pick",
+      "오늘 나만의 시간 Pick",
+      "좋아하는 공간 Pick",
+      "한 장의 필름 Pick",
+      "느린 하루 Pick",
+      "나를 위한 하루 Pick",
+      "이 순간을 기억하는 Pick"
+    ],
+
+    "global": [
+      "Quiet Flex Pick",
+      "Main Character Energy Pick",
+      "Lowkey Icon Pick",
+      "Plot Twist Pick",
+      "Weekend Mode Pick",
+      "No Notes Pick",
+      "Off Duty Mood Pick",
+      "Soft Power Pick",
+      "Clean Girl Pick",
+      "That Girl Pick",
+      "Coastal Vibe Pick",
+      "Old Money Pick",
+      "Mob Wife Adjacent Pick",
+      "Silent Luxury Pick",
+      "Effortless Chic Pick",
+      "Underdressed & Over It Pick",
+      "Invisible Wealth Pick",
+      "Understated Pick",
+      "Dopamine Dressing Pick",
+      "Stealth Wealth Pick"
+    ]
+  },
+
+  "colorMap": {
+    "white":   { "funny": "오늘 좀 되는 사람 Pick",   "emotional": "아몬드 크림 Pick",       "global": "Quiet Flex Pick" },
+    "cream":   { "funny": "꾸안꾸인 척 다 꾸민 Pick", "emotional": "아몬드 크림 Pick",       "global": "Clean Girl Pick" },
+    "beige":   { "funny": "무심한 척 계획 다 한 Pick", "emotional": "오후 세 시 커피 Pick",   "global": "Old Money Pick" },
+    "black":   { "funny": "조용히 다 이긴 Pick",       "emotional": "나만의 감성 Pick",       "global": "Silent Luxury Pick" },
+    "navy":    { "funny": "사진 백 장 건지는 Pick",    "emotional": "한강 노을 Pick",         "global": "Soft Power Pick" },
+    "gray":    { "funny": "약속 없는데 생길 Pick",     "emotional": "여백이 있는 날 Pick",    "global": "Understated Pick" },
+    "brown":   { "funny": "오늘 나 진짜 잘 입었다 Pick", "emotional": "가을 햇살 Pick",      "global": "Stealth Wealth Pick" },
+    "pink":    { "funny": "분명 잘 입었는데 왜 이뻐 Pick", "emotional": "소소한 행복 Pick",  "global": "That Girl Pick" },
+    "blue":    { "funny": "오늘 알고리즘이 밀어주는 Pick", "emotional": "오후 네 시 갤러리 Pick", "global": "Coastal Vibe Pick" },
+    "green":   { "funny": "내가 나한테 반한 Pick",     "emotional": "선선한 오후 Pick",       "global": "No Notes Pick" }
+  },
+
+  "styleMap": {
+    "minimal":  { "funny": "오늘 좀 되는 사람 Pick",   "emotional": "성수 갤러리 Pick",       "global": "Quiet Flex Pick" },
+    "casual":   { "funny": "약속 없는데 생길 Pick",     "emotional": "주말의 작은 사치 Pick",  "global": "Weekend Mode Pick" },
+    "office":   { "funny": "조용히 다 이긴 Pick",       "emotional": "오늘 하루를 위한 Pick",  "global": "Soft Power Pick" },
+    "street":   { "funny": "아무것도 안 했는데 힙한 Pick", "emotional": "나만의 감성 Pick",   "global": "Lowkey Icon Pick" },
+    "elegant":  { "funny": "퇴근하고 갑자기 예뻐진 Pick", "emotional": "주말의 작은 사치 Pick", "global": "Old Money Pick" },
+    "sporty":   { "funny": "오늘 하루 버틸 수 있는 Pick", "emotional": "나를 위한 하루 Pick", "global": "Off Duty Mood Pick" },
+    "vintage":  { "funny": "사진 백 장 건지는 Pick",    "emotional": "한 장의 필름 Pick",      "global": "Plot Twist Pick" },
+    "romantic": { "funny": "내가 나한테 반한 Pick",     "emotional": "소소한 행복 Pick",        "global": "That Girl Pick" },
+    "classic":  { "funny": "무심한 척 계획 다 한 Pick", "emotional": "나를 위한 하루 Pick",    "global": "Silent Luxury Pick" }
+  },
+
+  "genderAgeMap": {
+    "female_10s": { "funny": 0, "emotional": 1, "global": 2 },
+    "female_20s": { "funny": 0, "emotional": 1, "global": 2 },
+    "female_30s": { "funny": 1, "emotional": 0, "global": 2 },
+    "female_40s": { "funny": 1, "emotional": 0, "global": 2 },
+    "female_50s": { "funny": 2, "emotional": 0, "global": 1 },
+    "female_60s": { "funny": 2, "emotional": 0, "global": 1 },
+    "male_10s":   { "funny": 0, "emotional": 2, "global": 1 },
+    "male_20s":   { "funny": 0, "emotional": 2, "global": 1 },
+    "male_30s":   { "funny": 1, "emotional": 2, "global": 0 },
+    "male_40s":   { "funny": 2, "emotional": 1, "global": 0 },
+    "male_50s":   { "funny": 2, "emotional": 0, "global": 1 },
+    "male_60s":   { "funny": 2, "emotional": 0, "global": 1 }
+  }
+}

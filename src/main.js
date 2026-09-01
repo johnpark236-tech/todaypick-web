@@ -2,12 +2,20 @@ import './style.css';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { Share } from '@capacitor/share';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import { OutfitManager } from './data/outfits.js';
 import { CoupangService } from './services/coupang.js';
 import { StorageService } from './services/storage.js';
 import { AudioHub } from './services/audio.js';
-import { APP_DISPLAY_VERSION } from './config/version.js';
+import { APP_DISPLAY_VERSION, ANDROID_VERSION_CODE } from './config/version.js';
 import { UpdaterService } from './services/updater.js';
+import { UpdateCheckService } from './services/update-service.js';
+import { UPDATE_UI } from './config/update-ui.js';
+import { SHARE_CAPTIONS } from './data/share-captions.js';
+import { SHARE_UI } from './config/share-ui.js';
+import { warmUpNamingDB, saveShareNamingEvent } from './services/naming-db.js';
+import { generateNamingRecommendations, resolveShareName, validateUserInput, generateShareId, normalizeName } from './services/naming-engine.js';
+
 
 // 12 Demographic groups ordered sequentially for vertical swipe navigation
 const ALL_GROUPS = [
@@ -91,7 +99,11 @@ const dom = {
   btnExitCancel: document.getElementById('btn-exit-cancel'),
   btnExitConfirm: document.getElementById('btn-exit-confirm'),
   inappUpdateDialog: document.getElementById('inapp-update-dialog'),
+  updateDialogIcon: document.getElementById('update-dialog-icon'),
+  updateDialogTitle: document.getElementById('update-dialog-title'),
   lblUpdateDesc: document.getElementById('update-dialog-desc'),
+  updateVerCurrent: document.getElementById('update-ver-current'),
+  updateVerLatest: document.getElementById('update-ver-latest'),
   btnUpdateLater: document.getElementById('btn-update-later'),
   btnUpdateNow: document.getElementById('btn-update-now')
 };
@@ -368,9 +380,10 @@ async function executeSearch(query) {
     dom.searchResults.innerHTML = res.products.map(p => {
       const priceFmt = Number(p.productPrice || 0).toLocaleString('ko-KR');
       const prodUrl = p.canonicalUrl || p.productUrl;
+      const imgSrc = (p.productImage || '').replace(/^http:\/\//, 'https://');
       return `
         <article class="product-card">
-          <img class="product-thumb" src="${p.productImage}" alt="${p.productName}" />
+          <img class="product-thumb" src="${imgSrc}" alt="${p.productName}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.classList.add('thumb-error');" />
           <div class="product-body">
             <h4 class="product-title">${p.productName}</h4>
             <div class="product-bottom-row">
@@ -497,22 +510,39 @@ async function initApp() {
   // Setup Event Listeners
   setupEventListeners();
 
-  // Check Google Play In-App Updates asynchronously
+  // ── Update dialog helper ──────────────────────────────────
+  function showUpdateDialog(manifest, isForce) {
+    const ui = isForce ? UPDATE_UI.force : UPDATE_UI.optional;
+    if (dom.updateDialogIcon)  dom.updateDialogIcon.textContent  = ui.icon;
+    if (dom.updateDialogTitle) dom.updateDialogTitle.textContent = ui.title;
+    if (dom.lblUpdateDesc)     dom.lblUpdateDesc.textContent     = manifest.message || ui.description;
+    if (dom.updateVerCurrent)  dom.updateVerCurrent.textContent  = APP_DISPLAY_VERSION;
+    if (dom.updateVerLatest)   dom.updateVerLatest.textContent   = manifest.latestUiVersion || `vc${manifest.latestVersionCode}`;
+    if (dom.btnUpdateLater)    dom.btnUpdateLater.style.display  = isForce ? 'none' : '';
+    if (dom.btnUpdateNow)      dom.btnUpdateNow.textContent      = ui.updateButton;
+    if (dom.inappUpdateDialog) dom.inappUpdateDialog.style.display = 'flex';
+  }
+
+  // Register callback before first check
+  UpdateCheckService.onUpdateFound(showUpdateDialog);
+
+  // ── Startup check (async, non-blocking) ──────────────────
   setTimeout(() => {
-    UpdaterService.checkAndPrompt({
-      dialog: dom.inappUpdateDialog,
-      desc: dom.lblUpdateDesc
-    });
+    if (Capacitor.isNativePlatform()) {
+      UpdaterService.checkAndPrompt({
+        dialog: dom.inappUpdateDialog,
+        desc: dom.lblUpdateDesc
+      });
+    }
+    UpdateCheckService.checkForUpdate(true);
   }, 1200);
 
-  // Global helper for In-App update testing & evidence capture
-  window.testShowUpdatePrompt = (versionName = 'v0.4', versionCode = 51) => {
-    if (dom.lblUpdateDesc) {
-      dom.lblUpdateDesc.textContent = `TodayPick 새 버전(${versionName} / vc${versionCode})이 준비되었습니다. 지금 업데이트하시겠습니까?`;
-    }
-    if (dom.inappUpdateDialog) {
-      dom.inappUpdateDialog.style.display = 'flex';
-    }
+  // ── Periodic check (30 min default) ──────────────────────
+  UpdateCheckService.startPeriodicCheck(30);
+
+  // Global helper for testing
+  window.testShowUpdatePrompt = (latestUiVersion = 'v0.69', latestVersionCode = 69, forceUpdate = false) => {
+    showUpdateDialog({ latestVersionCode, latestUiVersion, message: null }, forceUpdate);
   };
 }
 
@@ -595,11 +625,11 @@ function setupEventListeners() {
     }
   });
 
-  // Share button (Android Native Share / KakaoTalk share support)
+  // Share button → Naming Modal first (vc72)
   if (dom.btnShare) {
     dom.btnShare.addEventListener('click', async () => {
       AudioHub.tap();
-      await shareCurrentOutfit();
+      await openShareNamingModal();
     });
   }
 
@@ -659,20 +689,386 @@ function setupEventListeners() {
     });
   }
 
-  // Share current outfit via Native Android Share Sheet (KakaoTalk enabled)
+  // Parse "[여성 10대] 네이비 ..." → { demographic: "[여성 10대]", lookTitle: "네이비 ..." }
+  function parseOutfitTitle(title) {
+    const m = title.match(/^(\[[^\]]+\])\s*(.*)/);
+    return m ? { demographic: m[1], lookTitle: m[2] } : { demographic: '', lookTitle: title };
+  }
+
+  // Word-wrap helper: returns array of lines fitting within maxW px.
+  // Attempts word-level splits; reduces fontSize by 10% each pass if lines > maxLines.
+  function calcTitleLines(ctx, text, fontWeight, baseFontSize, maxW, maxLines) {
+    let fs = baseFontSize;
+    const minFs = Math.round(baseFontSize * 0.7);
+    while (fs >= minFs) {
+      ctx.font = `${fontWeight} ${fs}px sans-serif`;
+      const words = text.split(' ');
+      const lines = [];
+      let cur = '';
+      for (const w of words) {
+        const test = cur ? cur + ' ' + w : w;
+        if (ctx.measureText(test).width <= maxW) {
+          cur = test;
+        } else {
+          if (cur) lines.push(cur);
+          cur = w;
+        }
+      }
+      if (cur) lines.push(cur);
+      if (lines.length <= maxLines) return { lines, fontSize: fs };
+      fs = Math.round(fs * 0.9);
+    }
+    // Fallback: single truncated line at minFs
+    ctx.font = `${fontWeight} ${minFs}px sans-serif`;
+    let truncated = text;
+    while (ctx.measureText(truncated + '…').width > maxW && truncated.length > 1) {
+      truncated = truncated.slice(0, -1);
+    }
+    return { lines: [truncated + '…'], fontSize: minFs };
+  }
+
+  // Build composite share image (vc67 layout):
+  //   [photo]  outfit image + "TodayPick" watermark top-left
+  //   [bottom] white bar — gold accent | "오늘의 코디명:" (label) / curatedName (title, 2-line wrap)
+  // FUTURE_PLAN: Weather API integration planned. Placeholder removed until actual API is live.
+  function buildShareComposite(imageUrl, curatedName) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const W = img.naturalWidth;
+        const H = img.naturalHeight;
+        const cfg = SHARE_UI.footer;
+        const scale = W / cfg.refWidth;
+
+        // ── Scaled config values ──────────────────────────────
+        const labelFs    = Math.max(16, Math.round(cfg.label.fontSize * scale));
+        const titleFsMax = Math.max(18, Math.round(cfg.title.fontSize * scale));
+        const padTop     = Math.round(cfg.spacing.paddingTop * scale);
+        const padBot     = Math.round(cfg.spacing.paddingBottom * scale);
+        const padH       = Math.round(cfg.spacing.paddingHoriz * scale);
+        const labelToTitle = Math.round(cfg.spacing.labelToTitle * scale);
+        const accentW    = Math.max(3, Math.round(W * cfg.accent.widthRatio));
+        const textX      = accentW + padH;
+        const textMaxW   = W - textX - Math.round(W * 0.04);
+
+        // ── Determine title lines & actual fontSize ───────────
+        const dummyCanvas = document.createElement('canvas');
+        const dummyCtx    = dummyCanvas.getContext('2d');
+        const { lines: titleLines, fontSize: titleFs } = calcTitleLines(
+          dummyCtx, curatedName,
+          cfg.title.fontWeight, titleFsMax,
+          textMaxW, cfg.title.maxLines
+        );
+
+        // ── Bar height (label + gap + title lines) ────────────
+        const labelLineH = Math.round(labelFs * 1.4);
+        const titleLineH = Math.round(titleFs * cfg.title.lineHeight);
+        const barH = padTop + labelLineH + labelToTitle + titleLineH * titleLines.length + padBot;
+
+        const canvas = document.createElement('canvas');
+        canvas.width  = W;
+        canvas.height = H + barH;
+        const ctx = canvas.getContext('2d');
+
+        // ── Outfit photo ───────────────────────────────────────
+        ctx.drawImage(img, 0, 0, W, H);
+
+        // ── "TodayPick" watermark — top-left of photo ─────────
+        const wm = SHARE_UI.watermark;
+        const wmSize = Math.max(16, Math.round(W * wm.fontSizeRatio));
+        const wmPad  = Math.round(W * wm.padRatio);
+        ctx.save();
+        ctx.font          = `${wm.fontWeight} ${wmSize}px sans-serif`;
+        ctx.shadowColor   = wm.shadowColor;
+        ctx.shadowBlur    = wm.shadowBlur;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        ctx.fillStyle     = wm.color;
+        ctx.fillText(wm.text, wmPad, wmPad + wmSize);
+        ctx.restore();
+
+        // ── Bottom white bar ───────────────────────────────────
+        ctx.fillStyle = cfg.background;
+        ctx.fillRect(0, H, W, barH);
+
+        // Thin separator
+        ctx.fillStyle = cfg.separator;
+        ctx.fillRect(0, H, W, 1);
+
+        // Champagne gold accent line (left edge)
+        ctx.fillStyle = cfg.accent.color;
+        ctx.fillRect(0, H + 1, accentW, barH - 1);
+
+        // ── Label: "오늘의 코디명:" ─────────────────────────────
+        const labelY = H + padTop + labelFs;
+        ctx.font      = `${cfg.label.fontWeight} ${labelFs}px sans-serif`;
+        ctx.fillStyle = cfg.label.color;
+        ctx.fillText(cfg.label.text, textX, labelY);
+
+        // ── Title: curatedName (word-wrapped, bold) ────────────
+        ctx.font      = `${cfg.title.fontWeight} ${titleFs}px sans-serif`;
+        ctx.fillStyle = cfg.title.color;
+        let titleY = labelY + labelToTitle + titleFs;
+        for (const line of titleLines) {
+          ctx.fillText(line, textX, titleY);
+          titleY += titleLineH;
+        }
+
+        canvas.toBlob(blob => {
+          if (blob) resolve(blob);
+          else reject(new Error('canvas.toBlob failed'));
+        }, 'image/jpeg', 0.92);
+      };
+      img.onerror = reject;
+      img.src = imageUrl;
+    });
+  }
+
+  // ── Share Naming Modal (vc72) ────────────────────────────────────────────────
+  // 공유 버튼 → 네이밍 모달 → 이름 확정 → Canvas + Android Share Sheet + DB 저장
+
+  const snmModal        = document.getElementById('share-name-modal');
+  const snmInput        = document.getElementById('snm-name-input');
+  const snmBtnCancel    = document.getElementById('snm-btn-cancel');
+  const snmBtnShare     = document.getElementById('snm-btn-share');
+  const snmRecBtns      = [0, 1, 2].map(i => document.getElementById(`snm-rec-${i}`));
+  const snmRecTexts     = [0, 1, 2].map(i => document.getElementById(`snm-rec-text-${i}`));
+
+  let _snmRecs = [];          // {text, type}[] 현재 모달 추천 배열
+  let _snmSelIdx = 0;         // 현재 선택 인덱스
+
+  function snmSetSelected(idx) {
+    _snmSelIdx = idx;
+    snmRecBtns.forEach((btn, i) => {
+      const selected = i === idx;
+      btn.classList.toggle('snm-rec-selected', selected);
+      btn.setAttribute('aria-selected', String(selected));
+    });
+    snmInput.value = _snmRecs[idx]?.text || '';
+  }
+
+  snmRecBtns.forEach((btn, i) => {
+    btn.addEventListener('click', () => {
+      AudioHub.tap();
+      snmSetSelected(i);
+    });
+  });
+
+  // 취소
+  snmBtnCancel?.addEventListener('click', () => {
+    AudioHub.tap();
+    snmModal.style.display = 'none';
+    // 취소 시 DB 저장 안 함
+  });
+
+  // 배경 클릭 = 취소
+  snmModal?.addEventListener('click', (e) => {
+    if (e.target === snmModal) {
+      snmModal.style.display = 'none';
+    }
+  });
+
+  // 공유하기
+  snmBtnShare?.addEventListener('click', async () => {
+    AudioHub.tap();
+    if (!state.currentOutfit) return;
+
+    // baseName 확정: 입력창 → fallback 현재 추천명
+    const rawInput = snmInput.value;
+    const fallback = _snmRecs[_snmSelIdx]?.text || '오늘의 코디 Pick';
+    const baseName = validateUserInput(rawInput, fallback);
+    const userEdited = rawInput.trim() !== (_snmRecs[_snmSelIdx]?.text || '').trim()
+      && rawInput.trim() !== '';
+
+    // 모달 닫기 (share sheet 띄우기 전)
+    snmModal.style.display = 'none';
+
+    // 중복 처리 → resolvedName 확정
+    let resolved;
+    try {
+      resolved = await resolveShareName(baseName);
+    } catch {
+      resolved = { baseName, resolvedName: baseName, normalizedName: normalizeName(baseName) };
+    }
+
+    const { resolvedName, normalizedName } = resolved;
+
+    // Canvas 생성 + Share Sheet
+    const shareId = generateShareId();
+    await shareCurrentOutfitWithName(resolvedName);
+
+    // DB 저장 (공유 시도 후 비동기 저장 — 실패해도 share는 영향 없음)
+    const outfit = state.currentOutfit;
+    try {
+      await saveShareNamingEvent({
+        shareId,
+        lookId:                       outfit.id || '',
+        recommendations:              _snmRecs,
+        defaultRecommendationIndex:   0,
+        selectedRecommendationIndex:  _snmSelIdx,
+        selectedRecommendation:       _snmRecs[_snmSelIdx]?.text || '',
+        userEdited,
+        userInputName:                rawInput.trim(),
+        baseName,
+        resolvedName,
+        normalizedName,
+        createdAt:                    new Date().toISOString(),
+        appVersionCode:               ANDROID_VERSION_CODE,
+        uiVersion:                    APP_DISPLAY_VERSION,
+        lookMetadata: {
+          gender:        state.currentMode?.startsWith('female') ? 'female' : 'male',
+          ageGroup:      state.currentMode || '',
+          originalTitle: outfit.title || '',
+          image:         outfit.image || '',
+        },
+      });
+    } catch (dbErr) {
+      console.warn('[NamingDB] saveShareNamingEvent failed (non-fatal):', dbErr);
+    }
+  });
+
+  // 모달 열기
+  async function openShareNamingModal() {
+    if (!state.currentOutfit) {
+      showToast('공유할 코디가 없습니다.');
+      return;
+    }
+
+    const outfit = state.currentOutfit;
+
+    // 추천 3개 생성
+    _snmRecs = generateNamingRecommendations(outfit, state.currentMode);
+
+    // UI 갱신
+    snmRecBtns.forEach((btn, i) => {
+      const rec = _snmRecs[i];
+      if (snmRecTexts[i]) snmRecTexts[i].textContent = rec?.text || '';
+      btn.style.display = rec ? '' : 'none';
+    });
+
+    // 추천 1번 자동 선택
+    snmSetSelected(0);
+
+    // 모달 열기
+    snmModal.style.display = 'flex';
+
+    // input에 focus (약간 지연: Android 키보드 방지)
+    setTimeout(() => {
+      if (document.activeElement !== snmInput) {
+        // 자동 포커스는 하지 않음 — 사용자가 직접 탭하도록
+      }
+    }, 100);
+  }
+
+  // ── shareCurrentOutfitWithName: resolvedName을 Canvas에 사용 ───────────────
+  // 기존 shareCurrentOutfit의 curatedName 인자 버전
+  async function shareCurrentOutfitWithName(resolvedName) {
+    const outfit = state.currentOutfit;
+    if (!outfit) return;
+
+    const { demographic, lookTitle } = parseOutfitTitle(outfit.title);
+    const shareTitle  = 'TodayPick 오늘뭐입지';
+    const dialogTitle = 'TodayPick 코디 공유';
+    const appStoreUrl = 'https://play.google.com/store/apps/details?id=com.todaypick.app';
+    const copyText    = `[TodayPick]\n오늘의 추천 코디: ${demographic}\n${lookTitle}\n\n${appStoreUrl}`;
+
+    // Priority 1: Native share — composite image
+    if (Capacitor.isNativePlatform() && outfit.image) {
+      try {
+        const blob = await buildShareComposite(outfit.image, resolvedName);
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload  = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const fileName   = `todaypick_share_${outfit.id}.jpg`;
+        const writeResult = await Filesystem.writeFile({
+          path: fileName,
+          data: base64,
+          directory: Directory.Cache
+        });
+        await Share.share({ title: shareTitle, text: copyText, files: [writeResult.uri], dialogTitle });
+        return;
+      } catch (imgErr) {
+        if (imgErr && (imgErr.name === 'AbortError' || String(imgErr).includes('canceled') || String(imgErr).includes('cancelled'))) {
+          return;
+        }
+        console.warn('[Share] Composite image share failed, falling back:', imgErr);
+      }
+    }
+
+    // Priority 2: text-only Capacitor share
+    const sharePayload = { title: shareTitle, text: copyText, dialogTitle };
+    try {
+      await Share.share(sharePayload);
+      return;
+    } catch (nativeErr) {
+      if (nativeErr && (nativeErr.name === 'AbortError' || String(nativeErr).includes('canceled') || String(nativeErr).includes('cancelled'))) return;
+      console.warn('[Share] Native share note:', nativeErr);
+    }
+
+    // Priority 3: Web Share API
+    if (navigator.share) {
+      try { await navigator.share(sharePayload); return; } catch (webErr) {
+        if (webErr && webErr.name === 'AbortError') return;
+      }
+    }
+
+    // Priority 4: Clipboard fallback
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(copyText);
+        showToast('코디 정보가 클립보드에 복사되었습니다.');
+      } catch {}
+    }
+  }
+
+  // Share current outfit: composite image (photo + watermark + overlay) + copyable text with app link
   async function shareCurrentOutfit() {
+
     if (!state.currentOutfit) {
       showToast('공유할 코디가 없습니다.');
       return;
     }
     const outfit = state.currentOutfit;
-    const sharePayload = {
-      title: 'TodayPick 오늘뭐입지',
-      text: `[TodayPick 오늘뭐입지]\n오늘의 추천 코디: ${outfit.title}\nTodayPick에서 스타일링과 최저가 정보를 확인해보세요!`,
-      dialogTitle: 'TodayPick 코디 공유'
-    };
+    const { demographic, lookTitle } = parseOutfitTitle(outfit.title);
+    // 큐레이션 카피: SHARE_CAPTIONS에 있으면 사용, 없으면 lookTitle fallback
+    const curatedName = SHARE_CAPTIONS[outfit.id] || lookTitle;
+    const shareTitle = 'TodayPick 오늘뭐입지';
+    const dialogTitle = 'TodayPick 코디 공유';
+    const appStoreUrl = 'https://play.google.com/store/apps/details?id=com.todaypick.app';
+    // 복사용 텍스트: 코디명(검색 가능한 전체 아이템명) + 앱 링크
+    const copyText = `[TodayPick]\n오늘의 추천 코디: ${demographic}\n${lookTitle}\n\n${appStoreUrl}`;
 
-    // Priority 1: Capacitor Native Share plugin (Android Native Share Sheet with KakaoTalk)
+    // Priority 1: Native share — composite image + copyable text (Android)
+    if (Capacitor.isNativePlatform() && outfit.image) {
+      try {
+        const blob = await buildShareComposite(outfit.image, curatedName);
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const fileName = `todaypick_share_${outfit.id}.jpg`;
+        const writeResult = await Filesystem.writeFile({
+          path: fileName,
+          data: base64,
+          directory: Directory.Cache
+        });
+        await Share.share({ title: shareTitle, text: copyText, files: [writeResult.uri], dialogTitle });
+        return;
+      } catch (imgErr) {
+        if (imgErr && (imgErr.name === 'AbortError' || String(imgErr).includes('canceled') || String(imgErr).includes('cancelled'))) {
+          return;
+        }
+        console.warn('[Share] Composite image share failed, falling back to text-only:', imgErr);
+      }
+    }
+
+    // Priority 2: Capacitor text-only share (no image)
+    const sharePayload = { title: shareTitle, text: copyText, dialogTitle };
     try {
       await Share.share(sharePayload);
       return;
@@ -683,7 +1079,7 @@ function setupEventListeners() {
       console.warn('[Share] Native share note:', nativeErr);
     }
 
-    // Priority 2: Web Share API fallback (Browser)
+    // Priority 3: Web Share API fallback (Browser)
     if (navigator.share) {
       try {
         await navigator.share(sharePayload);
@@ -694,10 +1090,10 @@ function setupEventListeners() {
       }
     }
 
-    // Priority 3: Clipboard fallback (Desktop browser without share API)
+    // Priority 4: Clipboard fallback (Desktop browser without share API)
     if (navigator.clipboard) {
       try {
-        await navigator.clipboard.writeText(`${sharePayload.title}\n${sharePayload.text}`);
+        await navigator.clipboard.writeText(copyText);
         showToast('코디 정보가 클립보드에 복사되었습니다.');
       } catch {}
     }
@@ -939,6 +1335,8 @@ function setupEventListeners() {
       AudioHub.tap();
       if (dom.inappUpdateDialog) dom.inappUpdateDialog.style.display = 'none';
       UpdaterService.isDismissedThisSession = true;
+      const manifest = UpdateCheckService.getLastManifest();
+      if (manifest) UpdateCheckService.dismissVersion(manifest.latestVersionCode);
     });
   }
 
@@ -946,13 +1344,18 @@ function setupEventListeners() {
     dom.btnUpdateNow.addEventListener('click', async () => {
       AudioHub.tap();
       if (dom.inappUpdateDialog) dom.inappUpdateDialog.style.display = 'none';
-      if (UpdaterService.updateDownloaded) {
-        showToast('업데이트를 적용합니다...');
-        await UpdaterService.completeUpdate();
-      } else {
+      if (Capacitor.isNativePlatform()) {
+        if (UpdaterService.updateDownloaded) {
+          showToast('업데이트를 적용합니다...');
+          await UpdaterService.completeUpdate();
+          return;
+        }
         showToast('Google Play 업데이트를 시작합니다...');
-        await UpdaterService.startUpdateFlow();
+        const res = await UpdaterService.startUpdateFlow();
+        if (res && res.started) return;
       }
+      const manifest = UpdateCheckService.getLastManifest();
+      UpdateCheckService.openPlayStore(manifest?.playStoreUrl);
     });
   }
 
@@ -965,6 +1368,8 @@ function setupEventListeners() {
     App.addListener('appStateChange', ({ isActive }) => {
       if (isActive) {
         AudioHub.onForeground();
+        // Foreground resume update check (skips if checked recently)
+        UpdateCheckService.checkForUpdate(false);
       } else {
         AudioHub.onBackground();
       }
@@ -1111,3 +1516,6 @@ function setupSwipeNavigation() {
 
 // Start app
 initApp();
+
+// Naming DB warm-up (non-blocking, vc72)
+warmUpNamingDB();

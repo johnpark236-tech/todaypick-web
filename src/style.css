@@ -21,6 +21,8 @@
   --color-border: #E5E9F2;
   --color-coupang-red: #E1251B;
   --color-coupang-blue: #0074E9;
+  --color-coupang-green: #8BCF9B;
+  --color-coupang-green-dark: #5DAF72;
 
   --font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", sans-serif;
   --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.05);
@@ -819,18 +821,22 @@ body {
 .product-price-txt {
   font-size: 13px;
   font-weight: 800;
-  color: var(--color-coupang-red);
+  color: var(--color-coupang-green-dark);
 }
 
 .product-btn-buy {
   border: none;
-  background: var(--color-coupang-red);
+  background: var(--color-coupang-green);
   color: #FFFFFF;
   font-size: 11px;
   font-weight: 700;
   padding: 5px 10px;
   border-radius: 5px;
   cursor: pointer;
+}
+
+.product-thumb.thumb-error {
+  opacity: 0;
 }
 
 /* ── SAVED LOOKS (MY COORDI) VIEW ──────────────────────── */
@@ -1190,6 +1196,27 @@ body {
   margin-bottom: 20px;
 }
 
+.update-dialog-versions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 7px 12px;
+  margin-bottom: 16px;
+}
+.update-dialog-versions strong {
+  color: var(--color-text);
+  font-weight: 700;
+}
+.update-ver-arrow {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
 .update-dialog-btn-row {
   display: flex;
   gap: 10px;
@@ -1228,3 +1255,158 @@ body {
   opacity: 0.92;
   transform: scale(0.98);
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Share Naming Modal  (vc72)
+   #share-name-modal  .snm-*
+   ══════════════════════════════════════════════════════════════ */
+.snm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(15, 17, 26, 0.72);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  padding: 0 0 env(safe-area-inset-bottom, 0);
+}
+
+.snm-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--color-card-bg);
+  border-radius: 24px 24px 0 0;
+  padding: 28px 20px 24px;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.snm-headline {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin: 0;
+  text-align: center;
+}
+
+/* 추천 버튼 목록 */
+.snm-recs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.snm-rec-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.snm-rec-btn:active {
+  background: var(--color-primary-light);
+}
+
+.snm-rec-btn.snm-rec-selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.snm-rec-num {
+  font-size: 15px;
+  color: var(--color-primary);
+  font-weight: 700;
+  flex-shrink: 0;
+  min-width: 22px;
+}
+
+.snm-rec-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  line-height: 1.4;
+}
+
+.snm-rec-btn.snm-rec-selected .snm-rec-text {
+  color: var(--color-primary-dark);
+}
+
+/* 직접 입력 */
+.snm-input-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.snm-name-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: var(--font-family);
+  box-sizing: border-box;
+}
+
+.snm-name-input:focus {
+  border-color: var(--color-primary);
+}
+
+.snm-name-input::placeholder {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+/* 버튼 행 */
+.snm-btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.snm-btn-cancel,
+.snm-btn-share {
+  flex: 1;
+  padding: 14px 0;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.snm-btn-cancel {
+  background: var(--color-bg-panel);
+  color: var(--color-text-muted);
+}
+
+.snm-btn-share {
+  flex: 1.6;
+  background: linear-gradient(135deg, var(--color-primary), #9333ea);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(108, 85, 232, 0.32);
+}
+
+.snm-btn-cancel:active { opacity: 0.8; }
+.snm-btn-share:active  { opacity: 0.88; transform: scale(0.98); }
+
