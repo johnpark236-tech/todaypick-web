@@ -1,0 +1,214 @@
+name: TodayPick Play Track Readback
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: 'Target Android versionCode to verify (e.g. 74)'
+        required: true
+        default: '74'
+        type: string
+      track:
+        description: 'Target Google Play track (Strictly internal)'
+        required: true
+        default: 'internal'
+        type: choice
+        options:
+          - internal
+
+concurrency:
+  group: todaypick-play-readback-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  readback:
+    name: Read-Only Google Play Track Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Google API Client
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-api-python-client google-auth
+
+      - name: Execute Read-Only Track Verification
+        env:
+          PLAY_SECRET: ${{ secrets.PLAY_CONSOLE_SERVICE_ACCOUNT_JSON }}
+          TARGET_VC: ${{ github.event.inputs.version_code }}
+          TARGET_TRACK: ${{ github.event.inputs.track }}
+        run: |
+          python - << 'EOF'
+          import os
+          import sys
+          import json
+          import tempfile
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.errors import HttpError
+
+          secret = os.environ.get("PLAY_SECRET", "")
+          target_vc_str = os.environ.get("TARGET_VC", "").strip()
+          target_track = os.environ.get("TARGET_TRACK", "internal").strip()
+          package_name = "com.todaypick.app"
+
+          if not secret:
+              print("PLAY_CREDENTIAL_AVAILABLE=NO")
+              print("ERROR: PLAY_CONSOLE_SERVICE_ACCOUNT_JSON secret is not configured.")
+              sys.exit(1)
+
+          print("PLAY_CREDENTIAL_AVAILABLE=YES")
+
+          try:
+              target_vc = int(target_vc_str)
+          except ValueError:
+              print(f"ERROR: Invalid target version_code: '{target_vc_str}'")
+              sys.exit(1)
+
+          # Write secret temporarily with strict permissions
+          with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as tf:
+              tf.write(secret)
+              sa_file = tf.name
+
+          try:
+              credentials = service_account.Credentials.from_service_account_file(
+                  sa_file,
+                  scopes=["https://www.googleapis.com/auth/androidpublisher"]
+              )
+
+              service = build(
+                  "androidpublisher",
+                  "v3",
+                  credentials=credentials,
+                  cache_discovery=False
+              )
+
+              # 1. Establish read-only Edit context (Insert only, NEVER commit)
+              edit_response = service.edits().insert(
+                  packageName=package_name,
+                  body={}
+              ).execute()
+              edit_id = edit_response["id"]
+              print(f"[READ-ONLY CONTEXT] Established temporary Edit ID: {edit_id}")
+
+              # 2. Query target track (internal)
+              print("==================================================")
+              print(f"[PLAY TRACK READBACK] Package: {package_name}, Track: {target_track}")
+              print("==================================================")
+
+              track_data = service.edits().tracks().get(
+                  packageName=package_name,
+                  editId=edit_id,
+                  track=target_track
+              ).execute()
+
+              track_name = track_data.get("track", "")
+              releases = track_data.get("releases", [])
+
+              print(f"PLAY_PACKAGE_ID={package_name}")
+              print(f"PLAY_TRACK={track_name}")
+              print(f"TRACK_FOUND=YES")
+              print(f"RELEASE_COUNT={len(releases)}")
+
+              all_version_codes = []
+              target_found = False
+              target_release_status = "N/A"
+              target_release_name = "N/A"
+
+              for idx, rel in enumerate(releases):
+                  status = rel.get("status", "unknown")
+                  name = rel.get("name", "unnamed")
+                  vcs = [int(v) for v in rel.get("versionCodes", [])]
+                  all_version_codes.extend(vcs)
+                  print(f"  Release #{idx+1}: name='{name}', status='{status}', versionCodes={vcs}")
+                  if target_vc in vcs:
+                      target_found = True
+                      target_release_status = status
+                      target_release_name = name
+
+              vc_list_str = ",".join(str(v) for v in sorted(set(all_version_codes)))
+              print(f"VERSION_CODES={vc_list_str}")
+              print(f"TARGET_VERSION_CODE={target_vc}")
+              print(f"TARGET_VC_FOUND={'YES' if target_found else 'NO'}")
+              print(f"RELEASE_STATUS={target_release_status}")
+              print(f"RELEASE_NAME={target_release_name}")
+
+              # 3. Read-only safety check on production track
+              print("==================================================")
+              print("[PRODUCTION SAFETY AUDIT]")
+              print("==================================================")
+              prod_vc_found = False
+              try:
+                  prod_track = service.edits().tracks().get(
+                      packageName=package_name,
+                      editId=edit_id,
+                      track="production"
+                  ).execute()
+                  prod_releases = prod_track.get("releases", [])
+                  prod_vcs = []
+                  for rel in prod_releases:
+                      prod_vcs.extend([int(v) for v in rel.get("versionCodes", [])])
+                  print(f"PRODUCTION_TRACK_READ=PASS")
+                  print(f"PRODUCTION_VERSION_CODES={','.join(str(v) for v in sorted(set(prod_vcs)))}")
+                  if target_vc in prod_vcs:
+                      prod_vc_found = True
+              except HttpError as pe:
+                  print(f"PRODUCTION_TRACK_READ=NOTE ({pe.reason})")
+
+              print(f"VC{target_vc}_FOUND_IN_PRODUCTION={'YES' if prod_vc_found else 'NO'}")
+              print("==================================================")
+
+              # 4. Discard temporary Edit without committing
+              try:
+                  service.edits().delete(packageName=package_name, editId=edit_id).execute()
+                  print(f"[CLEANUP] Discarded temporary read Edit ID: {edit_id}")
+              except Exception as de:
+                  print(f"[CLEANUP NOTE] Edit delete: {de}")
+
+              # 5. Populate GitHub Step Summary
+              summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
+              if summary_file:
+                  with open(summary_file, "a", encoding="utf-8") as sf:
+                      sf.write(f"""
+          ## 🔍 Google Play Track Readback Results
+
+          | Property | Value |
+          | :--- | :--- |
+          | **Package ID** | `{package_name}` |
+          | **Track** | `{target_track}` |
+          | **Target versionCode** | `{target_vc}` |
+          | **Target Found on Track** | `{'✅ YES' if target_found else '❌ NO'}` |
+          | **Active Release Status** | `{target_release_status}` |
+          | **Release Name** | `{target_release_name}` |
+          | **Track versionCodes** | `{vc_list_str}` |
+          | **Production Contamination** | `{'❌ ALERT (Found in Production)' if prod_vc_found else '✅ SAFE (Not in Production)'}` |
+          """)
+
+              if not target_found:
+                  print(f"ERROR: Target versionCode {target_vc} was NOT found in {target_track} track.")
+                  sys.exit(1)
+
+              print("PLAY_TRACK_READBACK=PASS")
+
+          except HttpError as he:
+              print(f"HTTP_STATUS={he.status_code}")
+              print(f"API_ERROR={he.reason}")
+              print(f"SERVICE_ACCOUNT_PERMISSION_ISSUE={'YES' if he.status_code in (401, 403) else 'NO'}")
+              print("PLAY_TRACK_READBACK=FAIL")
+              sys.exit(1)
+          except Exception as ex:
+              print(f"ERROR: {type(ex).__name__}: {ex}")
+              print("PLAY_TRACK_READBACK=FAIL")
+              sys.exit(1)
+          finally:
+              if os.path.exists(sa_file):
+                  os.remove(sa_file)
+          EOF
