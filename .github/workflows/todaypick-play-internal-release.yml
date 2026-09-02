@@ -210,7 +210,7 @@ jobs:
           fi
           echo "AAB file ready for upload: ${{ env.AAB_PATH }} ($(stat -c%s "${{ env.AAB_PATH }}") bytes)"
 
-      - name: Upload to Google Play Console Internal Testing
+      - name: Upload to Google Play Console Internal Testing (third-party r0adkll/upload-google-play@v1)
         id: play_upload
         uses: r0adkll/upload-google-play@v1
         with:
