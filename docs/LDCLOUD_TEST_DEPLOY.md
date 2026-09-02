@@ -41,10 +41,11 @@ TodayPick의 빌드 및 검수 프로세스는 다음 단계를 거쳐 운영됩
 | `C:\TodayPick_LDCloud_Latest\` | `sync_latest.py` | 최신 APK 탐색, aapt 검증, 원자적 갱신 엔진 |
 | `C:\TodayPick_LDCloud_Latest\` | `LATEST_INFO.txt` | 최신 APK 메타데이터 (VersionCode, SHA256, Size 등) |
 | `C:\TodayPick_LDCloud_Latest\` | `OPEN_LDCLOUD_DEPLOY.bat` | Staging 폴더 내 원클릭 실행 배치 스크립트 |
-| `C:\Users\Admin\Desktop\` | `OPEN_LDCLOUD_DEPLOY.bat` | **바탕화면 원클릭 실행 런처** |
+| `C:\Users\Admin\OneDrive\바탕 화면\` | `OPEN_LDCLOUD_DEPLOY.bat` | **OneDrive 활성 바탕화면 원클릭 실행 런처 (실제 표시 화면)** |
+| `C:\Users\Admin\Desktop\` | `OPEN_LDCLOUD_DEPLOY.bat` | 로컬 바탕화면 원클릭 실행 런처 (원본 보존) |
 | `C:\c\todaypick-web\tools\ldcloud\` | `sync_latest.py` | Git 저장소 버전 관리용 엔진 소스 |
 | `C:\c\todaypick-web\` | `OPEN_LDCLOUD_DEPLOY.bat` | Git 저장소 버전 관리용 배치 스크립트 |
-| `C:\c\todaypick-web\Docs\` | `LDCLOUD_TEST_DEPLOY.md` | 파이프라인 운영 및 다중 기기 배포 매뉴얼 |
+| `C:\c\todaypick-web\docs\LDCLOUD_TEST_DEPLOY.md` | `LDCLOUD_TEST_DEPLOY.md` | 파이프라인 운영 및 다중 기기 배포 매뉴얼 |
 
 ---
 
@@ -66,7 +67,7 @@ TodayPick의 빌드 및 검수 프로세스는 다음 단계를 거쳐 운영됩
 
 ## 4. LDCloud 다중 기기 일괄 설치 방법
 
-1. 바탕화면의 `OPEN_LDCLOUD_DEPLOY.bat`를 더블클릭합니다.
+1. 바탕화면(OneDrive 동기화 바탕화면 `C:\Users\Admin\OneDrive\바탕 화면\` 또는 로컬 `C:\Users\Admin\Desktop\`)의 `OPEN_LDCLOUD_DEPLOY.bat`를 더블클릭합니다.
 2. 콘솔에서 최신 APK 정보(VersionCode, SHA-256, Size)가 확인되고, `LDCloud.exe`와 Staging 폴더 탐색기 창이 자동으로 열립니다.
 3. 탐색기 창에 보이는 `TodayPick-LATEST.apk`를 마우스로 잡고 LDCloud 기기 화면으로 끌어다 놓습니다(Drag & Drop).
 4. **다중 기기 테스트 시:**
