@@ -10,6 +10,7 @@ import { AudioHub } from './services/audio.js';
 import { APP_DISPLAY_VERSION, ANDROID_VERSION_CODE } from './config/version.js';
 import { UpdaterService } from './services/updater.js';
 import { UpdateCheckService } from './services/update-service.js';
+import { RemoteLookService } from './services/remote-look-service.js';
 import { UPDATE_UI } from './config/update-ui.js';
 import { SHARE_CAPTIONS } from './data/share-captions.js';
 import { SHARE_UI } from './config/share-ui.js';
@@ -35,6 +36,41 @@ const state = {
 
 const outfitManager = new OutfitManager();
 let coupangService = null;
+
+function applyRemoteLookTestOverride(config) {
+  if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+    return config;
+  }
+  const params = new URLSearchParams(window.location.search);
+  const manifestUrl = params.get('remoteLooksManifest');
+  const disabled = params.get('remoteLooks') === 'disabled';
+  if (disabled) {
+    return {
+      ...config,
+      remoteLooks: { enabled: false, manifestUrl: '' }
+    };
+  }
+  if (!manifestUrl) return config;
+  return {
+    ...config,
+    remoteLooks: {
+      enabled: true,
+      manifestUrl
+    }
+  };
+}
+
+async function refreshRemoteLooks({ rerender = false } = {}) {
+  const result = await RemoteLookService.load(state.config || {});
+  if (!result.manifest) return result;
+  const applied = outfitManager.applyRemoteManifest(result.manifest);
+  if (rerender && applied.appliedLooks > 0) {
+    populateThumbnails(state.currentMode);
+    const currentId = state.currentOutfit?.id;
+    renderOutfit(outfitManager.getOutfit(state.currentMode, currentId));
+  }
+  return { ...result, ...applied };
+}
 
 // DOM Elements
 const dom = {
@@ -430,18 +466,19 @@ async function initApp() {
   // Load config.json
   try {
     const cfgRes = await fetch('/config.json');
-    state.config = await cfgRes.json();
+    state.config = applyRemoteLookTestOverride(await cfgRes.json());
   } catch {
-    state.config = {
+    state.config = applyRemoteLookTestOverride({
       workerUrl: 'https://todaypick-coupang-proxy.johnpark236.workers.dev',
       mainCharacterScale: 1.0,
       mainCharacterOffsetY: 0,
       thumbnailGap: 8,
       defaultMode: 'real'
-    };
+    });
   }
 
   coupangService = new CoupangService(state.config.workerUrl);
+  await refreshRemoteLooks();
 
   // Restore stored UI config if exists
   const storedUi = StorageService.getUiConfig();
@@ -1368,6 +1405,7 @@ function setupEventListeners() {
     App.addListener('appStateChange', ({ isActive }) => {
       if (isActive) {
         AudioHub.onForeground();
+        refreshRemoteLooks({ rerender: true });
         // Foreground resume update check (skips if checked recently)
         UpdateCheckService.checkForUpdate(false);
       } else {
@@ -1395,6 +1433,24 @@ function setupEventListeners() {
 
   // Global test hook for automated verification
   window.testBackNav = handleBackButton;
+  if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+    window.todaypickTest = {
+      getConfig: () => state.config,
+      getBuildId: () => ({
+        displayVersion: APP_DISPLAY_VERSION,
+        androidVersionCode: ANDROID_VERSION_CODE
+      }),
+      getState: () => ({
+        currentMode: state.currentMode,
+        currentOutfit: state.currentOutfit,
+        mainImageSrc: dom.mainImg?.currentSrc || dom.mainImg?.src || '',
+        thumbnails: Array.from(dom.thumbCarousel?.querySelectorAll('img') || []).map(img => img.currentSrc || img.src)
+      }),
+      getLooks: (mode) => outfitManager.getLooks(mode),
+      switchMode,
+      refreshRemoteLooks
+    };
+  }
 }
 
 // Setup Main Character Swipe Navigation

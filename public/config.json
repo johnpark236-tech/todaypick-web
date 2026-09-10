@@ -10,5 +10,9 @@
   "thumbnailGap": 4,
   "thumbnailHeight": 110,
   "defaultMode": "female",
-  "workerUrl": "https://todaypick-coupang-proxy.johnpark236.workers.dev"
+  "workerUrl": "https://todaypick-coupang-proxy.johnpark236.workers.dev",
+  "remoteLooks": {
+    "enabled": true,
+    "manifestUrl": "https://storage.googleapis.com/todaypick-daily-looks-363284724091/production/latest.json"
+  }
 }

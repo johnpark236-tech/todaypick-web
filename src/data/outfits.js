@@ -3784,6 +3784,42 @@ export class OutfitManager {
     return this.categories.female_20s;
   }
 
+  applyRemoteManifest(manifest) {
+    if (!manifest || manifest.schema_version !== 1 || !manifest.segments) {
+      return { appliedSegments: 0, appliedLooks: 0 };
+    }
+
+    let appliedSegments = 0;
+    let appliedLooks = 0;
+
+    Object.entries(manifest.segments).forEach(([segment, entry]) => {
+      const mode = `${segment}s`;
+      const localLooks = this.categories[mode];
+      if (!Array.isArray(localLooks) || !Array.isArray(entry.looks) || entry.looks.length !== 10) {
+        return;
+      }
+
+      entry.looks.forEach((remoteLook, index) => {
+        if (!remoteLook?.url || !localLooks[index]) return;
+        localLooks[index] = {
+          ...localLooks[index],
+          remoteLookId: remoteLook.id,
+          image: remoteLook.url,
+          thumbnail: remoteLook.url
+        };
+        appliedLooks += 1;
+      });
+      appliedSegments += 1;
+    });
+
+    this.categories.female = this.categories.female_20s;
+    this.categories.male = this.categories.male_20s;
+    this.categories.real = this.categories.female_20s;
+    this.categories.male2d = this.categories.male_20s;
+
+    return { appliedSegments, appliedLooks };
+  }
+
   getOutfit(mode, outfitId) {
     const list = this.getLooks(mode);
     return list.find(o => o.id === outfitId) || list[0];

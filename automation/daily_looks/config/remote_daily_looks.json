@@ -1,0 +1,37 @@
+{
+  "timezone": "Asia/Seoul",
+  "source_root": "G:\\내 드라이브\\TodayPick_user_config",
+  "state_path": "automation/daily_looks/state/processed.json",
+  "staging_root": "automation/daily_looks/remote_pipeline/staging",
+  "review_root": "automation/daily_looks/remote_pipeline/review",
+  "manifest_root": "automation/daily_looks/remote_pipeline/manifests",
+  "remote_asset_base_url": "",
+  "expected_rows": 2,
+  "expected_columns": 5,
+  "cut_width": 648,
+  "cut_height": 1152,
+  "output_format": "webp",
+  "webp_quality": 90,
+  "file_stable_checks": 3,
+  "file_stable_interval_seconds": 1,
+  "crop_inset_ratio": {
+    "left": 0.012,
+    "right": 0.012,
+    "top": 0.008,
+    "bottom": 0.008
+  },
+  "supported_segments": [
+    "female_10",
+    "female_20",
+    "female_30",
+    "female_40",
+    "female_50",
+    "female_60",
+    "male_10",
+    "male_20",
+    "male_30",
+    "male_40",
+    "male_50",
+    "male_60"
+  ]
+}
