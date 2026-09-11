@@ -10,7 +10,7 @@ import { AudioHub } from './services/audio.js';
 import { APP_DISPLAY_VERSION, ANDROID_VERSION_CODE } from './config/version.js';
 import { UpdaterService } from './services/updater.js';
 import { UpdateCheckService } from './services/update-service.js';
-import { RemoteLookService } from './services/remote-look-service.js';
+import { RemoteLookService, getCurrentSeason, getSeasonLabel } from './services/remote-look-service.js';
 import { UPDATE_UI } from './config/update-ui.js';
 import { SHARE_CAPTIONS } from './data/share-captions.js';
 import { SHARE_UI } from './config/share-ui.js';
@@ -23,11 +23,16 @@ const ALL_GROUPS = [
   'female_10s', 'female_20s', 'female_30s', 'female_40s', 'female_50s', 'female_60s',
   'male_10s', 'male_20s', 'male_30s', 'male_40s', 'male_50s', 'male_60s'
 ];
+const PAGE_SIZE = 20;
 
 // Application state
 const state = {
   config: null,
   currentMode: 'female_20s', // 12 cohorts: female_10s~60s, male_10s~60s
+  currentSeason: getCurrentSeason(),
+  currentGender: 'female',
+  currentAgeGroup: 20,
+  visibleThumbCount: PAGE_SIZE,
   currentOutfit: null,
   activeView: 'view-home',
   isPriceSheetOpen: false,
@@ -61,9 +66,14 @@ function applyRemoteLookTestOverride(config) {
 }
 
 async function refreshRemoteLooks({ rerender = false } = {}) {
-  const result = await RemoteLookService.load(state.config || {});
-  if (!result.manifest) return result;
-  const applied = outfitManager.applyRemoteManifest(result.manifest);
+  const result = await RemoteLookService.loadCatalog(state.config || {}, {
+    season: state.currentSeason,
+    gender: state.currentGender,
+    ageGroup: state.currentAgeGroup
+  });
+  const applied = result.catalog
+    ? outfitManager.applyRemoteCatalog(result.catalog)
+    : { appliedSegments: outfitManager.resetRemoteCategory(state.currentMode) ? 1 : 0, appliedLooks: 0 };
   if (rerender && applied.appliedLooks > 0) {
     populateThumbnails(state.currentMode);
     const currentId = state.currentOutfit?.id;
@@ -85,6 +95,10 @@ const dom = {
   dropdownMale: document.getElementById('dropdown-male'),
   lblFemaleAge: document.getElementById('lbl-female-age'),
   lblMaleAge: document.getElementById('lbl-male-age'),
+  selectSeason: document.getElementById('select-season'),
+  selectGender: document.getElementById('select-gender'),
+  selectAge: document.getElementById('select-age'),
+  btnLoadMoreLooks: document.getElementById('btn-load-more-looks'),
   dropdownItems: document.querySelectorAll('.dropdown-item'),
   characterDisplay: document.querySelector('.character-display'),
   mainImg: document.getElementById('main-character-img'),
@@ -208,8 +222,9 @@ function renderOutfit(outfit) {
 function populateThumbnails(mode) {
   const looks = outfitManager.getLooks(mode);
   dom.thumbCarousel.innerHTML = '';
+  const visible = looks.slice(0, state.visibleThumbCount);
 
-  looks.forEach((look, index) => {
+  visible.forEach((look) => {
     const card = document.createElement('article');
     card.className = 'thumb-card';
     card.dataset.id = look.id;
@@ -228,6 +243,12 @@ function populateThumbnails(mode) {
 
     dom.thumbCarousel.appendChild(card);
   });
+
+  if (dom.btnLoadMoreLooks) {
+    const hasMore = looks.length > state.visibleThumbCount;
+    dom.btnLoadMoreLooks.classList.toggle('hidden', !hasMore);
+    dom.btnLoadMoreLooks.textContent = `더 보기 ${Math.min(PAGE_SIZE, looks.length - state.visibleThumbCount)}`;
+  }
 }
 
 // Close all open dropdown menus
@@ -236,39 +257,45 @@ function closeDropdowns() {
   if (dom.dropdownMale) dom.dropdownMale.classList.remove('open');
 }
 
+function modeFromSelection(gender = state.currentGender, ageGroup = state.currentAgeGroup) {
+  return `${gender}_${Number(ageGroup)}s`;
+}
+
+function parseMode(groupKey) {
+  if (groupKey === 'female' || groupKey === 'real') groupKey = 'female_20s';
+  if (groupKey === 'male' || groupKey === 'male2d') groupKey = 'male_20s';
+  const match = String(groupKey || '').match(/^(female|male)_(10|20|30|40|50|60)s$/);
+  if (!match) return { gender: 'female', ageGroup: 20 };
+  return { gender: match[1], ageGroup: Number(match[2]) };
+}
+
+function syncSelectionControls() {
+  if (dom.selectSeason) dom.selectSeason.value = state.currentSeason;
+  if (dom.selectGender) dom.selectGender.value = state.currentGender;
+  if (dom.selectAge) dom.selectAge.value = String(state.currentAgeGroup);
+}
+
 // Switch Character Mode across 12 Demographic Groups
-function switchMode(groupKey) {
-  // Alias backward compatibility: 'female' -> 'female_20s', 'male' -> 'male_20s'
-  if (groupKey === 'female') groupKey = 'female_20s';
-  if (groupKey === 'male') groupKey = 'male_20s';
+async function switchMode(groupKey, { persist = true } = {}) {
+  const parsed = parseMode(groupKey || modeFromSelection());
+  state.currentGender = parsed.gender;
+  state.currentAgeGroup = parsed.ageGroup;
+  state.currentMode = modeFromSelection();
+  state.visibleThumbCount = PAGE_SIZE;
 
-  state.currentMode = groupKey;
-
-  const isFemale = groupKey.startsWith('female');
-  const gender = isFemale ? 'female' : 'male';
-  const ageLabel = groupKey.replace(`${gender}_`, '').replace('s', '대');
-
-  // Update tabs active state
-  if (dom.btnModeFemale) dom.btnModeFemale.classList.toggle('active', isFemale);
-  if (dom.btnModeMale) dom.btnModeMale.classList.toggle('active', !isFemale);
-
-  // Update tab sub label
-  if (isFemale && dom.lblFemaleAge) dom.lblFemaleAge.textContent = ageLabel;
-  if (!isFemale && dom.lblMaleAge) dom.lblMaleAge.textContent = ageLabel;
-
-  // Update dropdown item highlights
-  if (dom.dropdownItems) {
-    dom.dropdownItems.forEach(item => {
-      item.classList.toggle('active', item.dataset.group === groupKey);
+  syncSelectionControls();
+  closeDropdowns();
+  if (persist) {
+    StorageService.saveLookPreferences({
+      lastGender: state.currentGender,
+      lastAgeGroup: state.currentAgeGroup
     });
   }
 
-  // Close dropdowns
-  closeDropdowns();
+  await refreshRemoteLooks();
 
-  // Populate thumbnails and render first look of the group
-  populateThumbnails(groupKey);
-  const firstLook = outfitManager.getOutfit(groupKey);
+  populateThumbnails(state.currentMode);
+  const firstLook = outfitManager.getOutfit(state.currentMode);
   renderOutfit(firstLook);
 }
 
@@ -478,7 +505,13 @@ async function initApp() {
   }
 
   coupangService = new CoupangService(state.config.workerUrl);
-  await refreshRemoteLooks();
+
+  const prefs = StorageService.getLookPreferences();
+  state.currentSeason = getCurrentSeason();
+  state.currentGender = prefs.lastGender;
+  state.currentAgeGroup = prefs.lastAgeGroup;
+  state.currentMode = modeFromSelection();
+  syncSelectionControls();
 
   // Restore stored UI config if exists
   const storedUi = StorageService.getUiConfig();
@@ -524,8 +557,8 @@ async function initApp() {
   if (dom.sliderEqWidth) dom.sliderEqWidth.value = currentEqWidth;
   if (dom.valEqWidth) dom.valEqWidth.textContent = `${currentEqWidth}mm`;
 
-  // Start with default mode
-  switchMode(state.config.defaultMode || 'female');
+  // Start with current month season and saved gender/age preferences.
+  await switchMode(state.currentMode, { persist: false });
 
   // Check Coupang worker health in background
   coupangService.checkHealth().then(h => {
@@ -595,6 +628,38 @@ function updateBgmButtonUi(isEnabled) {
 }
 
 function setupEventListeners() {
+  if (dom.selectSeason) {
+    dom.selectSeason.addEventListener('change', async (e) => {
+      AudioHub.tap();
+      state.currentSeason = e.target.value;
+      await switchMode(modeFromSelection(), { persist: false });
+    });
+  }
+
+  if (dom.selectGender) {
+    dom.selectGender.addEventListener('change', async (e) => {
+      AudioHub.tap();
+      state.currentGender = e.target.value;
+      await switchMode(modeFromSelection());
+    });
+  }
+
+  if (dom.selectAge) {
+    dom.selectAge.addEventListener('change', async (e) => {
+      AudioHub.tap();
+      state.currentAgeGroup = Number(e.target.value);
+      await switchMode(modeFromSelection());
+    });
+  }
+
+  if (dom.btnLoadMoreLooks) {
+    dom.btnLoadMoreLooks.addEventListener('click', () => {
+      AudioHub.tap();
+      state.visibleThumbCount += PAGE_SIZE;
+      populateThumbnails(state.currentMode);
+    });
+  }
+
   // Female tab click -> Toggle Female dropdown
   if (dom.btnModeFemale) {
     dom.btnModeFemale.addEventListener('click', (e) => {
@@ -1442,6 +1507,11 @@ function setupEventListeners() {
       }),
       getState: () => ({
         currentMode: state.currentMode,
+        currentSeason: state.currentSeason,
+        currentSeasonLabel: getSeasonLabel(state.currentSeason),
+        currentGender: state.currentGender,
+        currentAgeGroup: state.currentAgeGroup,
+        visibleThumbCount: state.visibleThumbCount,
         currentOutfit: state.currentOutfit,
         mainImageSrc: dom.mainImg?.currentSrc || dom.mainImg?.src || '',
         thumbnails: Array.from(dom.thumbCarousel?.querySelectorAll('img') || []).map(img => img.currentSrc || img.src)

@@ -2,6 +2,7 @@
 const STORAGE_KEYS = {
   SAVED_LOOKS: 'todaypick_saved_looks_v1',
   UI_CONFIG: 'todaypick_ui_config_v1',
+  LOOK_PREFERENCES: 'todaypick_look_preferences_v1',
   SEARCH_HISTORY: 'todaypick_search_history_v1'
 };
 
@@ -63,6 +64,28 @@ export class StorageService {
 
   static clearUiConfig() {
     localStorage.removeItem(STORAGE_KEYS.UI_CONFIG);
+  }
+
+  static getLookPreferences() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.LOOK_PREFERENCES);
+      const prefs = data ? JSON.parse(data) : {};
+      const lastGender = prefs.lastGender === 'male' ? 'male' : 'female';
+      const lastAgeGroup = [10, 20, 30, 40, 50, 60].includes(Number(prefs.lastAgeGroup)) ? Number(prefs.lastAgeGroup) : 20;
+      return { lastGender, lastAgeGroup };
+    } catch {
+      return { lastGender: 'female', lastAgeGroup: 20 };
+    }
+  }
+
+  static saveLookPreferences(prefs) {
+    const current = this.getLookPreferences();
+    const next = {
+      lastGender: prefs.lastGender === 'male' ? 'male' : (prefs.lastGender === 'female' ? 'female' : current.lastGender),
+      lastAgeGroup: [10, 20, 30, 40, 50, 60].includes(Number(prefs.lastAgeGroup)) ? Number(prefs.lastAgeGroup) : current.lastAgeGroup
+    };
+    localStorage.setItem(STORAGE_KEYS.LOOK_PREFERENCES, JSON.stringify(next));
+    return next;
   }
 }
 
@@ -193,8 +216,10 @@ export function initSettingsEnhancements() {
   });
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initSettingsEnhancements, { once: true });
-} else {
-  queueMicrotask(initSettingsEnhancements);
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSettingsEnhancements, { once: true });
+  } else {
+    queueMicrotask(initSettingsEnhancements);
+  }
 }

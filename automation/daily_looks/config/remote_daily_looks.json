@@ -20,6 +20,7 @@
     "top": 0.008,
     "bottom": 0.008
   },
+  "second_row_top_overlap_ratio": 0.04,
   "supported_segments": [
     "female_10",
     "female_20",

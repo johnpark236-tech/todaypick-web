@@ -24,6 +24,7 @@ FILENAME_RE = re.compile(r"^(여성|남성)\s*(10|20|30|40|50|60)대\.(png|jpg|j
 KST = timezone(timedelta(hours=9))
 LOCAL_URL_RE = re.compile(r"^(?:[a-zA-Z]:[\\/]|file:|\\.\\.?[\\/]|/|http://(?:localhost|127\\.0\\.0\\.1)(?::\\d+)?(?:/|$))")
 GCLOUD_BIN = shutil.which("gcloud") or shutil.which("gcloud.cmd") or "gcloud"
+SEASONS = ("spring", "summer", "autumn", "winter")
 
 
 @dataclass
@@ -57,6 +58,23 @@ def today_yymmdd(date_arg=None):
 
 def now_iso():
     return datetime.now(KST).isoformat(timespec="seconds")
+
+
+def season_for_month(month):
+    month = int(month)
+    if month in (3, 4, 5):
+        return "spring"
+    if month in (6, 7, 8):
+        return "summer"
+    if month in (9, 10, 11):
+        return "autumn"
+    return "winter"
+
+
+def season_for_date_folder(date_folder):
+    if not re.match(r"^\d{6}$", str(date_folder)):
+        raise ValueError(f"invalid YYMMDD date folder: {date_folder}")
+    return season_for_month(int(str(date_folder)[2:4]))
 
 
 def segment_from_match(match):
@@ -171,6 +189,9 @@ def crop_source_image(im, out_dir, source, date_folder, cfg):
         top = round(row * cell_h + cell_h * inset["top"])
         right = round((col + 1) * cell_w - cell_w * inset["right"])
         bottom = round((row + 1) * cell_h - cell_h * inset["bottom"])
+        second_row_overlap = cfg.get("second_row_top_overlap_ratio", 0.04)
+        if row == 1:
+            top = max(0, round(top - cell_h * second_row_overlap))
         cell = im.crop((left, top, right, bottom))
         cw, ch = cell.size
         current_ratio = cw / float(ch)
@@ -289,9 +310,20 @@ def validate_complete_manifest(manifest, require_public_urls=False):
         if not re.match(r"^(female|male)_(10|20|30|40|50|60)$", segment):
             return False, f"invalid segment: {segment}"
         looks = entry.get("looks")
-        if not isinstance(looks, list) or len(looks) != 10:
-            return False, f"{segment} must have exactly 10 looks"
+        if not isinstance(looks, list) or len(looks) < 1:
+            return False, f"{segment} must have at least 1 look"
+        if entry.get("count") != len(looks):
+            return False, f"{segment} count does not match looks"
+        seen_ids = set()
         for look in looks:
+            if not isinstance(look, dict):
+                return False, f"{segment} has invalid look entry"
+            look_id = look.get("id")
+            if not isinstance(look_id, str) or not look_id:
+                return False, f"{segment} has invalid look id"
+            if look_id in seen_ids:
+                return False, f"{segment} has duplicate look id"
+            seen_ids.add(look_id)
             if len(look.get("sha256", "")) != 64:
                 return False, f"{segment} has invalid sha256"
             url = look.get("url")
@@ -300,6 +332,106 @@ def validate_complete_manifest(manifest, require_public_urls=False):
             if url is not None and not validate_public_asset_url(url):
                 return False, f"{segment} has unsafe URL"
     return True, "PASS"
+
+
+def merge_cumulative_looks(existing_looks, new_looks):
+    merged = []
+    seen_keys = set()
+
+    for look in [*existing_looks, *new_looks]:
+        look_id = look.get("id")
+        sha = look.get("sha256")
+        key = look_id or sha
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        merged.append(look)
+
+    return merged
+
+
+def validate_leaf_catalog(catalog, require_public_urls=False):
+    if not isinstance(catalog, dict) or catalog.get("schema_version") != 2:
+        return False, "invalid schema_version"
+    if catalog.get("season") not in SEASONS:
+        return False, "invalid season"
+    if catalog.get("gender") not in ("female", "male"):
+        return False, "invalid gender"
+    if int(catalog.get("age_group", 0)) not in (10, 20, 30, 40, 50, 60):
+        return False, "invalid age_group"
+    looks = catalog.get("looks")
+    if not isinstance(looks, list) or len(looks) < 1:
+        return False, "catalog must have at least 1 look"
+    if catalog.get("count") != len(looks):
+        return False, "count does not match looks"
+    seen_ids = set()
+    for look in looks:
+        if not isinstance(look, dict):
+            return False, "invalid look entry"
+        look_id = look.get("id")
+        if not isinstance(look_id, str) or not look_id:
+            return False, "invalid look id"
+        if look_id in seen_ids:
+            return False, "duplicate look id"
+        seen_ids.add(look_id)
+        if len(look.get("sha256", "")) != 64:
+            return False, "invalid sha256"
+        url = look.get("url")
+        if require_public_urls and not validate_public_asset_url(url):
+            return False, "non-public URL"
+        if url is not None and not validate_public_asset_url(url):
+            return False, "unsafe URL"
+    return True, "PASS"
+
+
+def validate_index_manifest(index):
+    if not isinstance(index, dict) or index.get("schema_version") != 2:
+        return False, "invalid schema_version"
+    seasons = index.get("seasons")
+    if not isinstance(seasons, dict):
+        return False, "seasons must be an object"
+    for season, entries in seasons.items():
+        if season not in SEASONS:
+            return False, f"invalid season: {season}"
+        if not isinstance(entries, dict):
+            return False, f"{season} must be an object"
+        for segment, url in entries.items():
+            if not re.match(r"^(female|male)_(10|20|30|40|50|60)$", segment):
+                return False, f"invalid segment: {segment}"
+            if not validate_public_asset_url(url):
+                return False, f"unsafe catalog URL: {segment}"
+    return True, "PASS"
+
+
+def build_leaf_catalog(base_catalog, source, new_looks, season, date_folder):
+    existing_looks = base_catalog.get("looks", []) if isinstance(base_catalog, dict) else []
+    if not isinstance(existing_looks, list):
+        existing_looks = []
+    merged_looks = merge_cumulative_looks(existing_looks, new_looks)
+    return {
+        "schema_version": 2,
+        "season": season,
+        "gender": source.gender,
+        "age_group": source.age,
+        "segment": source.segment,
+        "count": len(merged_looks),
+        "updated_at": now_iso(),
+        "last_source_date": date_folder,
+        "source_file": source.filename,
+        "source_sha256": source.sha256,
+        "looks": merged_looks,
+    }
+
+
+def build_index_manifest(existing_index, leaf_urls):
+    index = dict(existing_index) if isinstance(existing_index, dict) else {}
+    index["schema_version"] = 2
+    index["updated_at"] = now_iso()
+    seasons = {season: dict(index.get("seasons", {}).get(season, {})) for season in SEASONS}
+    for season, segment, url in leaf_urls:
+        seasons[season][segment] = url
+    index["seasons"] = seasons
+    return index
 
 
 def build_manifest(base_manifest, processed, date_folder, remote_base_url, dry_run):
@@ -321,12 +453,17 @@ def build_manifest(base_manifest, processed, date_folder, remote_base_url, dry_r
                 "width": 648,
                 "height": 1152,
             })
+        existing_entry = manifest["segments"].get(source.segment, {})
+        existing_looks = existing_entry.get("looks") if isinstance(existing_entry, dict) else []
+        if not isinstance(existing_looks, list):
+            existing_looks = []
+        merged_looks = merge_cumulative_looks(existing_looks, looks)
         manifest["segments"][source.segment] = {
             "source_date": date_folder,
             "source_file": source.filename,
             "source_sha256": source.sha256,
-            "count": len(looks),
-            "looks": looks,
+            "count": len(merged_looks),
+            "looks": merged_looks,
         }
     return manifest
 

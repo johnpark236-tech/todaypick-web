@@ -13,8 +13,14 @@ from remote_daily_looks import (  # noqa: E402
     GcsPublisher,
     SourceImage,
     atomic_publish_segments,
+    build_index_manifest,
+    build_leaf_catalog,
     build_manifest,
+    season_for_date_folder,
+    season_for_month,
+    validate_leaf_catalog,
     validate_complete_manifest,
+    validate_index_manifest,
     validate_public_asset_url,
 )
 
@@ -96,6 +102,17 @@ def assert_latest_unchanged(root, before):
 
 
 def run():
+    assert season_for_month(1) == "winter"
+    assert season_for_month(2) == "winter"
+    assert season_for_month(3) == "spring"
+    assert season_for_month(5) == "spring"
+    assert season_for_month(6) == "summer"
+    assert season_for_month(8) == "summer"
+    assert season_for_month(9) == "autumn"
+    assert season_for_month(11) == "autumn"
+    assert season_for_month(12) == "winter"
+    assert season_for_date_folder("260911") == "autumn"
+
     assert not validate_public_asset_url("C:/c/todaypick-web/a.webp")
     assert not validate_public_asset_url("G:/내 드라이브/a.webp")
     assert not validate_public_asset_url("file:///C:/a.webp")
@@ -116,9 +133,10 @@ def run():
         cut_root = root / "cuts"
         processed = [make_source(segment, "260910", cut_root) for segment in ("female_10", "female_20", "female_30")]
         dry_manifest = build_manifest(latest, processed, "260910", "", dry_run=True)
-        first_look = dry_manifest["segments"]["female_10"]["looks"][0]
-        assert first_look["url"] is None
-        assert first_look["staging_path"].endswith(".webp")
+        assert len(dry_manifest["segments"]["female_10"]["looks"]) == 20
+        newest_dry_look = dry_manifest["segments"]["female_10"]["looks"][-1]
+        assert newest_dry_look["url"] is None
+        assert newest_dry_look["staging_path"].endswith(".webp")
         ok, reason = validate_complete_manifest(dry_manifest, require_public_urls=False)
         assert ok, reason
 
@@ -127,15 +145,105 @@ def run():
         published = atomic_publish_segments(processed, "260910", publisher)
         latest_after = json.loads((publisher.root / "latest.json").read_text(encoding="utf-8"))
         assert latest_after == published
+        assert len(latest_after["segments"]["female_10"]["looks"]) == 20
+        assert len(latest_after["segments"]["female_20"]["looks"]) == 20
+        assert len(latest_after["segments"]["female_30"]["looks"]) == 20
         assert latest_after["segments"]["female_10"]["source_date"] == "260910"
         assert latest_after["segments"]["female_20"]["source_date"] == "260910"
         assert latest_after["segments"]["female_30"]["source_date"] == "260910"
         for segment in SEGMENTS[3:]:
             assert latest_after["segments"][segment] == latest["segments"][segment]
 
+        published_again = atomic_publish_segments(processed, "260910", publisher)
+        assert len(published_again["segments"]["female_10"]["looks"]) == 20
+        assert len(published_again["segments"]["female_20"]["looks"]) == 20
+        assert len(published_again["segments"]["female_30"]["looks"]) == 20
+
+        next_processed = [make_source("female_10", "260911", cut_root)]
+        published_next = atomic_publish_segments(next_processed, "260911", publisher)
+        assert len(published_next["segments"]["female_10"]["looks"]) == 30
+        assert len(published_next["segments"]["female_20"]["looks"]) == 20
+        assert len(published_next["segments"]["male_10"]["looks"]) == 10
+        ok, reason = validate_complete_manifest(published_next, require_public_urls=True)
+        assert ok, reason
+
+        base_source, base_cuts = make_source("female_20", "260910", cut_root)
+        base_looks = [
+            {
+                "id": item["id"],
+                "url": f"https://valid-public-host.example/autumn/female_20/{item['filename']}",
+                "sha256": item["sha256"],
+                "width": 648,
+                "height": 1152,
+            }
+            for item in base_cuts
+        ]
+        leaf = build_leaf_catalog({}, base_source, base_looks, "autumn", "260910")
+        assert leaf["count"] == 10
+        ok, reason = validate_leaf_catalog(leaf, require_public_urls=True)
+        assert ok, reason
+
+        next_source, next_cuts = make_source("female_20", "260911", cut_root)
+        next_looks = [
+            {
+                "id": item["id"],
+                "url": f"https://valid-public-host.example/autumn/female_20/{item['filename']}",
+                "sha256": item["sha256"],
+                "width": 648,
+                "height": 1152,
+            }
+            for item in next_cuts
+        ]
+        leaf = build_leaf_catalog(leaf, next_source, next_looks, "autumn", "260911")
+        assert leaf["count"] == 20
+        leaf = build_leaf_catalog(leaf, next_source, next_looks, "autumn", "260911")
+        assert leaf["count"] == 20
+
+        for size in (1, 10, 20, 100, 500):
+            sized = dict(leaf)
+            sized["looks"] = [
+                {
+                    "id": f"autumn_female_20_sized_{index:03d}",
+                    "url": f"https://valid-public-host.example/autumn/female_20/sized_{index:03d}.webp",
+                    "sha256": f"{index + 1:064x}"[-64:],
+                    "width": 648,
+                    "height": 1152,
+                }
+                for index in range(size)
+            ]
+            sized["count"] = size
+            ok, reason = validate_leaf_catalog(sized, require_public_urls=True)
+            assert ok, reason
+
+        summer_leaf = build_leaf_catalog({}, base_source, base_looks, "summer", "260610")
+        male_source, male_cuts = make_source("male_20", "260911", cut_root)
+        male_looks = [
+            {
+                "id": item["id"],
+                "url": f"https://valid-public-host.example/autumn/male_20/{item['filename']}",
+                "sha256": item["sha256"],
+                "width": 648,
+                "height": 1152,
+            }
+            for item in male_cuts
+        ]
+        male_leaf = build_leaf_catalog({}, male_source, male_looks, "autumn", "260911")
+        assert leaf["count"] == 20
+        assert summer_leaf["season"] == "summer"
+        assert summer_leaf["count"] == 10
+        assert male_leaf["segment"] == "male_20"
+        assert male_leaf["count"] == 10
+        index = build_index_manifest({}, [
+            ("autumn", "female_20", "https://valid-public-host.example/production/autumn/female_20.json"),
+            ("summer", "female_20", "https://valid-public-host.example/production/summer/female_20.json"),
+            ("autumn", "male_20", "https://valid-public-host.example/production/autumn/male_20.json"),
+        ])
+        ok, reason = validate_index_manifest(index)
+        assert ok, reason
+
         assert publisher.rollback_latest()
         rolled_back = json.loads((publisher.root / "latest.json").read_text(encoding="utf-8"))
-        assert rolled_back == latest
+        assert rolled_back == published_again
 
         for kwargs in (
             {"fail_upload": True},

@@ -3770,6 +3770,11 @@ export class OutfitManager {
       }
 ];
 
+    this.baseCategories = {};
+    DEMOGRAPHIC_GROUPS.forEach(group => {
+      this.baseCategories[group.key] = this.cloneLooks(this.categories[group.key] || []);
+    });
+
     // Backward compatibility aliases
     this.categories.female = this.categories.female_20s;
     this.categories.male = this.categories.male_20s;
@@ -3795,20 +3800,12 @@ export class OutfitManager {
     Object.entries(manifest.segments).forEach(([segment, entry]) => {
       const mode = `${segment}s`;
       const localLooks = this.categories[mode];
-      if (!Array.isArray(localLooks) || !Array.isArray(entry.looks) || entry.looks.length !== 10) {
+      if (!Array.isArray(localLooks) || !Array.isArray(entry.looks) || entry.looks.length < 1) {
         return;
       }
 
-      entry.looks.forEach((remoteLook, index) => {
-        if (!remoteLook?.url || !localLooks[index]) return;
-        localLooks[index] = {
-          ...localLooks[index],
-          remoteLookId: remoteLook.id,
-          image: remoteLook.url,
-          thumbnail: remoteLook.url
-        };
-        appliedLooks += 1;
-      });
+      this.categories[mode] = this.buildRemoteLooks(mode, entry.looks);
+      appliedLooks += this.categories[mode].length;
       appliedSegments += 1;
     });
 
@@ -3818,6 +3815,69 @@ export class OutfitManager {
     this.categories.male2d = this.categories.male_20s;
 
     return { appliedSegments, appliedLooks };
+  }
+
+  applyRemoteCatalog(catalog) {
+    if (!catalog || catalog.schema_version !== 2 || !Array.isArray(catalog.looks) || catalog.looks.length < 1) {
+      return { appliedSegments: 0, appliedLooks: 0 };
+    }
+
+    const mode = `${catalog.gender}_${Number(catalog.age_group)}s`;
+    if (!Array.isArray(this.categories[mode])) {
+      return { appliedSegments: 0, appliedLooks: 0 };
+    }
+
+    this.categories[mode] = this.buildRemoteLooks(mode, catalog.looks, catalog.season);
+    this.categories.female = this.categories.female_20s;
+    this.categories.male = this.categories.male_20s;
+    this.categories.real = this.categories.female_20s;
+    this.categories.male2d = this.categories.male_20s;
+
+    return { appliedSegments: 1, appliedLooks: this.categories[mode].length };
+  }
+
+  buildRemoteLooks(mode, remoteLooks, season = null) {
+    const templates = this.baseCategories[mode] || this.categories[mode] || [];
+    const fallback = templates[0] || {
+      id: mode,
+      mode,
+      title: '[TodayPick] 원격 코디',
+      totalPrice: 0,
+      items: []
+    };
+    return remoteLooks
+      .filter(remoteLook => remoteLook?.url && remoteLook?.id)
+      .map((remoteLook, index) => {
+        const template = templates[index % templates.length] || fallback;
+        return {
+          ...template,
+          id: remoteLook.id,
+          mode,
+          remoteLookId: remoteLook.id,
+          remoteSeason: season,
+          remoteIndex: index + 1,
+          title: `${template.title} #${index + 1}`,
+          image: remoteLook.url,
+          thumbnail: remoteLook.url
+        };
+      });
+  }
+
+  resetRemoteCategory(mode) {
+    if (!Array.isArray(this.baseCategories[mode])) return false;
+    this.categories[mode] = this.cloneLooks(this.baseCategories[mode]);
+    this.categories.female = this.categories.female_20s;
+    this.categories.male = this.categories.male_20s;
+    this.categories.real = this.categories.female_20s;
+    this.categories.male2d = this.categories.male_20s;
+    return true;
+  }
+
+  cloneLooks(looks) {
+    return looks.map(look => ({
+      ...look,
+      items: Array.isArray(look.items) ? look.items.map(item => ({ ...item })) : []
+    }));
   }
 
   getOutfit(mode, outfitId) {

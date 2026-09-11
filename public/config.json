@@ -13,6 +13,7 @@
   "workerUrl": "https://todaypick-coupang-proxy.johnpark236.workers.dev",
   "remoteLooks": {
     "enabled": true,
-    "manifestUrl": "https://storage.googleapis.com/todaypick-daily-looks-363284724091/production/latest.json"
+    "manifestUrl": "https://storage.googleapis.com/todaypick-daily-looks-363284724091/production/latest.json",
+    "indexUrl": "https://storage.googleapis.com/todaypick-daily-looks-363284724091/production/index.json"
   }
 }
