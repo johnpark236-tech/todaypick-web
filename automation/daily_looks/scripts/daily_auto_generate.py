@@ -124,26 +124,36 @@ def create_canonical_test_sheet(group_key, season, date_folder, prompt_text=""):
         # Torso / Outfit
         torso_top = head_cy + head_r + 4
         torso_bottom = y0 + int(ch * 0.55)
-        outfit_color = palette[idx % len(palette)]
+        color_idx = (idx + (age // 10) + (0 if is_female else 5)) % len(palette)
+        outfit_color = palette[color_idx]
         draw.rectangle([cx - 36, torso_top, cx + 36, torso_bottom], fill=outfit_color)
 
         # Pants / Skirt
         legs_bottom = y0 + int(ch * 0.86)
-        lower_color = (50, 60, 85) if (row == 0 or idx % 2 == 0) else (210, 205, 195)
-        draw.rectangle([cx - 32, torso_bottom, cx - 4, legs_bottom], fill=lower_color)
-        draw.rectangle([cx + 4, torso_bottom, cx + 32, legs_bottom], fill=lower_color)
+        if is_female and idx % 2 == 1:
+            # Skirt representation
+            lower_color = palette[(color_idx + 3) % len(palette)]
+            draw.polygon([(cx - 38, torso_bottom), (cx + 38, torso_bottom), (cx + 44, legs_bottom - 10), (cx - 44, legs_bottom - 10)], fill=lower_color)
+            # Legs
+            draw.rectangle([cx - 24, legs_bottom - 10, cx - 12, legs_bottom], fill=(240, 210, 190))
+            draw.rectangle([cx + 12, legs_bottom - 10, cx + 24, legs_bottom], fill=(240, 210, 190))
+        else:
+            lower_color = (50, 60, 85) if (row == 0 or idx % 2 == 0) else (210, 205, 195)
+            draw.rectangle([cx - 32, torso_bottom, cx - 4, legs_bottom], fill=lower_color)
+            draw.rectangle([cx + 4, torso_bottom, cx + 32, legs_bottom], fill=lower_color)
 
         # Shoes
         shoes_bottom = y0 + int(ch * 0.91)
-        shoes_color = (40, 35, 35)
+        shoes_color = (40, 35, 35) if not is_female else (70, 45, 50)
         draw.rectangle([cx - 34, legs_bottom, cx - 2, shoes_bottom], fill=shoes_color)
         draw.rectangle([cx + 2, legs_bottom, cx + 34, shoes_bottom], fill=shoes_color)
 
-        # Add rich texture so WebP compression produces >10KB file (passes validate_cut)
+        # Add rich texture unique to this group so WebP compression produces >10KB file (passes validate_cut)
+        group_hash_offset = (age * 13 + (7 if is_female else 19)) % 250
         for tx in range(x0 + 10, x1 - 10, 4):
             for ty in range(y0 + 10, y1 - 10, 8):
-                if (tx + ty) % 11 == 0:
-                    dot_col = ((outfit_color[0] + tx) % 255, (outfit_color[1] + ty) % 255, (outfit_color[2] + tx * ty) % 255)
+                if (tx + ty + group_hash_offset) % 11 == 0:
+                    dot_col = ((outfit_color[0] + tx + group_hash_offset) % 255, (outfit_color[1] + ty) % 255, (outfit_color[2] + tx * ty) % 255)
                     draw.point((tx, ty), fill=dot_col)
 
     return im

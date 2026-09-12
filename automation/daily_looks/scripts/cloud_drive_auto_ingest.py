@@ -413,7 +413,8 @@ class DriveApiClient:
                     if any(s.name == item_path.name for s in sources):
                         continue
                     sha = sha256_file(item_path)
-                    local_id = f"local_{sha[:16]}"
+                    segment = parsed[2]
+                    local_id = f"local_{segment}_{sha[:12]}"
                     self.local_files[local_id] = item_path
                     sources.append(DriveFile(
                         id=local_id,
@@ -463,6 +464,11 @@ class DriveApiClient:
     def download_file(self, file_id, destination):
         destination.parent.mkdir(parents=True, exist_ok=True)
         if file_id in self.local_files:
+            if destination.exists():
+                try:
+                    destination.unlink()
+                except Exception:
+                    pass
             shutil.copy2(self.local_files[file_id], destination)
             return
         request = self.service.files().get_media(fileId=file_id, supportsAllDrives=True)
