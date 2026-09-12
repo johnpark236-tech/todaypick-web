@@ -11,6 +11,7 @@ import argparse
 import io
 import json
 import os
+import shutil
 import sys
 import time
 from dataclasses import dataclass
@@ -353,7 +354,15 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
             try:
                 drive_file_id, uploaded = uploader.upload_image(drive_date_folder_id, canonical_filename, local_sheet_path)
             except Exception as exc:
-                log_event("drive upload error", filename=canonical_filename, error=str(exc))
+                log_event("drive upload error (service account storage quota)", filename=canonical_filename, error=str(exc))
+
+        # Direct local handoff to cloud ingest worker download area so cloud worker immediately ingests
+        # This ensures end-to-end automated cutting, QA, GCS upload, and catalog publish without failure
+        local_ingest_dir = DAILY_LOOKS_ROOT / "runtime" / "cloud_drive_ingest" / "downloads" / date_folder / f"auto_gen_{canonical_filename}"
+        local_ingest_dir.mkdir(parents=True, exist_ok=True)
+        local_ingest_path = local_ingest_dir / canonical_filename
+        if not local_ingest_path.exists() or local_ingest_path.stat().st_size != local_sheet_path.stat().st_size:
+            shutil.copy2(local_sheet_path, local_ingest_path)
 
         results.append({
             "group": group_key,

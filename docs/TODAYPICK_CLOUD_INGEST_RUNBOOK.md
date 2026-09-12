@@ -59,14 +59,22 @@ sqlite3 /opt/todaypick-web/automation/daily_looks/runtime/cloud_drive_ingest/sta
 New source sheets must match MASTER v3 exactly:
 
 ```text
-CANONICAL_SOURCE_SIZE=1280x1168
+CANONICAL_SOURCE_SIZE=1313x1198
 GRID=5x2
-LOGICAL_CELL=256x584
+LOGICAL_CELL=262.6x599
 CUT_PROFILE=canonical_v3
 SEASONAL_BACKGROUND=YES
-CHARACTER_HEIGHT=72-80%, MAX=82%
+CHARACTER_HEIGHT_TARGET=70-78%
+CHARACTER_HEIGHT_MAX=80%
+CHARACTER_HEIGHT_FAIL_AT_OR_ABOVE=82%
+HEAD_CLEARANCE_MIN=7%
+FOOT_CLEARANCE_MIN=7%
+SIDE_CLEARANCE_MIN=6%
 VISIBLE_BORDER=NO
 WIDE_SEPARATOR=NO
+TARGET_OUTPUT_SIZE=648x1152
+SAFE_FIT_MODE=contain
+BACKGROUND_FILL=same_cut_blurred_full_canvas
 ```
 
 If a new source is `1024x1536`, portrait, or any arbitrary ratio, the worker must reject it and leave production unchanged.
@@ -75,8 +83,16 @@ Quality gate before production publish:
 
 1. Reject source sheets with internal white separators wider than `4px`.
 2. Crop with the canonical internal boundary safe trim so separator pixels do not appear in app previews.
-3. Open the review sheet or app preview and reject any crop with a cut-off head, hair, legs, shoes, bag, visible border, adjacent-panel pixels, plain solid-color-only background, readable text, logo, or watermark.
-4. Publish only when all 10 crops pass.
+3. Output each cut as `648x1152` WEBP. Preserve the character ratio; if target aspect fitting would crop the full body, use contain mode and fill the left/right/top/bottom empty areas with an enlarged blurred copy of the same cut.
+4. Check row balance: row 1 and row 2 must have similar character scale, head clearance, and foot clearance.
+5. Reject row 1 cuts with bottom border, next-row pixels, furniture-strip artifacts, or white bands.
+6. Reject row 2 cuts where the character is visibly top-heavy and the area below the shoes is excessive.
+7. Reject oversized characters: target character height is `70-78%` of panel height, max `80%`, fail at or above `82%`.
+8. Require safe margins: at least `7%` clear panel height above hair and below shoes, and at least `6%` clear panel width on both sides.
+9. Prefer generation-time correction for row balance. Move the row split upward by about `8-12px` only as an exception when source regeneration is not available.
+10. For ChatGPT browser generated sheets, reject visible white vertical panel separators around `8px`; regenerate with explicit "no white borders/no white separator lines" instructions.
+11. Open the review sheet or app preview and reject any crop with a cut-off head, hair, legs, shoes, bag, visible border, adjacent-panel pixels, plain solid-color-only background, readable text, logo, or watermark.
+12. Publish only when all 10 crops pass.
 
 ## Dry Run
 

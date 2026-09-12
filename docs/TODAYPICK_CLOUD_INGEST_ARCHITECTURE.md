@@ -77,7 +77,7 @@ New Google Drive source sheets must use `canonical_v3`.
 
 Canonical source geometry:
 
-`1280x1168`, `5x2`, logical cell `256x584`.
+`1313x1198`, `5x2`, logical cell `262.6x599`.
 
 Canonical crop behavior:
 
@@ -88,11 +88,17 @@ Canonical crop behavior:
 - top row excess trim bias `35:65`
 - bottom row excess trim bias `65:35`
 - production output size remains the current config value `648x1152`
+- if target aspect fitting would crop the full body, use contain mode and fill the left/right/top/bottom empty areas with an enlarged blurred copy of the same cut
+- row 1 and row 2 must have similar character scale, head clearance, and foot clearance
+- row 1 bottom border artifacts and row 2 top-heavy placement are publish blockers
+- generation-time correction is preferred; moving the row split upward by about `8-12px` is an exception fallback only
+- visible white vertical panel separators around `8px` in ChatGPT browser generated sheets are publish blockers; regenerate with explicit no-border instructions
 
 Generation quality requirements:
 
 - every panel must use a natural seasonal lifestyle background, not a plain solid color only
-- character height should stay around `72-80%` of the logical panel height and must not exceed `82%`
+- character height target is `70-78%` of the logical panel height, max `80%`, fail at or above `82%`
+- keep at least `7%` clear panel height above hair and below shoes, and at least `6%` clear panel width on both left and right sides
 - keep clear background above hair and below shoes so app display scaling does not crop heads or feet
 - visible white borders, thick separators, adjacent-panel pixels, cropped heads, cropped shoes, sticker graphics, readable text, logos, and watermarks are publish blockers
 
