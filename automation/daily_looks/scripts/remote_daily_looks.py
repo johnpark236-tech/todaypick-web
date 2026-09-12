@@ -20,7 +20,13 @@ from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = PROJECT_ROOT / "automation" / "daily_looks" / "config" / "remote_daily_looks.json"
-FILENAME_RE = re.compile(r"^(?:(여성|남성)\s*(10|20|30|40|50|60)대|(female|male)_(10|20|30|40|50|60))\.(png|jpg|jpeg|webp)$", re.IGNORECASE)
+FILENAME_RE = re.compile(
+    r"^(?:(?P<season>spring|summer|autumn|winter)_)?"
+    r"(?:(?P<kr_gender>여성|남성)\s*(?P<kr_age>10|20|30|40|50|60)대|"
+    r"(?P<en_gender>female|male)_(?P<en_age>10|20|30|40|50|60))"
+    r"\.(?P<ext>png|jpg|jpeg|webp)$",
+    re.IGNORECASE,
+)
 KST = timezone(timedelta(hours=9))
 LOCAL_URL_RE = re.compile(r"^(?:[a-zA-Z]:[\\/]|file:|\\.\\.?[\\/]|/|http://(?:localhost|127\\.0\\.0\\.1)(?::\\d+)?(?:/|$))")
 GCLOUD_BIN = shutil.which("gcloud") or shutil.which("gcloud.cmd") or "gcloud"
@@ -47,6 +53,7 @@ class SourceImage:
     size: int
     mtime: float
     sha256: str
+    season: str | None = None
 
 
 def load_config():
@@ -88,13 +95,18 @@ def season_for_date_folder(date_folder):
 
 
 def segment_from_match(match):
-    if match.group(1):
-        gender = "female" if match.group(1) == "여성" else "male"
-        age = int(match.group(2))
+    if match.group("kr_gender"):
+        gender = "female" if match.group("kr_gender") == "여성" else "male"
+        age = int(match.group("kr_age"))
     else:
-        gender = match.group(3).lower()
-        age = int(match.group(4))
+        gender = match.group("en_gender").lower()
+        age = int(match.group("en_age"))
     return gender, age, f"{gender}_{age}"
+
+
+def season_from_match(match):
+    value = match.group("season")
+    return value.lower() if value else None
 
 
 def sha256_file(path):
@@ -144,6 +156,7 @@ def discover_sources(source_root, date_folder, cfg):
         if not match:
             continue
         gender, age, segment = segment_from_match(match)
+        source_season = season_from_match(match)
         if segment not in cfg["supported_segments"]:
             continue
         if not is_file_stable(path, cfg["file_stable_checks"], cfg["file_stable_interval_seconds"]):
@@ -158,6 +171,7 @@ def discover_sources(source_root, date_folder, cfg):
             size=stat.st_size,
             mtime=stat.st_mtime,
             sha256=sha256_file(path),
+            season=source_season,
         ))
     return folder, found, "OK"
 

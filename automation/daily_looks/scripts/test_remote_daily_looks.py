@@ -25,6 +25,9 @@ from remote_daily_looks import (  # noqa: E402
     load_config,
     season_for_date_folder,
     season_for_month,
+    season_from_match,
+    segment_from_match,
+    FILENAME_RE,
     validate_leaf_catalog,
     validate_complete_manifest,
     validate_index_manifest,
@@ -144,6 +147,16 @@ def run():
     assert season_for_month(11) == "autumn"
     assert season_for_month(12) == "winter"
     assert season_for_date_folder("260911") == "autumn"
+    for filename, expected_season, expected_segment in (
+        ("autumn_여성10대.png", "autumn", "female_10"),
+        ("winter_female_10.webp", "winter", "female_10"),
+        ("여성20대.jpg", None, "female_20"),
+        ("male_60.jpeg", None, "male_60"),
+    ):
+        match = FILENAME_RE.match(filename)
+        assert match, filename
+        assert season_from_match(match) == expected_season
+        assert segment_from_match(match)[2] == expected_segment
 
     assert not validate_public_asset_url("C:/c/todaypick-web/a.webp")
     assert not validate_public_asset_url("G:/내 드라이브/a.webp")

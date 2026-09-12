@@ -270,9 +270,18 @@ function parseMode(groupKey) {
 }
 
 function syncSelectionControls() {
-  if (dom.selectSeason) dom.selectSeason.value = state.currentSeason;
-  if (dom.selectGender) dom.selectGender.value = state.currentGender;
-  if (dom.selectAge) dom.selectAge.value = String(state.currentAgeGroup);
+  if (dom.selectSeason) {
+    dom.selectSeason.value = state.currentSeason;
+    dom.selectSeason.dataset.season = state.currentSeason;
+  }
+  if (dom.selectGender) {
+    dom.selectGender.value = state.currentGender;
+    dom.selectGender.dataset.gender = state.currentGender;
+  }
+  if (dom.selectAge) {
+    dom.selectAge.value = String(state.currentAgeGroup);
+    dom.selectAge.dataset.age = String(state.currentAgeGroup);
+  }
 }
 
 // Switch Character Mode across 12 Demographic Groups
@@ -507,7 +516,7 @@ async function initApp() {
   coupangService = new CoupangService(state.config.workerUrl);
 
   const prefs = StorageService.getLookPreferences();
-  state.currentSeason = getCurrentSeason();
+  state.currentSeason = prefs.lastSeason || getCurrentSeason();
   state.currentGender = prefs.lastGender;
   state.currentAgeGroup = prefs.lastAgeGroup;
   state.currentMode = modeFromSelection();
@@ -632,6 +641,8 @@ function setupEventListeners() {
     dom.selectSeason.addEventListener('change', async (e) => {
       AudioHub.tap();
       state.currentSeason = e.target.value;
+      StorageService.saveLookPreferences({ lastSeason: state.currentSeason });
+      syncSelectionControls();
       await switchMode(modeFromSelection(), { persist: false });
     });
   }

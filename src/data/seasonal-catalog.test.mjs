@@ -35,10 +35,10 @@ function catalog(count) {
 
 function run() {
   localStorage.clear();
-  assert.deepEqual(StorageService.getLookPreferences(), { lastGender: 'female', lastAgeGroup: 20 });
+  assert.deepEqual(StorageService.getLookPreferences(), { lastGender: 'female', lastAgeGroup: 20, lastSeason: null });
 
-  StorageService.saveLookPreferences({ lastGender: 'male', lastAgeGroup: 40 });
-  assert.deepEqual(StorageService.getLookPreferences(), { lastGender: 'male', lastAgeGroup: 40 });
+  StorageService.saveLookPreferences({ lastGender: 'male', lastAgeGroup: 40, lastSeason: 'winter' });
+  assert.deepEqual(StorageService.getLookPreferences(), { lastGender: 'male', lastAgeGroup: 40, lastSeason: 'winter' });
   assert.equal(JSON.parse(localStorage.getItem('todaypick_look_preferences_v1')).season, undefined);
 
   for (const count of [1, 10, 20, 100, 500]) {

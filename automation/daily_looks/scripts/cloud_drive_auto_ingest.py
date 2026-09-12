@@ -33,6 +33,7 @@ from remote_daily_looks import (  # noqa: E402
     load_config,
     now_iso,
     season_for_date_folder,
+    season_from_match,
     segment_from_match,
     sha256_file,
     today_yymmdd,
@@ -105,7 +106,7 @@ def parse_source_name(filename):
     if not match:
         return None
     gender, age, segment = segment_from_match(match)
-    return gender, age, segment
+    return gender, age, segment, season_from_match(match)
 
 
 def acquire_lock():
@@ -449,8 +450,8 @@ class CloudDriveIngestWorker:
         parsed = parse_source_name(drive_file.name)
         if not parsed:
             return {"filename": drive_file.name, "status": "SKIP_NAME"}
-        gender, age, segment = parsed
-        season = season_for_date_folder(date_folder)
+        gender, age, segment, season_override = parsed
+        season = season_override or season_for_date_folder(date_folder)
         download_dir = RUNTIME_ROOT / "downloads" / date_folder / drive_file.id
         source_path = download_dir / drive_file.name
 

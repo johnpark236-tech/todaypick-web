@@ -72,9 +72,10 @@ export class StorageService {
       const prefs = data ? JSON.parse(data) : {};
       const lastGender = prefs.lastGender === 'male' ? 'male' : 'female';
       const lastAgeGroup = [10, 20, 30, 40, 50, 60].includes(Number(prefs.lastAgeGroup)) ? Number(prefs.lastAgeGroup) : 20;
-      return { lastGender, lastAgeGroup };
+      const lastSeason = ['spring', 'summer', 'autumn', 'winter'].includes(prefs.lastSeason) ? prefs.lastSeason : null;
+      return { lastGender, lastAgeGroup, lastSeason };
     } catch {
-      return { lastGender: 'female', lastAgeGroup: 20 };
+      return { lastGender: 'female', lastAgeGroup: 20, lastSeason: null };
     }
   }
 
@@ -82,7 +83,8 @@ export class StorageService {
     const current = this.getLookPreferences();
     const next = {
       lastGender: prefs.lastGender === 'male' ? 'male' : (prefs.lastGender === 'female' ? 'female' : current.lastGender),
-      lastAgeGroup: [10, 20, 30, 40, 50, 60].includes(Number(prefs.lastAgeGroup)) ? Number(prefs.lastAgeGroup) : current.lastAgeGroup
+      lastAgeGroup: [10, 20, 30, 40, 50, 60].includes(Number(prefs.lastAgeGroup)) ? Number(prefs.lastAgeGroup) : current.lastAgeGroup,
+      lastSeason: ['spring', 'summer', 'autumn', 'winter'].includes(prefs.lastSeason) ? prefs.lastSeason : current.lastSeason
     };
     localStorage.setItem(STORAGE_KEYS.LOOK_PREFERENCES, JSON.stringify(next));
     return next;

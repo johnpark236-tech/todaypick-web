@@ -103,7 +103,7 @@ def release_lock():
 
 
 def process_source(source, date_folder, cfg, ledger, dry_run=False):
-    season = season_for_date_folder(date_folder)
+    season = source.season or season_for_date_folder(date_folder)
     ledger_key = f"{date_folder}/{source.segment}/{source.sha256}"
     prior = ledger["sources"].get(ledger_key)
     if prior and prior.get("result") == "PUBLISHED":

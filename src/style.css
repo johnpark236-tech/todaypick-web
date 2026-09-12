@@ -23,6 +23,9 @@
   --color-coupang-blue: #0074E9;
   --color-coupang-green: #8BCF9B;
   --color-coupang-green-dark: #5DAF72;
+  --selector-neutral-bg: #FFFFFF;
+  --selector-neutral-text: #6B7280;
+  --selector-neutral-border: rgba(108, 85, 232, 0.14);
 
   --font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", sans-serif;
   --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.05);
@@ -245,16 +248,101 @@ body {
 .mode-select {
   width: 100%;
   height: 30px;
-  border: none;
+  border: 1px solid var(--selector-neutral-border);
   border-radius: 7px;
-  background: #FFFFFF;
-  color: var(--color-primary);
+  background: var(--selector-neutral-bg);
+  color: var(--selector-neutral-text);
   font-size: 12px;
   font-weight: 800;
   text-align: center;
   text-align-last: center;
   outline: none;
-  box-shadow: 0 2px 6px rgba(108, 85, 232, 0.16);
+  box-shadow: 0 2px 6px rgba(108, 85, 232, 0.10);
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.mode-select[data-season="spring"] {
+  background: #DFF3D8;
+  border-color: #9CCB93;
+  color: #315F2B;
+  box-shadow: 0 2px 8px rgba(95, 142, 80, 0.18);
+}
+
+.mode-select[data-season="summer"] {
+  background: #DDF4FF;
+  border-color: #8FCDE8;
+  color: #22637B;
+  box-shadow: 0 2px 8px rgba(58, 153, 190, 0.18);
+}
+
+.mode-select[data-season="autumn"] {
+  background: #F6E2C8;
+  border-color: #D7AE77;
+  color: #735126;
+  box-shadow: 0 2px 8px rgba(169, 116, 49, 0.18);
+}
+
+.mode-select[data-season="winter"] {
+  background: #E4E9FF;
+  border-color: #AEB9EB;
+  color: #414B8F;
+  box-shadow: 0 2px 8px rgba(91, 107, 190, 0.18);
+}
+
+.mode-select[data-gender="female"] {
+  background: #F8DCE7;
+  border-color: #E8AFC4;
+  color: #87445E;
+  box-shadow: 0 2px 8px rgba(206, 91, 132, 0.18);
+}
+
+.mode-select[data-gender="male"] {
+  background: #DCEEFF;
+  border-color: #99C7EE;
+  color: #2D618C;
+  box-shadow: 0 2px 8px rgba(69, 139, 199, 0.18);
+}
+
+.mode-select[data-age="10"] {
+  background: #FFF0A8;
+  border-color: #DEC86B;
+  color: #6C5B13;
+  box-shadow: 0 2px 8px rgba(188, 161, 40, 0.16);
+}
+
+.mode-select[data-age="20"] {
+  background: #E9DDFF;
+  border-color: #BCA4EA;
+  color: #5B438E;
+  box-shadow: 0 2px 8px rgba(129, 91, 194, 0.16);
+}
+
+.mode-select[data-age="30"] {
+  background: #FFDCCD;
+  border-color: #E7AA92;
+  color: #804832;
+  box-shadow: 0 2px 8px rgba(201, 107, 75, 0.16);
+}
+
+.mode-select[data-age="40"] {
+  background: #DCE8CF;
+  border-color: #A6BD91;
+  color: #4E653C;
+  box-shadow: 0 2px 8px rgba(109, 139, 82, 0.16);
+}
+
+.mode-select[data-age="50"] {
+  background: #E8D8CF;
+  border-color: #C6AB9C;
+  color: #674F43;
+  box-shadow: 0 2px 8px rgba(142, 105, 86, 0.16);
+}
+
+.mode-select[data-age="60"] {
+  background: #D7E2F2;
+  border-color: #9FAFC8;
+  color: #435875;
+  box-shadow: 0 2px 8px rgba(89, 111, 145, 0.16);
 }
 
 .mode-dropdown-container {
