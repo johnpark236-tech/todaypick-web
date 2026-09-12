@@ -57,6 +57,7 @@ MAX_ATTEMPTS = 3
 SOURCE_MIME_TYPES = {"image/png", "image/jpeg", "image/webp"}
 DELETE_REQUEST_RE = re.compile(r"^todaypick_delete_request_[0-9]{8}[-_][0-9]{6}\.json$", re.IGNORECASE)
 DELETE_REQUEST_MIME_TYPES = {"application/json", "text/plain", ""}
+DELETE_REQUEST_FOLDER_NAMES = ("삭제요청", "delete_requests", "DeleteRequests", "_DeleteRequests")
 TERMINAL_FAILURES = {
     "SOURCE_DECODE_FAILED",
     "INVALID_GRID",
@@ -470,11 +471,24 @@ class CloudDriveIngestWorker:
             log_event("date folder not found", date_folder=date_folder, root_folder_id=self.root_folder_id)
             return {"date_folder": date_folder, "status": "NO_DAILY_FOLDER", "processed": 0}
         delete_requests = self.drive.list_delete_request_files(date_folder_id)
+        delete_request_folders = []
+        seen_delete_request_ids = {item.id for item in delete_requests}
+        for folder_name in DELETE_REQUEST_FOLDER_NAMES:
+            request_folder_id = self.drive.find_child_folder(date_folder_id, folder_name)
+            if not request_folder_id:
+                continue
+            delete_request_folders.append({"name": folder_name, "id": request_folder_id})
+            for request_file in self.drive.list_delete_request_files(request_folder_id):
+                if request_file.id in seen_delete_request_ids:
+                    continue
+                seen_delete_request_ids.add(request_file.id)
+                delete_requests.append(request_file)
         files = self.drive.list_source_files(date_folder_id)
         log_event(
             "cloud drive scan",
             date_folder=date_folder,
             date_folder_id=date_folder_id,
+            delete_request_folders=delete_request_folders,
             discovered=len(files),
             delete_requests=len(delete_requests),
         )

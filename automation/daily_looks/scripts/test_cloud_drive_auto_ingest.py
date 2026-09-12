@@ -12,9 +12,10 @@ import cloud_drive_auto_ingest as cloud  # noqa: E402
 
 
 class FakeDrive:
-    def __init__(self, files=None, delete_requests=None):
+    def __init__(self, files=None, delete_requests=None, delete_requests_by_folder=None):
         self.files = files or []
         self.delete_requests = delete_requests or []
+        self.delete_requests_by_folder = delete_requests_by_folder or {}
         self.downloads = 0
         self.moves = []
         self.folders = {"root/260912": "date-folder-id"}
@@ -31,11 +32,14 @@ class FakeDrive:
         return list(self.files)
 
     def list_delete_request_files(self, date_folder_id):
+        if date_folder_id in self.delete_requests_by_folder:
+            return list(self.delete_requests_by_folder[date_folder_id])
         return list(self.delete_requests)
 
     def download_file(self, file_id, destination):
         self.downloads += 1
-        source = next(item for item in [*self.files, *self.delete_requests] if item.id == file_id)
+        nested = [item for items in self.delete_requests_by_folder.values() for item in items]
+        source = next(item for item in [*self.files, *self.delete_requests, *nested] if item.id == file_id)
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(source.payload)
 
@@ -204,6 +208,39 @@ def test_delete_request_file_applies_and_moves_to_processed(tmp_path, monkeypatc
     assert fake_drive.moves
     rows = state_rows(tmp_path / "state.sqlite3")
     assert any(row["status"] == "COMPLETED" and row["segment"] == "delete_request" for row in rows)
+
+
+def test_delete_request_file_in_request_folder_applies(tmp_path, monkeypatch):
+    payload = {
+        "schema": "todaypick.delete_request",
+        "version": 1,
+        "deletedLooks": [
+            {
+                "id": "winter_female_10_260912_09",
+                "mode": "female_10s",
+                "remoteSeason": "winter",
+            }
+        ],
+    }
+    request_meta = delete_request_file(payload, file_id="nested-delete-1", md5="nested-delete-md5")
+    request_meta.parent_id = "request-folder-id"
+    fake_drive = FakeDrive(delete_requests_by_folder={"request-folder-id": [request_meta]})
+    fake_drive.folders["date-folder-id/삭제요청"] = "request-folder-id"
+    fake_dlq = FakeDlq()
+    state = cloud.StateStore(tmp_path / "state.sqlite3")
+    calls = []
+
+    monkeypatch.setattr(cloud, "RUNTIME_ROOT", tmp_path / "runtime")
+    monkeypatch.setattr(cloud, "apply_delete_payload", lambda data, bucket, project, dry_run=False: calls.append((data, dry_run)) or {
+        "catalogs": [{"removed": ["winter_female_10_260912_09"]}]
+    })
+
+    worker = cloud.CloudDriveIngestWorker(fake_drive, state, fake_dlq, "root", dry_run=False)
+    result = worker.scan_once("260912")
+    assert result["results"][0]["status"] == "COMPLETED_DELETE_REQUEST"
+    assert result["results"][0]["removed"] == 1
+    assert calls
+    assert fake_drive.moves[0][1] == "request-folder-id"
 
 
 if __name__ == "__main__":
