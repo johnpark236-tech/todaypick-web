@@ -1184,6 +1184,18 @@ body {
   padding: 8px 12px;
 }
 
+.admin-request-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-request-actions .btn-primary,
+.admin-request-actions .btn-secondary {
+  min-width: 0;
+  padding: 10px 8px;
+  font-size: 12px;
+}
+
 .admin-delete-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

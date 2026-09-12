@@ -151,6 +151,7 @@ const dom = {
   adminPanel: document.getElementById('admin-panel'),
   adminPanelLabel: document.getElementById('admin-panel-label'),
   btnAdminLock: document.getElementById('btn-admin-lock'),
+  btnAdminUploadDeleteRequest: document.getElementById('btn-admin-upload-delete-request'),
   btnAdminCopyDeleteCode: document.getElementById('btn-admin-copy-delete-code'),
   adminDeleteGrid: document.getElementById('admin-delete-grid'),
   lblWorkerStatus: document.getElementById('lbl-worker-status'),
@@ -373,6 +374,59 @@ async function copyAdminDeleteCode() {
     }
   } catch {}
   showToast('삭제코드 복사에 실패했습니다.');
+}
+
+function makeDeleteRequestFilename() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `todaypick_delete_request_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.json`;
+}
+
+async function uploadAdminDeleteRequest() {
+  const payload = StorageService.getDeleteRequestPayload();
+  if (!payload.deletedLooks.length) {
+    showToast('삭제 처리된 이미지가 없습니다.');
+    return;
+  }
+  const fileName = makeDeleteRequestFilename();
+  const json = JSON.stringify(payload, null, 2);
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const bytes = new TextEncoder().encode(json);
+      let binary = '';
+      bytes.forEach(byte => {
+        binary += String.fromCharCode(byte);
+      });
+      const base64 = btoa(binary);
+      const writeResult = await Filesystem.writeFile({
+        path: fileName,
+        data: base64,
+        directory: Directory.Cache
+      });
+      await Share.share({
+        title: 'TodayPick 삭제요청',
+        text: 'Google Drive의 TodayPick_user_config 오늘 날짜 폴더에 저장하면 자동 삭제 처리됩니다.',
+        files: [writeResult.uri],
+        dialogTitle: '삭제요청 업로드'
+      });
+      showToast('삭제요청 파일을 만들었습니다.');
+      return;
+    }
+
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('삭제요청 파일을 저장했습니다.');
+  } catch (err) {
+    console.warn('[AdminDelete] upload request failed:', err);
+    showToast('삭제요청 업로드에 실패했습니다.');
+  }
 }
 
 // Close all open dropdown menus
@@ -832,6 +886,13 @@ function setupEventListeners() {
     dom.btnAdminCopyDeleteCode.addEventListener('click', async () => {
       AudioHub.tap();
       await copyAdminDeleteCode();
+    });
+  }
+
+  if (dom.btnAdminUploadDeleteRequest) {
+    dom.btnAdminUploadDeleteRequest.addEventListener('click', async () => {
+      AudioHub.tap();
+      await uploadAdminDeleteRequest();
     });
   }
 

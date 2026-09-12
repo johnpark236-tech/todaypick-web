@@ -2,6 +2,7 @@ import argparse
 import io
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -40,6 +41,7 @@ from remote_daily_looks import (  # noqa: E402
     validate_source,
     write_json,
 )
+from apply_delete_request_code import apply_delete_payload  # noqa: E402
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -53,6 +55,8 @@ MASTER_GUIDE_NAME = "TodayPick_2x5_10컷_이미지생성_커팅_지침서_MASTER
 MASTER_GUIDE_VERSION = "v3"
 MAX_ATTEMPTS = 3
 SOURCE_MIME_TYPES = {"image/png", "image/jpeg", "image/webp"}
+DELETE_REQUEST_RE = re.compile(r"^todaypick_delete_request_[0-9]{8}[-_][0-9]{6}\.json$", re.IGNORECASE)
+DELETE_REQUEST_MIME_TYPES = {"application/json", "text/plain", ""}
 TERMINAL_FAILURES = {
     "SOURCE_DECODE_FAILED",
     "INVALID_GRID",
@@ -369,6 +373,36 @@ class DriveApiClient:
             ))
         return sources
 
+    def list_delete_request_files(self, date_folder_id):
+        q = f"'{date_folder_id}' in parents and trashed = false"
+        result = self.service.files().list(
+            q=q,
+            fields="files(id,name,mimeType,modifiedTime,size,md5Checksum,parents)",
+            pageSize=100,
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+            orderBy="name",
+        ).execute()
+        requests = []
+        for item in result.get("files", []):
+            if item.get("mimeType") == "application/vnd.google-apps.folder":
+                continue
+            if not DELETE_REQUEST_RE.match(item.get("name", "")):
+                continue
+            mime_type = item.get("mimeType") or ""
+            if mime_type not in DELETE_REQUEST_MIME_TYPES:
+                continue
+            requests.append(DriveFile(
+                id=item["id"],
+                name=item["name"],
+                mime_type=mime_type,
+                modified_time=item.get("modifiedTime", ""),
+                size=int(item.get("size", 0) or 0),
+                md5_checksum=item.get("md5Checksum", ""),
+                parent_id=(item.get("parents") or [date_folder_id])[0],
+            ))
+        return requests
+
     def download_file(self, file_id, destination):
         destination.parent.mkdir(parents=True, exist_ok=True)
         request = self.service.files().get_media(fileId=file_id, supportsAllDrives=True)
@@ -435,9 +469,22 @@ class CloudDriveIngestWorker:
         if not date_folder_id:
             log_event("date folder not found", date_folder=date_folder, root_folder_id=self.root_folder_id)
             return {"date_folder": date_folder, "status": "NO_DAILY_FOLDER", "processed": 0}
+        delete_requests = self.drive.list_delete_request_files(date_folder_id)
         files = self.drive.list_source_files(date_folder_id)
-        log_event("cloud drive scan", date_folder=date_folder, date_folder_id=date_folder_id, discovered=len(files))
+        log_event(
+            "cloud drive scan",
+            date_folder=date_folder,
+            date_folder_id=date_folder_id,
+            discovered=len(files),
+            delete_requests=len(delete_requests),
+        )
         results = []
+        for drive_file in delete_requests:
+            if self.state.completed_by_metadata(drive_file):
+                log_event("metadata skip completed delete request", file_id=drive_file.id, filename=drive_file.name)
+                results.append({"filename": drive_file.name, "status": "SKIP_COMPLETED_DELETE_REQUEST"})
+                continue
+            results.append(self.process_delete_request(drive_file, date_folder, date_folder_id))
         for drive_file in files:
             if self.state.completed_by_metadata(drive_file):
                 log_event("metadata skip completed source", file_id=drive_file.id, filename=drive_file.name)
@@ -445,6 +492,88 @@ class CloudDriveIngestWorker:
                 continue
             results.append(self.process_file(drive_file, date_folder, date_folder_id))
         return {"date_folder": date_folder, "status": "OK", "processed": len(results), "results": results}
+
+    def process_delete_request(self, drive_file, date_folder, date_folder_id):
+        download_dir = RUNTIME_ROOT / "delete_requests" / date_folder / drive_file.id
+        request_path = download_dir / drive_file.name
+        segment = "delete_request"
+        season = "admin"
+
+        self.state.upsert(drive_file, "", date_folder, season, segment, "DISCOVERED")
+        self.drive.download_file(drive_file.id, request_path)
+        request_sha = sha256_file(request_path)
+        prior = self.state.get(drive_file.id, request_sha)
+        if prior and prior.get("status") == "COMPLETED":
+            log_event("delete request skipped completed state", file_id=drive_file.id, filename=drive_file.name, sha256=request_sha)
+            return {"filename": drive_file.name, "status": "SKIP_COMPLETED_STATE"}
+
+        attempt_count = ((prior or {}).get("attempt_count") or 0) + 1
+        self.state.upsert(drive_file, request_sha, date_folder, season, segment, "DOWNLOADED", attempt_count=attempt_count)
+        try:
+            payload = json.loads(request_path.read_text(encoding="utf-8"))
+            self.state.upsert(drive_file, request_sha, date_folder, season, segment, "PUBLISHING", attempt_count=attempt_count)
+            report = apply_delete_payload(payload, BUCKET, PROJECT, dry_run=self.dry_run)
+            removed_count = sum(len(item.get("removed", [])) for item in report.get("catalogs", []))
+            self.state.upsert(
+                drive_file,
+                request_sha,
+                date_folder,
+                season,
+                segment,
+                "COMPLETED",
+                attempt_count=attempt_count,
+                completed_at=now_iso(),
+                catalog_before=removed_count,
+                catalog_after=0,
+            )
+            move_result = self._move_source(drive_file, date_folder_id, "_Processed")
+            log_event(
+                "cloud delete request completed",
+                filename=drive_file.name,
+                file_id=drive_file.id,
+                sha256=request_sha,
+                removed=removed_count,
+                dry_run=self.dry_run,
+                drive_move=move_result,
+            )
+            return {"filename": drive_file.name, "status": "COMPLETED_DELETE_REQUEST", "removed": removed_count, "drive_move": move_result}
+        except Exception as exc:
+            error_code = "DELETE_REQUEST_FAILED"
+            if attempt_count < MAX_ATTEMPTS:
+                self.state.upsert(
+                    drive_file,
+                    request_sha,
+                    date_folder,
+                    season,
+                    segment,
+                    "DISCOVERED",
+                    attempt_count=attempt_count,
+                    error_code=error_code,
+                    error_message=str(exc),
+                )
+                log_event("delete request retry scheduled", filename=drive_file.name, attempt_count=attempt_count, error=str(exc))
+                return {"filename": drive_file.name, "status": "RETRY_DELETE_REQUEST", "error": str(exc)}
+            self.state.upsert(
+                drive_file,
+                request_sha,
+                date_folder,
+                season,
+                segment,
+                "DLQ",
+                attempt_count=attempt_count,
+                error_code=error_code,
+                error_message=str(exc),
+            )
+            self._move_source(drive_file, date_folder_id, "_Failed")
+            notify_failure("TodayPick Delete Request Failure", {
+                "Date": date_folder,
+                "File": drive_file.name,
+                "Stage": error_code,
+                "Attempts": attempt_count,
+                "Result": "production unchanged",
+                "Error": str(exc),
+            })
+            return {"filename": drive_file.name, "status": "DLQ_DELETE_REQUEST", "error": str(exc)}
 
     def process_file(self, drive_file, date_folder, date_folder_id):
         parsed = parse_source_name(drive_file.name)

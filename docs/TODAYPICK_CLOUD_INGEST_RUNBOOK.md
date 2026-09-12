@@ -98,7 +98,22 @@ To reprocess a corrected source, upload a new file into the date root folder. A 
 
 ## Admin Delete Code
 
-The test app settings screen can generate a `TPDEL1.` delete code from admin mode. Apply the code from a trusted operator environment only. Do not put GCS credentials or service-account keys inside the APK.
+The test app settings screen can generate an admin delete request from admin mode. Do not put GCS credentials or service-account keys inside the APK.
+
+Preferred automatic flow:
+
+1. In the app, open Settings.
+2. Open admin mode with password `2040`.
+3. Mark images for deletion.
+4. Tap `삭제요청 업로드`.
+5. Upload the generated `todaypick_delete_request_YYYYMMDD-HHMMSS.json` file into the Google Drive folder `TodayPick_user_config/YYMMDD`.
+6. The cloud worker detects the JSON file, applies it to production seasonal catalogs, and moves the request file to `_Processed`.
+
+The cloud worker scans only direct children of the active date folder for request files matching:
+
+`todaypick_delete_request_*.json`
+
+Manual fallback: the app can also generate a `TPDEL1.` delete code. Apply the code from a trusted operator environment only.
 
 Dry run first:
 

@@ -105,8 +105,7 @@ def validate_catalog_after_delete(catalog):
     return True, "PASS"
 
 
-def apply_delete_request(code, bucket, project, dry_run=False):
-    payload = decode_delete_code(code)
+def apply_delete_payload(payload, bucket, project, dry_run=False):
     grouped, skipped = normalize_requests(payload)
     if not grouped:
         raise ValueError("delete request has no production remote looks")
@@ -208,6 +207,10 @@ def apply_delete_request(code, bucket, project, dry_run=False):
             ], project)
 
     return report
+
+
+def apply_delete_request(code, bucket, project, dry_run=False):
+    return apply_delete_payload(decode_delete_code(code), bucket, project, dry_run=dry_run)
 
 
 def main():

@@ -12,8 +12,9 @@ import cloud_drive_auto_ingest as cloud  # noqa: E402
 
 
 class FakeDrive:
-    def __init__(self, files=None):
+    def __init__(self, files=None, delete_requests=None):
         self.files = files or []
+        self.delete_requests = delete_requests or []
         self.downloads = 0
         self.moves = []
         self.folders = {"root/260912": "date-folder-id"}
@@ -29,9 +30,12 @@ class FakeDrive:
     def list_source_files(self, date_folder_id):
         return list(self.files)
 
+    def list_delete_request_files(self, date_folder_id):
+        return list(self.delete_requests)
+
     def download_file(self, file_id, destination):
         self.downloads += 1
-        source = next(item for item in self.files if item.id == file_id)
+        source = next(item for item in [*self.files, *self.delete_requests] if item.id == file_id)
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(source.payload)
 
@@ -85,6 +89,21 @@ def drive_file(payload, file_id="file-1", name="여성20대.png", md5="md5-a"):
         md5_checksum=md5,
         parent_id="date-folder-id",
     )
+
+
+def delete_request_file(payload, file_id="delete-1", name="todaypick_delete_request_20260912-164500.json", md5="delete-md5"):
+    raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    meta = cloud.DriveFile(
+        id=file_id,
+        name=name,
+        mime_type="application/json",
+        modified_time="2026-09-12T00:00:00.000Z",
+        size=len(raw),
+        md5_checksum=md5,
+        parent_id="date-folder-id",
+    )
+    meta.payload = raw
+    return meta
 
 
 def state_rows(db_path):
@@ -152,6 +171,39 @@ def test_bad_source_goes_to_dlq_without_publish(tmp_path, monkeypatch):
     assert publish_calls == []
     rows = state_rows(tmp_path / "state.sqlite3")
     assert any(row["status"] == "DLQ" for row in rows)
+
+
+def test_delete_request_file_applies_and_moves_to_processed(tmp_path, monkeypatch):
+    payload = {
+        "schema": "todaypick.delete_request",
+        "version": 1,
+        "deletedLooks": [
+            {
+                "id": "winter_female_10_260912_10",
+                "mode": "female_10s",
+                "remoteSeason": "winter",
+            }
+        ],
+    }
+    request_meta = delete_request_file(payload)
+    fake_drive = FakeDrive(delete_requests=[request_meta])
+    fake_dlq = FakeDlq()
+    state = cloud.StateStore(tmp_path / "state.sqlite3")
+    calls = []
+
+    monkeypatch.setattr(cloud, "RUNTIME_ROOT", tmp_path / "runtime")
+    monkeypatch.setattr(cloud, "apply_delete_payload", lambda data, bucket, project, dry_run=False: calls.append((data, dry_run)) or {
+        "catalogs": [{"removed": ["winter_female_10_260912_10"]}]
+    })
+
+    worker = cloud.CloudDriveIngestWorker(fake_drive, state, fake_dlq, "root", dry_run=False)
+    result = worker.scan_once("260912")
+    assert result["results"][0]["status"] == "COMPLETED_DELETE_REQUEST"
+    assert result["results"][0]["removed"] == 1
+    assert calls and calls[0][0]["schema"] == "todaypick.delete_request"
+    assert fake_drive.moves
+    rows = state_rows(tmp_path / "state.sqlite3")
+    assert any(row["status"] == "COMPLETED" and row["segment"] == "delete_request" for row in rows)
 
 
 if __name__ == "__main__":
