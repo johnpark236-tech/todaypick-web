@@ -16,7 +16,7 @@ The audited GCP project has an existing always-on Compute Engine VM named `tt-or
 4. It lists only direct children of the date folder and ignores `_Processed` and `_Failed` because they are folders.
 5. It filters supported filenames: `여성10대` through `여성60대`, `남성10대` through `남성60대`, plus English `female_10` and `male_10` forms.
 6. It checks SQLite state to skip completed metadata before downloading.
-7. It downloads only candidate files, calculates SHA256, validates the 2x5 sheet, crops 10 WEBP files using the production crop engine, and runs crop QA.
+7. It downloads only candidate files, calculates SHA256, validates the source against MASTER v3 canonical geometry, crops 10 WEBP files using the production crop engine, and runs crop QA.
 8. It uploads immutable assets to GCS, appends to the seasonal leaf catalog, and updates `production/index.json`.
 9. It commits state as `COMPLETED`.
 10. It moves the Drive source to `_Processed` when Drive write permission supports it. If move fails, state remains the source of truth.
@@ -66,6 +66,28 @@ DLQ candidates include decode failure, invalid grid, crop failure, crop QA failu
 ## Production Safety
 
 The worker never deletes existing GCS assets or Drive sources. Seasonal catalogs are cumulative append only. Existing looks stay first; new looks append after them. The app reads remote schema v2 catalogs, so no AAB or Google Play upload is required for catalog updates.
+
+## Canonical Image/Cut Standard V3
+
+New Google Drive source sheets must use `canonical_v3`.
+
+`MASTER_GUIDE_NAME=TodayPick_2x5_10컷_이미지생성_커팅_지침서_MASTER_v3`
+
+`MASTER_GUIDE_VERSION=v3`
+
+Canonical source geometry:
+
+`1280x1168`, `5x2`, logical cell `256x584`.
+
+Canonical crop behavior:
+
+- `second_row_top_overlap_ratio=0.0`
+- no cross-row crop
+- top row excess trim bias `35:65`
+- bottom row excess trim bias `65:35`
+- production output size remains the current config value `648x1152`
+
+Legacy behavior is preserved for explicit legacy/local workflows. New Drive ingest does not silently route non-canonical sources through legacy processing.
 
 ## Windows Standby
 

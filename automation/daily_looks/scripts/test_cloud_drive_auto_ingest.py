@@ -50,7 +50,7 @@ class FakeDlq:
 
 def make_sheet(path):
     path.parent.mkdir(parents=True, exist_ok=True)
-    image = Image.new("RGB", (1600, 1000), (240, 240, 235))
+    image = Image.new("RGB", (1280, 1168), (240, 240, 235))
     colors = [
         (220, 120, 120),
         (120, 180, 220),
@@ -63,8 +63,8 @@ def make_sheet(path):
         (210, 170, 130),
         (170, 170, 170),
     ]
-    w = 1600 // 5
-    h = 1000 // 2
+    w = 1280 // 5
+    h = 1168 // 2
     for idx, color in enumerate(colors):
         row, col = divmod(idx, 5)
         for x in range(col * w + 20, (col + 1) * w - 20):

@@ -25,6 +25,16 @@ KST = timezone(timedelta(hours=9))
 LOCAL_URL_RE = re.compile(r"^(?:[a-zA-Z]:[\\/]|file:|\\.\\.?[\\/]|/|http://(?:localhost|127\\.0\\.0\\.1)(?::\\d+)?(?:/|$))")
 GCLOUD_BIN = shutil.which("gcloud") or shutil.which("gcloud.cmd") or "gcloud"
 SEASONS = ("spring", "summer", "autumn", "winter")
+CANONICAL_V3_PROFILE = "canonical_v3"
+LEGACY_PROFILE = "legacy"
+CANONICAL_V3_WIDTH = 1280
+CANONICAL_V3_HEIGHT = 1168
+CANONICAL_V3_COLUMNS = 5
+CANONICAL_V3_ROWS = 2
+CANONICAL_V3_CELL_WIDTH = 256
+CANONICAL_V3_CELL_HEIGHT = 584
+CANONICAL_V3_TOP_ROW_TRIM_BIAS = (0.35, 0.65)
+CANONICAL_V3_BOTTOM_ROW_TRIM_BIAS = (0.65, 0.35)
 
 
 @dataclass
@@ -152,7 +162,7 @@ def discover_sources(source_root, date_folder, cfg):
     return folder, found, "OK"
 
 
-def validate_source(path, cfg):
+def validate_source(path, cfg, crop_profile=LEGACY_PROFILE):
     if not path.exists() or path.stat().st_size < 1024:
         return False, "file missing or too small", None
     mime, _ = mimetypes.guess_type(path.name)
@@ -166,6 +176,13 @@ def validate_source(path, cfg):
         return False, f"image decode failed: {exc}", None
 
     width, height = im.size
+    if crop_profile == CANONICAL_V3_PROFILE:
+        if width != CANONICAL_V3_WIDTH or height != CANONICAL_V3_HEIGHT:
+            return False, f"canonical_v3 source must be 1280x1168, got {width}x{height}", None
+        if cfg["expected_rows"] != CANONICAL_V3_ROWS or cfg["expected_columns"] != CANONICAL_V3_COLUMNS:
+            return False, "unsupported canonical_v3 grid config", None
+        return True, "PASS", im
+
     if width < 1000 or height < 600:
         return False, f"image too small: {width}x{height}", None
     ratio = width / float(height)
@@ -176,38 +193,74 @@ def validate_source(path, cfg):
     return True, "PASS", im
 
 
-def crop_source_image(im, out_dir, source, date_folder, cfg):
-    out_dir.mkdir(parents=True, exist_ok=True)
-    width, height = im.size
+def canonical_v3_crop_box(row, col, target_ratio):
+    x0 = col * CANONICAL_V3_CELL_WIDTH
+    x1 = (col + 1) * CANONICAL_V3_CELL_WIDTH
+    y0 = row * CANONICAL_V3_CELL_HEIGHT
+    y1 = (row + 1) * CANONICAL_V3_CELL_HEIGHT
+    cell_w = x1 - x0
+    cell_h = y1 - y0
+    desired_h = round(cell_w / target_ratio)
+    if desired_h >= cell_h:
+        return x0, y0, x1, y1
+    excess_y = cell_h - desired_h
+    top_bias, bottom_bias = CANONICAL_V3_TOP_ROW_TRIM_BIAS if row == 0 else CANONICAL_V3_BOTTOM_ROW_TRIM_BIAS
+    top_trim = round(excess_y * top_bias)
+    bottom_trim = excess_y - top_trim
+    crop_y0 = y0 + top_trim
+    crop_y1 = y1 - bottom_trim
+    return x0, crop_y0, x1, crop_y1
+
+
+def legacy_crop_box(width, height, row, col, cfg, target_ratio):
     cell_w = width / cfg["expected_columns"]
     cell_h = height / cfg["expected_rows"]
-    target_ratio = cfg["cut_width"] / float(cfg["cut_height"])
     inset = cfg["crop_inset_ratio"]
+    left = round(col * cell_w + cell_w * inset["left"])
+    top = round(row * cell_h + cell_h * inset["top"])
+    right = round((col + 1) * cell_w - cell_w * inset["right"])
+    bottom = round((row + 1) * cell_h - cell_h * inset["bottom"])
+    second_row_overlap = cfg.get("second_row_top_overlap_ratio", 0.04)
+    if row == 1:
+        top = max(0, round(top - cell_h * second_row_overlap))
+    cw = right - left
+    ch = bottom - top
+    current_ratio = cw / float(ch)
+    if current_ratio > target_ratio:
+        new_w = round(ch * target_ratio)
+        x0 = max(0, (cw - new_w) // 2)
+        return left + x0, top, left + x0 + new_w, bottom
+    new_h = round(cw / target_ratio)
+    y0 = max(0, (ch - new_h) // 2)
+    return left, top + y0, right, top + y0 + new_h
+
+
+def crop_source_image(im, out_dir, source, date_folder, cfg, crop_profile=LEGACY_PROFILE):
+    out_dir.mkdir(parents=True, exist_ok=True)
+    width, height = im.size
+    target_ratio = cfg["cut_width"] / float(cfg["cut_height"])
     cut_files = []
     validations = []
 
     for idx in range(cfg["expected_rows"] * cfg["expected_columns"]):
         row = idx // cfg["expected_columns"]
         col = idx % cfg["expected_columns"]
-        left = round(col * cell_w + cell_w * inset["left"])
-        top = round(row * cell_h + cell_h * inset["top"])
-        right = round((col + 1) * cell_w - cell_w * inset["right"])
-        bottom = round((row + 1) * cell_h - cell_h * inset["bottom"])
-        second_row_overlap = cfg.get("second_row_top_overlap_ratio", 0.04)
-        if row == 1:
-            top = max(0, round(top - cell_h * second_row_overlap))
+        if crop_profile == CANONICAL_V3_PROFILE:
+            left, top, right, bottom = canonical_v3_crop_box(row, col, target_ratio)
+        else:
+            left, top, right, bottom = legacy_crop_box(width, height, row, col, cfg, target_ratio)
         cell = im.crop((left, top, right, bottom))
         cw, ch = cell.size
         current_ratio = cw / float(ch)
-
-        if current_ratio > target_ratio:
-            new_w = round(ch * target_ratio)
-            x0 = max(0, (cw - new_w) // 2)
-            cell = cell.crop((x0, 0, x0 + new_w, ch))
-        else:
-            new_h = round(cw / target_ratio)
-            y0 = max(0, (ch - new_h) // 2)
-            cell = cell.crop((0, y0, cw, y0 + new_h))
+        if abs(current_ratio - target_ratio) > 0.01:
+            if current_ratio > target_ratio:
+                new_w = round(ch * target_ratio)
+                x0 = max(0, (cw - new_w) // 2)
+                cell = cell.crop((x0, 0, x0 + new_w, ch))
+            else:
+                new_h = round(cw / target_ratio)
+                y0 = max(0, (ch - new_h) // 2)
+                cell = cell.crop((0, y0, cw, y0 + new_h))
 
         cut = cell.resize((cfg["cut_width"], cfg["cut_height"]), Image.Resampling.LANCZOS)
         tmp_path = out_dir / f"look_{idx + 1:02d}.webp"

@@ -56,6 +56,17 @@ sqlite3 /opt/todaypick-web/automation/daily_looks/runtime/cloud_drive_ingest/sta
 .venv/bin/python automation/daily_looks/scripts/cloud_drive_auto_ingest.py --once --date 260912 --poll-interval 120
 ```
 
+New source sheets must match MASTER v3 exactly:
+
+```text
+CANONICAL_SOURCE_SIZE=1280x1168
+GRID=5x2
+LOGICAL_CELL=256x584
+CUT_PROFILE=canonical_v3
+```
+
+If a new source is `1024x1536`, portrait, or any arbitrary ratio, the worker must reject it and leave production unchanged.
+
 ## Dry Run
 
 Dry run downloads, validates, crops, and builds the candidate publish report without changing production catalogs or moving Drive sources:

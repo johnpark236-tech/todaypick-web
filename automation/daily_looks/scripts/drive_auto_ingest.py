@@ -13,6 +13,7 @@ from append_seasonal_catalog_from_staging import (  # noqa: E402
     publish_segments_from_staging,
 )
 from remote_daily_looks import (  # noqa: E402
+    CANONICAL_V3_PROFILE,
     crop_source_image,
     discover_sources,
     build_review_sheet,
@@ -32,6 +33,8 @@ LOCK_PATH = RUNTIME_ROOT / "drive_auto_ingest.lock"
 LEDGER_PATH = RUNTIME_ROOT / "drive_ingest_ledger.json"
 DEFAULT_DRIVE_ROOT = Path(r"G:\내 드라이브\TodayPick_user_config")
 DEFAULT_POLL_INTERVAL = 30
+MASTER_GUIDE_NAME = "TodayPick_2x5_10컷_이미지생성_커팅_지침서_MASTER_v3"
+MASTER_GUIDE_VERSION = "v3"
 
 
 def log_event(message, **fields):
@@ -115,7 +118,7 @@ def process_source(source, date_folder, cfg, ledger, dry_run=False):
         return {"status": "SKIP_DUPLICATE", "segment": source.segment}
 
     log_event("source detected", date_folder=date_folder, filename=source.filename, segment=source.segment, sha256=source.sha256)
-    ok, reason, image = validate_source(source.path, cfg)
+    ok, reason, image = validate_source(source.path, cfg, crop_profile=CANONICAL_V3_PROFILE)
     if not ok:
         ledger["sources"][ledger_key] = {
             "date_folder": date_folder,
@@ -133,7 +136,14 @@ def process_source(source, date_folder, cfg, ledger, dry_run=False):
     staging_root = RUNTIME_ROOT / "auto_staging" / f"{date_folder}_{source.segment}_{source.sha256[:12]}"
     review_root = RUNTIME_ROOT / "auto_review"
     cut_dir = staging_root / date_folder / source.gender / str(source.age)
-    crop_ok, cut_files, validations = crop_source_image(image, cut_dir, source, date_folder, cfg)
+    crop_ok, cut_files, validations = crop_source_image(
+        image,
+        cut_dir,
+        source,
+        date_folder,
+        cfg,
+        crop_profile=CANONICAL_V3_PROFILE,
+    )
     valid_count = sum(1 for item in validations if item.get("status") == "PASS")
     if not crop_ok or len(cut_files) != 10:
         ledger["sources"][ledger_key] = {
@@ -229,6 +239,15 @@ def main():
 
     cfg = load_config()
     source_root = Path(args.source_root)
+    log_event(
+        "master guide preflight",
+        master_guide_referenced="YES",
+        master_guide_name=MASTER_GUIDE_NAME,
+        master_guide_version=MASTER_GUIDE_VERSION,
+        crop_profile=CANONICAL_V3_PROFILE,
+        canonical_source_size="1280x1168",
+        target_output_size=f"{cfg['cut_width']}x{cfg['cut_height']}",
+    )
     try:
         while True:
             date_folder = today_yymmdd(args.date)

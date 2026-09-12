@@ -9,6 +9,10 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from remote_daily_looks import (  # noqa: E402
+    CANONICAL_V3_CELL_HEIGHT,
+    CANONICAL_V3_PROFILE,
+    CANONICAL_V3_WIDTH,
+    CANONICAL_V3_HEIGHT,
     FileSystemPublisher,
     GcsPublisher,
     SourceImage,
@@ -16,12 +20,16 @@ from remote_daily_looks import (  # noqa: E402
     build_index_manifest,
     build_leaf_catalog,
     build_manifest,
+    canonical_v3_crop_box,
+    crop_source_image,
+    load_config,
     season_for_date_folder,
     season_for_month,
     validate_leaf_catalog,
     validate_complete_manifest,
     validate_index_manifest,
     validate_public_asset_url,
+    validate_source,
 )
 
 
@@ -96,6 +104,30 @@ def make_source(segment, date_folder, cut_root):
     return source, cuts
 
 
+def make_canonical_sheet(path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    image = Image.new("RGB", (CANONICAL_V3_WIDTH, CANONICAL_V3_HEIGHT), (245, 245, 245))
+    for row in range(2):
+        for col in range(5):
+            color = (220, 30 + col * 20, 30) if row == 0 else (30, 60 + col * 20, 220)
+            x0 = col * 256
+            x1 = (col + 1) * 256
+            y0 = row * 584
+            y1 = (row + 1) * 584
+            for x in range(x0, x1):
+                for y in range(y0, y1):
+                    image.putpixel((
+                        x,
+                        y,
+                    ), (
+                        (color[0] + x + y) % 255,
+                        (color[1] + x * 2 + y // 2) % 255,
+                        (color[2] + x // 3 + y * 3) % 255,
+                    ))
+    image.save(path)
+    return path
+
+
 def assert_latest_unchanged(root, before):
     current = json.loads((root / "latest.json").read_text(encoding="utf-8"))
     assert current == before
@@ -119,6 +151,56 @@ def run():
     assert not validate_public_asset_url("../a.webp")
     assert not validate_public_asset_url("http://localhost/a.webp")
     assert validate_public_asset_url("https://valid-public-host.example/a.webp")
+
+    cfg = load_config()
+    assert cfg["cut_width"] == 648
+    assert cfg["cut_height"] == 1152
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        canonical_path = make_canonical_sheet(root / "여성20대.png")
+        ok, reason, image = validate_source(canonical_path, cfg, crop_profile=CANONICAL_V3_PROFILE)
+        assert ok, reason
+        source = SourceImage(
+            path=canonical_path,
+            gender="female",
+            age=20,
+            segment="female_20",
+            filename="여성20대.png",
+            size=canonical_path.stat().st_size,
+            mtime=canonical_path.stat().st_mtime,
+            sha256="a" * 64,
+        )
+        crop_ok, cut_files, validations = crop_source_image(
+            image,
+            root / "cuts",
+            source,
+            "260912",
+            cfg,
+            crop_profile=CANONICAL_V3_PROFILE,
+        )
+        assert crop_ok
+        assert len(cut_files) == 10
+        assert sum(1 for item in validations if item["status"] == "PASS") == 10
+
+        portrait = root / "portrait.png"
+        Image.new("RGB", (1024, 1536), (255, 255, 255)).save(portrait)
+        ok, reason, _ = validate_source(portrait, cfg, crop_profile=CANONICAL_V3_PROFILE)
+        assert not ok
+        assert "1280x1168" in reason
+
+        _, row2_y0, _, _ = canonical_v3_crop_box(1, 0, cfg["cut_width"] / float(cfg["cut_height"]))
+        assert row2_y0 >= CANONICAL_V3_CELL_HEIGHT
+
+        crop_ok2, cut_files2, _ = crop_source_image(
+            image,
+            root / "cuts_again",
+            source,
+            "260912",
+            cfg,
+            crop_profile=CANONICAL_V3_PROFILE,
+        )
+        assert crop_ok2
+        assert [Path(item["path"]).name for item in cut_files] == [Path(item["path"]).name for item in cut_files2]
 
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)

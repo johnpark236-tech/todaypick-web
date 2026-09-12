@@ -25,6 +25,7 @@ from append_seasonal_catalog_from_staging import (  # noqa: E402
     storage_url,
 )
 from remote_daily_looks import (  # noqa: E402
+    CANONICAL_V3_PROFILE,
     FILENAME_RE,
     SourceImage,
     build_review_sheet,
@@ -47,6 +48,8 @@ STATE_DB = RUNTIME_ROOT / "state.sqlite3"
 LOCK_PATH = RUNTIME_ROOT / "worker.lock"
 DEFAULT_ROOT_FOLDER_ID = "1WvKlV8B3xM9X21vl_47Oh6dTfBDFVUPd"
 DEFAULT_POLL_INTERVAL_SECONDS = 120
+MASTER_GUIDE_NAME = "TodayPick_2x5_10컷_이미지생성_커팅_지침서_MASTER_v3"
+MASTER_GUIDE_VERSION = "v3"
 MAX_ATTEMPTS = 3
 SOURCE_MIME_TYPES = {"image/png", "image/jpeg", "image/webp"}
 TERMINAL_FAILURES = {
@@ -114,11 +117,27 @@ def acquire_lock():
             data = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
         except Exception:
             data = {}
+        pid = int(data.get("pid") or 0)
+        if pid and not pid_is_running(pid):
+            log_event("stale worker lock removed", lock=str(LOCK_PATH), stale_pid=pid)
+            LOCK_PATH.unlink(missing_ok=True)
+            fd = os.open(str(LOCK_PATH), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump({"pid": os.getpid(), "created_at": now_iso()}, fh)
+            return True
         log_event("single active worker lock exists", lock=str(LOCK_PATH), holder=data)
         return False
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
         json.dump({"pid": os.getpid(), "created_at": now_iso()}, fh)
     return True
+
+
+def pid_is_running(pid):
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
 
 
 def release_lock():
@@ -400,6 +419,15 @@ class CloudDriveIngestWorker:
         self.dry_run = dry_run
         self.drive_move = drive_move
         self.cfg = load_config()
+        log_event(
+            "master guide preflight",
+            master_guide_referenced="YES",
+            master_guide_name=MASTER_GUIDE_NAME,
+            master_guide_version=MASTER_GUIDE_VERSION,
+            crop_profile=CANONICAL_V3_PROFILE,
+            canonical_source_size="1280x1168",
+            target_output_size=f"{self.cfg['cut_width']}x{self.cfg['cut_height']}",
+        )
 
     def scan_once(self, date_folder):
         date_folder_id = self.drive.find_child_folder(self.root_folder_id, date_folder)
@@ -481,7 +509,7 @@ class CloudDriveIngestWorker:
 
     def _process_downloaded(self, drive_file, source_path, source_sha, date_folder, date_folder_id, season, gender, age, segment, attempt_count):
         self.state.upsert(drive_file, source_sha, date_folder, season, segment, "VALIDATING", attempt_count=attempt_count)
-        ok, reason, image = validate_source(source_path, self.cfg)
+        ok, reason, image = validate_source(source_path, self.cfg, crop_profile=CANONICAL_V3_PROFILE)
         if not ok:
             raise IngestError("INVALID_GRID", reason)
 
@@ -499,7 +527,14 @@ class CloudDriveIngestWorker:
             mtime=source_path.stat().st_mtime,
             sha256=source_sha,
         )
-        crop_ok, cut_files, validations = crop_source_image(image, cut_dir, source, date_folder, self.cfg)
+        crop_ok, cut_files, validations = crop_source_image(
+            image,
+            cut_dir,
+            source,
+            date_folder,
+            self.cfg,
+            crop_profile=CANONICAL_V3_PROFILE,
+        )
         valid_count = sum(1 for item in validations if item.get("status") == "PASS")
         if not crop_ok or len(cut_files) != 10 or valid_count != 10:
             raise IngestError("CROP_QA_FAILED", f"crops={len(cut_files)} valid={valid_count}")
