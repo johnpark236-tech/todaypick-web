@@ -24,6 +24,7 @@ const ALL_GROUPS = [
   'male_10s', 'male_20s', 'male_30s', 'male_40s', 'male_50s', 'male_60s'
 ];
 const PAGE_SIZE = 20;
+const ADMIN_PASSWORD = '2040';
 
 // Application state
 const state = {
@@ -36,7 +37,8 @@ const state = {
   currentOutfit: null,
   activeView: 'view-home',
   isPriceSheetOpen: false,
-  isExitDialogOpen: false
+  isExitDialogOpen: false,
+  adminUnlocked: false
 };
 
 const outfitManager = new OutfitManager();
@@ -77,7 +79,7 @@ async function refreshRemoteLooks({ rerender = false } = {}) {
   if (rerender && applied.appliedLooks > 0) {
     populateThumbnails(state.currentMode);
     const currentId = state.currentOutfit?.id;
-    renderOutfit(outfitManager.getOutfit(state.currentMode, currentId));
+    renderOutfit(getVisibleOutfit(state.currentMode, currentId));
   }
   return { ...result, ...applied };
 }
@@ -143,6 +145,13 @@ const dom = {
   btnResetSettings: document.getElementById('btn-reset-settings'),
   btnSaveSettings: document.getElementById('btn-save-settings'),
   btnDownloadBackup: document.getElementById('btn-download-backup'),
+  adminLoginRow: document.getElementById('admin-login-row'),
+  adminPasswordInput: document.getElementById('admin-password-input'),
+  btnAdminConfirm: document.getElementById('btn-admin-confirm'),
+  adminPanel: document.getElementById('admin-panel'),
+  adminPanelLabel: document.getElementById('admin-panel-label'),
+  btnAdminLock: document.getElementById('btn-admin-lock'),
+  adminDeleteGrid: document.getElementById('admin-delete-grid'),
   lblWorkerStatus: document.getElementById('lbl-worker-status'),
   toast: document.getElementById('toast'),
   exitDialogBackdrop: document.getElementById('exit-dialog-backdrop'),
@@ -191,9 +200,24 @@ function applyNowPlayingSettings(titleScale, marqueeDist, eqHeight, eqWidth) {
   document.documentElement.style.setProperty('--eq-width', `${eqWidth}mm`);
 }
 
+function getVisibleLooks(mode = state.currentMode) {
+  return outfitManager.getLooks(mode).filter(look => !StorageService.isLookDeleted(look.id, look.mode));
+}
+
+function getVisibleOutfit(mode = state.currentMode, outfitId = null) {
+  const looks = getVisibleLooks(mode);
+  if (!looks.length) return null;
+  return looks.find(look => look.id === outfitId) || looks[0];
+}
+
 // Render Outfit in Home stage
 function renderOutfit(outfit) {
-  if (!outfit) return;
+  if (!outfit) {
+    state.currentOutfit = null;
+    dom.mainImg.removeAttribute('src');
+    dom.mainImg.alt = '추천 코디 없음';
+    return;
+  }
   state.currentOutfit = outfit;
 
   dom.mainImg.style.opacity = '0';
@@ -220,7 +244,7 @@ function renderOutfit(outfit) {
 
 // Populate Thumbnails Carousel
 function populateThumbnails(mode) {
-  const looks = outfitManager.getLooks(mode);
+  const looks = getVisibleLooks(mode);
   dom.thumbCarousel.innerHTML = '';
   const visible = looks.slice(0, state.visibleThumbCount);
 
@@ -249,6 +273,72 @@ function populateThumbnails(mode) {
     dom.btnLoadMoreLooks.classList.toggle('hidden', !hasMore);
     dom.btnLoadMoreLooks.textContent = `더 보기 ${Math.min(PAGE_SIZE, looks.length - state.visibleThumbCount)}`;
   }
+}
+
+function renderAdminDeleteGrid() {
+  if (!dom.adminDeleteGrid) return;
+  const allLooks = outfitManager.getLooks(state.currentMode);
+  const deleted = StorageService.getDeletedLooks();
+  const deletedIds = new Set(deleted.filter(item => item.mode === state.currentMode).map(item => item.id));
+  const label = `${getSeasonLabel(state.currentSeason)} ${state.currentGender === 'female' ? '여성' : '남성'} ${state.currentAgeGroup}대`;
+  if (dom.adminPanelLabel) {
+    dom.adminPanelLabel.textContent = `${label} 이미지 ${allLooks.length}개`;
+  }
+
+  if (!allLooks.length) {
+    dom.adminDeleteGrid.innerHTML = '<div class="empty-state" style="grid-column: span 3;">삭제할 이미지가 없습니다.</div>';
+    return;
+  }
+
+  dom.adminDeleteGrid.innerHTML = allLooks.map((look, index) => {
+    const isDeleted = deletedIds.has(look.id);
+    return `
+      <article class="admin-delete-card ${isDeleted ? 'is-deleted' : ''}" data-id="${look.id}" data-mode="${look.mode}">
+        <img class="admin-delete-thumb" src="${look.thumbnail}" alt="${look.title}" loading="lazy" />
+        <span class="admin-delete-title">${index + 1}. ${isDeleted ? '삭제됨' : look.title}</span>
+        <div class="admin-delete-actions">
+          ${isDeleted
+            ? '<button class="admin-restore-btn" type="button" data-action="restore">복원</button>'
+            : '<button class="admin-delete-btn" type="button" data-action="delete">삭제</button>'}
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  dom.adminDeleteGrid.querySelectorAll('[data-action="delete"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const card = e.currentTarget.closest('.admin-delete-card');
+      const look = outfitManager.getOutfit(card.dataset.mode, card.dataset.id);
+      StorageService.deleteLookFromCatalog(look);
+      if (state.currentOutfit?.id === look.id) {
+        renderOutfit(getVisibleOutfit(state.currentMode));
+      }
+      populateThumbnails(state.currentMode);
+      renderAdminDeleteGrid();
+      showToast('이미지를 삭제했습니다.');
+    });
+  });
+
+  dom.adminDeleteGrid.querySelectorAll('[data-action="restore"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const card = e.currentTarget.closest('.admin-delete-card');
+      StorageService.restoreDeletedLook(card.dataset.id, card.dataset.mode);
+      populateThumbnails(state.currentMode);
+      if (!state.currentOutfit) {
+        renderOutfit(getVisibleOutfit(state.currentMode));
+      }
+      renderAdminDeleteGrid();
+      showToast('이미지를 복원했습니다.');
+    });
+  });
+}
+
+function setAdminUnlocked(unlocked) {
+  state.adminUnlocked = Boolean(unlocked);
+  if (dom.adminLoginRow) dom.adminLoginRow.hidden = state.adminUnlocked;
+  if (dom.adminPanel) dom.adminPanel.hidden = !state.adminUnlocked;
+  if (dom.adminPasswordInput) dom.adminPasswordInput.value = '';
+  if (state.adminUnlocked) renderAdminDeleteGrid();
 }
 
 // Close all open dropdown menus
@@ -304,8 +394,9 @@ async function switchMode(groupKey, { persist = true } = {}) {
   await refreshRemoteLooks();
 
   populateThumbnails(state.currentMode);
-  const firstLook = outfitManager.getOutfit(state.currentMode);
+  const firstLook = getVisibleOutfit(state.currentMode);
   renderOutfit(firstLook);
+  if (state.adminUnlocked) renderAdminDeleteGrid();
 }
 
 // Open / Close Price Sheet
@@ -388,6 +479,9 @@ function switchView(targetId) {
 
   if (targetId === 'view-saved') {
     renderSavedLooks();
+  }
+  if (targetId === 'view-settings' && state.adminUnlocked) {
+    renderAdminDeleteGrid();
   }
 }
 
@@ -671,6 +765,35 @@ function setupEventListeners() {
     });
   }
 
+  if (dom.btnAdminConfirm) {
+    dom.btnAdminConfirm.addEventListener('click', () => {
+      AudioHub.tap();
+      if (dom.adminPasswordInput?.value === ADMIN_PASSWORD) {
+        setAdminUnlocked(true);
+        showToast('관리자모드가 열렸습니다.');
+      } else {
+        showToast('비밀번호가 맞지 않습니다.');
+      }
+    });
+  }
+
+  if (dom.adminPasswordInput) {
+    dom.adminPasswordInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        dom.btnAdminConfirm?.click();
+      }
+    });
+  }
+
+  if (dom.btnAdminLock) {
+    dom.btnAdminLock.addEventListener('click', () => {
+      AudioHub.tap();
+      setAdminUnlocked(false);
+      showToast('관리자모드를 잠갔습니다.');
+    });
+  }
+
   // Female tab click -> Toggle Female dropdown
   if (dom.btnModeFemale) {
     dom.btnModeFemale.addEventListener('click', (e) => {
@@ -749,7 +872,9 @@ function setupEventListeners() {
   // Random pick button
   dom.btnRandom.addEventListener('click', () => {
     AudioHub.tap();
-    const next = outfitManager.getRandom(state.currentMode, state.currentOutfit?.id);
+    const looks = getVisibleLooks(state.currentMode);
+    const candidates = looks.filter(look => look.id !== state.currentOutfit?.id);
+    const next = candidates[Math.floor(Math.random() * candidates.length)] || looks[0];
     renderOutfit(next);
     showToast('새로운 추천 코디를 골랐어요!');
   });
@@ -1528,6 +1653,7 @@ function setupEventListeners() {
         thumbnails: Array.from(dom.thumbCarousel?.querySelectorAll('img') || []).map(img => img.currentSrc || img.src)
       }),
       getLooks: (mode) => outfitManager.getLooks(mode),
+      getVisibleLooks,
       switchMode,
       refreshRemoteLooks
     };
@@ -1584,7 +1710,7 @@ function setupSwipeNavigation() {
       switchMode(ALL_GROUPS[nextIdx]);
     } else {
       // 2. HORIZONTAL SWIPE
-      const looks = outfitManager.getLooks(state.currentMode);
+      const looks = getVisibleLooks(state.currentMode);
       if (!looks || !looks.length) return;
       const curIdx = looks.findIndex(l => l.id === state.currentOutfit?.id);
       if (curIdx === -1) return;

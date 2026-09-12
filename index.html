@@ -218,6 +218,28 @@
           </div>
 
           <div class="settings-group">
+            <h3 class="settings-group-title">관리자모드</h3>
+            <div class="admin-login-row" id="admin-login-row">
+              <input
+                type="password"
+                id="admin-password-input"
+                class="admin-password-input"
+                inputmode="numeric"
+                autocomplete="off"
+                placeholder="비밀번호"
+              />
+              <button id="btn-admin-confirm" class="btn-primary" type="button">확인</button>
+            </div>
+            <div id="admin-panel" class="admin-panel" hidden>
+              <div class="admin-panel-head">
+                <span id="admin-panel-label">현재 목록</span>
+                <button id="btn-admin-lock" class="btn-secondary" type="button">잠금</button>
+              </div>
+              <div id="admin-delete-grid" class="admin-delete-grid"></div>
+            </div>
+          </div>
+
+          <div class="settings-group">
             <h3 class="settings-group-title">시스템 정보</h3>
             <div class="info-box">
               <p><strong>App:</strong> TodayPick 오늘뭐입지 (Capacitor)</p>

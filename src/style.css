@@ -1135,6 +1135,121 @@ body {
   color: var(--color-text-muted);
 }
 
+.admin-login-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-password-input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #FFFFFF;
+  color: var(--color-text-main);
+  font-size: 14px;
+  font-weight: 700;
+  outline: none;
+}
+
+.admin-password-input:focus {
+  border-color: var(--color-primary);
+}
+
+.admin-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-panel[hidden] {
+  display: none;
+}
+
+.admin-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-text-main);
+}
+
+.admin-panel-head .btn-secondary {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+}
+
+.admin-delete-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-delete-card {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-app);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.admin-delete-card.is-deleted {
+  opacity: 0.58;
+}
+
+.admin-delete-thumb {
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  object-fit: contain;
+  background: #FFFFFF;
+  border-radius: 6px;
+}
+
+.admin-delete-title {
+  min-height: 26px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.admin-delete-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.admin-delete-btn,
+.admin-restore-btn {
+  width: 100%;
+  min-height: 28px;
+  border: none;
+  border-radius: 6px;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-delete-btn {
+  background: #EF4444;
+}
+
+.admin-restore-btn {
+  background: var(--color-primary);
+}
+
 /* ── BOTTOM NAVIGATION ─────────────────────────────────── */
 .bottom-nav {
   height: 58px;

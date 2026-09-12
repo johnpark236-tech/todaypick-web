@@ -3,6 +3,7 @@ const STORAGE_KEYS = {
   SAVED_LOOKS: 'todaypick_saved_looks_v1',
   UI_CONFIG: 'todaypick_ui_config_v1',
   LOOK_PREFERENCES: 'todaypick_look_preferences_v1',
+  DELETED_LOOKS: 'todaypick_deleted_looks_v1',
   SEARCH_HISTORY: 'todaypick_search_history_v1'
 };
 
@@ -87,6 +88,43 @@ export class StorageService {
       lastSeason: ['spring', 'summer', 'autumn', 'winter'].includes(prefs.lastSeason) ? prefs.lastSeason : current.lastSeason
     };
     localStorage.setItem(STORAGE_KEYS.LOOK_PREFERENCES, JSON.stringify(next));
+    return next;
+  }
+
+  static getDeletedLooks() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.DELETED_LOOKS);
+      const rows = data ? JSON.parse(data) : [];
+      return Array.isArray(rows) ? rows.filter(item => item?.id && item?.mode) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  static isLookDeleted(id, mode) {
+    return this.getDeletedLooks().some(item => item.id === id && item.mode === mode);
+  }
+
+  static deleteLookFromCatalog(look) {
+    if (!look?.id || !look?.mode) return false;
+    const deleted = this.getDeletedLooks();
+    if (deleted.some(item => item.id === look.id && item.mode === look.mode)) return false;
+    deleted.unshift({
+      id: look.id,
+      mode: look.mode,
+      title: look.title || '',
+      image: look.image || '',
+      remoteSeason: look.remoteSeason || null,
+      deletedAt: new Date().toISOString()
+    });
+    localStorage.setItem(STORAGE_KEYS.DELETED_LOOKS, JSON.stringify(deleted));
+    this.removeLook(look.id, look.mode);
+    return true;
+  }
+
+  static restoreDeletedLook(id, mode) {
+    const next = this.getDeletedLooks().filter(item => !(item.id === id && item.mode === mode));
+    localStorage.setItem(STORAGE_KEYS.DELETED_LOOKS, JSON.stringify(next));
     return next;
   }
 }
