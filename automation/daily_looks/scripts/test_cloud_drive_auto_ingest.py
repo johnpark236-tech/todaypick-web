@@ -58,7 +58,9 @@ class FakeDlq:
 
 def make_sheet(path):
     path.parent.mkdir(parents=True, exist_ok=True)
-    image = Image.new("RGB", (1280, 1168), (240, 240, 235))
+    image = Image.new("RGB", (1313, 1198), (240, 240, 235))
+    col_bounds = [0, 263, 525, 788, 1050, 1313]
+    row_bounds = [0, 599, 1198]
     colors = [
         (220, 120, 120),
         (120, 180, 220),
@@ -71,16 +73,17 @@ def make_sheet(path):
         (210, 170, 130),
         (170, 170, 170),
     ]
-    w = 1280 // 5
-    h = 1168 // 2
     for idx, color in enumerate(colors):
         row, col = divmod(idx, 5)
-        for x in range(col * w + 20, (col + 1) * w - 20):
-            for y in range(row * h + 20, (row + 1) * h - 20):
+        x0, x1 = col_bounds[col] + 20, col_bounds[col + 1] - 20
+        y0, y1 = row_bounds[row] + 20, row_bounds[row + 1] - 20
+        for x in range(x0, x1):
+            for y in range(y0, y1):
                 if (x + y) % 7 == 0:
                     image.putpixel((x, y), color)
     image.save(path)
     return path.read_bytes()
+
 
 
 def drive_file(payload, file_id="file-1", name="여성20대.png", md5="md5-a"):
@@ -116,6 +119,43 @@ def state_rows(db_path):
     rows = [dict(row) for row in db.execute("SELECT * FROM sources ORDER BY updated_at")]
     db.close()
     return rows
+
+
+def test_parse_source_name():
+    """Test that parse_source_name handles all supported filename variants."""
+    # Primary fix: 겨울_여성10대_260912.png must parse correctly
+    result = cloud.parse_source_name("겨울_여성10대_260912.png")
+    assert result is not None, "겨울_여성10대_260912.png must be parseable"
+    gender, age, segment, season, date = result
+    assert gender == "female", f"gender: expected female, got {gender}"
+    assert age == 10, f"age: expected 10, got {age}"
+    assert segment == "female_10", f"segment: expected female_10, got {segment}"
+    assert season == "winter", f"season: expected winter, got {season}"
+    assert date == "260912", f"date: expected 260912, got {date}"
+
+    # No-season variants
+    assert cloud.parse_source_name("여성10대.png") is not None
+    g, a, s, sn, d = cloud.parse_source_name("여성10대.png")
+    assert s == "female_10" and sn is None and d is None
+
+    assert cloud.parse_source_name("여성10대_260912.png") is not None
+    g, a, s, sn, d = cloud.parse_source_name("여성10대_260912.png")
+    assert s == "female_10" and sn is None and d == "260912"
+
+    # Autumn + male
+    assert cloud.parse_source_name("가을_남성30대_260912.png") is not None
+    g, a, s, sn, d = cloud.parse_source_name("가을_남성30대_260912.png")
+    assert s == "male_30" and sn == "autumn" and d == "260912"
+
+    # English format with date
+    assert cloud.parse_source_name("winter_female_10_260912.png") is not None
+    g, a, s, sn, d = cloud.parse_source_name("winter_female_10_260912.png")
+    assert s == "female_10" and sn == "winter" and d == "260912"
+
+    # Unsupported filenames must return None
+    assert cloud.parse_source_name("불명확_파일.png") is None
+    assert cloud.parse_source_name("look_01.webp") is None
+    assert cloud.parse_source_name("random.png") is None
 
 
 def test_happy_path_and_repoll_skip(tmp_path, monkeypatch):

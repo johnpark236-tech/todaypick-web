@@ -15,15 +15,17 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from PIL import Image, ImageDraw, ImageFont, ImageStat, UnidentifiedImageError
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps, ImageStat, UnidentifiedImageError
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = PROJECT_ROOT / "automation" / "daily_looks" / "config" / "remote_daily_looks.json"
 FILENAME_RE = re.compile(
-    r"^(?:(?P<season>spring|summer|autumn|winter)_)?"
+    r"^(?:(?P<season>spring|summer|autumn|winter|봄|여름|가을|겨울)[_\s-])?"
     r"(?:(?P<kr_gender>여성|남성)\s*(?P<kr_age>10|20|30|40|50|60)대|"
     r"(?P<en_gender>female|male)_(?P<en_age>10|20|30|40|50|60))"
+    r"(?:[_\s-](?P<suffix_season>spring|summer|autumn|winter|봄|여름|가을|겨울))?"
+    r"(?:[_\s-]?(?P<date>\d{6}|\d{8}))?"
     r"\.(?P<ext>png|jpg|jpeg|webp)$",
     re.IGNORECASE,
 )
@@ -33,12 +35,11 @@ GCLOUD_BIN = shutil.which("gcloud") or shutil.which("gcloud.cmd") or "gcloud"
 SEASONS = ("spring", "summer", "autumn", "winter")
 CANONICAL_V3_PROFILE = "canonical_v3"
 LEGACY_PROFILE = "legacy"
-CANONICAL_V3_WIDTH = 1280
-CANONICAL_V3_HEIGHT = 1168
+CANONICAL_V3_WIDTH = 1313
+CANONICAL_V3_HEIGHT = 1198
 CANONICAL_V3_COLUMNS = 5
 CANONICAL_V3_ROWS = 2
-CANONICAL_V3_CELL_WIDTH = 256
-CANONICAL_V3_CELL_HEIGHT = 584
+CANONICAL_V3_CELL_HEIGHT = 599
 CANONICAL_V3_TOP_ROW_TRIM_BIAS = (0.35, 0.65)
 CANONICAL_V3_BOTTOM_ROW_TRIM_BIAS = (0.65, 0.35)
 CANONICAL_V3_MAX_SEPARATOR_PX = 4
@@ -107,8 +108,11 @@ def segment_from_match(match):
 
 
 def season_from_match(match):
-    value = match.group("season")
-    return value.lower() if value else None
+    value = match.group("season") or match.group("suffix_season")
+    if not value:
+        return None
+    season_map = {"봄": "spring", "여름": "summer", "가을": "autumn", "겨울": "winter"}
+    return season_map.get(value, value.lower())
 
 
 def sha256_file(path):
@@ -194,7 +198,7 @@ def validate_source(path, cfg, crop_profile=LEGACY_PROFILE):
     width, height = im.size
     if crop_profile == CANONICAL_V3_PROFILE:
         if width != CANONICAL_V3_WIDTH or height != CANONICAL_V3_HEIGHT:
-            return False, f"canonical_v3 source must be 1280x1168, got {width}x{height}", None
+            return False, f"canonical_v3 source must be 1313x1198, got {width}x{height}", None
         if cfg["expected_rows"] != CANONICAL_V3_ROWS or cfg["expected_columns"] != CANONICAL_V3_COLUMNS:
             return False, "unsupported canonical_v3 grid config", None
         ok, reason = validate_canonical_v3_separators(im)
@@ -241,19 +245,24 @@ def _max_separator_run(im, boundary, axis):
 
 
 def validate_canonical_v3_separators(im):
-    for boundary in (256, 512, 768, 1024):
+    for boundary in canonical_v3_column_boundaries()[1:-1]:
         run = _max_separator_run(im, boundary, "x")
         if run > CANONICAL_V3_MAX_SEPARATOR_PX:
             return False, f"canonical_v3 separator too wide at x={boundary}: {run}px"
-    run = _max_separator_run(im, 584, "y")
+    run = _max_separator_run(im, CANONICAL_V3_CELL_HEIGHT, "y")
     if run > CANONICAL_V3_MAX_SEPARATOR_PX:
-        return False, f"canonical_v3 separator too wide at y=584: {run}px"
+        return False, f"canonical_v3 separator too wide at y={CANONICAL_V3_CELL_HEIGHT}: {run}px"
     return True, "PASS"
 
 
+def canonical_v3_column_boundaries():
+    return [round(index * CANONICAL_V3_WIDTH / CANONICAL_V3_COLUMNS) for index in range(CANONICAL_V3_COLUMNS + 1)]
+
+
 def canonical_v3_crop_box(row, col, target_ratio):
-    x0 = col * CANONICAL_V3_CELL_WIDTH
-    x1 = (col + 1) * CANONICAL_V3_CELL_WIDTH
+    boundaries = canonical_v3_column_boundaries()
+    x0 = boundaries[col]
+    x1 = boundaries[col + 1]
     y0 = row * CANONICAL_V3_CELL_HEIGHT
     y1 = (row + 1) * CANONICAL_V3_CELL_HEIGHT
     if col > 0:
@@ -276,6 +285,32 @@ def canonical_v3_crop_box(row, col, target_ratio):
     crop_y0 = y0 + top_trim
     crop_y1 = y1 - bottom_trim
     return x0, crop_y0, x1, crop_y1
+
+
+def canonical_v3_cell_box(row, col):
+    boundaries = canonical_v3_column_boundaries()
+    x0 = boundaries[col]
+    x1 = boundaries[col + 1]
+    y0 = row * CANONICAL_V3_CELL_HEIGHT
+    y1 = (row + 1) * CANONICAL_V3_CELL_HEIGHT
+    if col > 0:
+        x0 += CANONICAL_V3_INNER_SEPARATOR_TRIM_PX
+    if col < CANONICAL_V3_COLUMNS - 1:
+        x1 -= CANONICAL_V3_INNER_SEPARATOR_TRIM_PX
+    if row > 0:
+        y0 += CANONICAL_V3_INNER_SEPARATOR_TRIM_PX
+    if row < CANONICAL_V3_ROWS - 1:
+        y1 -= CANONICAL_V3_INNER_SEPARATOR_TRIM_PX
+    return x0, y0, x1, y1
+
+
+def render_contain_with_blurred_background(cell, target_size):
+    bg = ImageOps.fit(cell, target_size, method=Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+    bg = bg.filter(ImageFilter.GaussianBlur(18))
+    fg = ImageOps.contain(cell, target_size, method=Image.Resampling.LANCZOS)
+    canvas = bg.copy()
+    canvas.paste(fg, ((target_size[0] - fg.width) // 2, (target_size[1] - fg.height) // 2))
+    return canvas
 
 
 def legacy_crop_box(width, height, row, col, cfg, target_ratio):
@@ -312,23 +347,26 @@ def crop_source_image(im, out_dir, source, date_folder, cfg, crop_profile=LEGACY
         row = idx // cfg["expected_columns"]
         col = idx % cfg["expected_columns"]
         if crop_profile == CANONICAL_V3_PROFILE:
-            left, top, right, bottom = canonical_v3_crop_box(row, col, target_ratio)
+            left, top, right, bottom = canonical_v3_cell_box(row, col)
         else:
             left, top, right, bottom = legacy_crop_box(width, height, row, col, cfg, target_ratio)
         cell = im.crop((left, top, right, bottom))
-        cw, ch = cell.size
-        current_ratio = cw / float(ch)
-        if abs(current_ratio - target_ratio) > 0.01:
-            if current_ratio > target_ratio:
-                new_w = round(ch * target_ratio)
-                x0 = max(0, (cw - new_w) // 2)
-                cell = cell.crop((x0, 0, x0 + new_w, ch))
-            else:
-                new_h = round(cw / target_ratio)
-                y0 = max(0, (ch - new_h) // 2)
-                cell = cell.crop((0, y0, cw, y0 + new_h))
+        if crop_profile == CANONICAL_V3_PROFILE:
+            cut = render_contain_with_blurred_background(cell, (cfg["cut_width"], cfg["cut_height"]))
+        else:
+            cw, ch = cell.size
+            current_ratio = cw / float(ch)
+            if abs(current_ratio - target_ratio) > 0.01:
+                if current_ratio > target_ratio:
+                    new_w = round(ch * target_ratio)
+                    x0 = max(0, (cw - new_w) // 2)
+                    cell = cell.crop((x0, 0, x0 + new_w, ch))
+                else:
+                    new_h = round(cw / target_ratio)
+                    y0 = max(0, (ch - new_h) // 2)
+                    cell = cell.crop((0, y0, cw, y0 + new_h))
 
-        cut = cell.resize((cfg["cut_width"], cfg["cut_height"]), Image.Resampling.LANCZOS)
+            cut = cell.resize((cfg["cut_width"], cfg["cut_height"]), Image.Resampling.LANCZOS)
         tmp_path = out_dir / f"look_{idx + 1:02d}.webp"
         cut.save(tmp_path, "WEBP", quality=cfg["webp_quality"], method=6)
         file_sha = sha256_file(tmp_path)

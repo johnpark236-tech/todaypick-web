@@ -112,7 +112,12 @@ def parse_source_name(filename):
     if not match:
         return None
     gender, age, segment = segment_from_match(match)
-    return gender, age, segment, season_from_match(match)
+    date_suffix = match.group("date")
+    # Normalize 8-digit YYYYMMDD -> YYMMDD if present
+    if date_suffix and len(date_suffix) == 8:
+        date_suffix = date_suffix[2:]
+    return gender, age, segment, season_from_match(match), date_suffix
+
 
 
 def is_delete_request_drive_file(item):
@@ -471,7 +476,7 @@ class CloudDriveIngestWorker:
             master_guide_name=MASTER_GUIDE_NAME,
             master_guide_version=MASTER_GUIDE_VERSION,
             crop_profile=CANONICAL_V3_PROFILE,
-            canonical_source_size="1280x1168",
+            canonical_source_size="1313x1198",
             target_output_size=f"{self.cfg['cut_width']}x{self.cfg['cut_height']}",
         )
 
@@ -603,10 +608,25 @@ class CloudDriveIngestWorker:
         parsed = parse_source_name(drive_file.name)
         if not parsed:
             return {"filename": drive_file.name, "status": "SKIP_NAME"}
-        gender, age, segment, season_override = parsed
+        gender, age, segment, season_override, filename_date = parsed
+        # Section 4: if filename has YYMMDD suffix and it doesn't match the folder, treat as validation error
+        if filename_date and filename_date != date_folder:
+            log_event(
+                "filename date mismatch",
+                filename=drive_file.name,
+                filename_date=filename_date,
+                date_folder=date_folder,
+                segment=segment,
+            )
+            return {
+                "filename": drive_file.name,
+                "status": "VALIDATION_ERROR",
+                "error": f"filename date {filename_date} does not match folder date {date_folder}",
+            }
         season = season_override or season_for_date_folder(date_folder)
         download_dir = RUNTIME_ROOT / "downloads" / date_folder / drive_file.id
         source_path = download_dir / drive_file.name
+
 
         self.state.upsert(drive_file, "", date_folder, season, segment, "DISCOVERED")
         self.drive.download_file(drive_file.id, source_path)
