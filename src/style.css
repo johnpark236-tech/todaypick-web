@@ -1237,6 +1237,16 @@ body {
   -webkit-box-orient: vertical;
 }
 
+.admin-delete-meta {
+  color: var(--color-primary);
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .admin-delete-actions {
   display: flex;
   gap: 4px;

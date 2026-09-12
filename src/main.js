@@ -23,6 +23,9 @@ const ALL_GROUPS = [
   'female_10s', 'female_20s', 'female_30s', 'female_40s', 'female_50s', 'female_60s',
   'male_10s', 'male_20s', 'male_30s', 'male_40s', 'male_50s', 'male_60s'
 ];
+const ADMIN_SEASONS = ['spring', 'summer', 'autumn', 'winter'];
+const ADMIN_GENDERS = ['female', 'male'];
+const ADMIN_AGE_GROUPS = [10, 20, 30, 40, 50, 60];
 const PAGE_SIZE = 20;
 const ADMIN_PASSWORD = '2040';
 
@@ -38,7 +41,9 @@ const state = {
   activeView: 'view-home',
   isPriceSheetOpen: false,
   isExitDialogOpen: false,
-  adminUnlocked: false
+  adminUnlocked: false,
+  adminCatalogLoading: false,
+  adminAllLooks: []
 };
 
 const outfitManager = new OutfitManager();
@@ -212,6 +217,17 @@ function getVisibleOutfit(mode = state.currentMode, outfitId = null) {
   return looks.find(look => look.id === outfitId) || looks[0];
 }
 
+function lookDeleteKey(id, mode) {
+  return `${mode}:${id}`;
+}
+
+function getAdminSegmentLabel(look) {
+  const parsed = parseMode(look.mode);
+  const season = getSeasonLabel(look.remoteSeason || state.currentSeason);
+  const gender = parsed.gender === 'female' ? '여성' : '남성';
+  return `${season} ${gender} ${parsed.ageGroup}대`;
+}
+
 // Render Outfit in Home stage
 function renderOutfit(outfit) {
   if (!outfit) {
@@ -277,31 +293,85 @@ function populateThumbnails(mode) {
   }
 }
 
-function renderAdminDeleteGrid() {
-  if (!dom.adminDeleteGrid) return;
-  const allLooks = outfitManager.getLooks(state.currentMode);
-  const deleted = StorageService.getDeletedLooks();
-  const deletedIds = new Set(deleted.filter(item => item.mode === state.currentMode).map(item => item.id));
-  const label = `${getSeasonLabel(state.currentSeason)} ${state.currentGender === 'female' ? '여성' : '남성'} ${state.currentAgeGroup}대`;
+async function loadAdminAllLooks({ force = false } = {}) {
+  if (!force && state.adminAllLooks.length) return state.adminAllLooks;
+  if (state.adminCatalogLoading) return state.adminAllLooks;
+  state.adminCatalogLoading = true;
   if (dom.adminPanelLabel) {
-    dom.adminPanelLabel.textContent = `${label} 이미지 ${allLooks.length}개`;
+    dom.adminPanelLabel.textContent = '전체 업로드 이미지 불러오는 중...';
+  }
+
+  const jobs = [];
+  ADMIN_SEASONS.forEach(season => {
+    ADMIN_GENDERS.forEach(gender => {
+      ADMIN_AGE_GROUPS.forEach(ageGroup => {
+        jobs.push({ season, gender, ageGroup });
+      });
+    });
+  });
+
+  const results = await Promise.all(jobs.map(async job => {
+    try {
+      const result = await RemoteLookService.loadCatalog(state.config || {}, job);
+      const looks = Array.isArray(result.catalog?.looks) ? result.catalog.looks : [];
+      const mode = `${job.gender}_${job.ageGroup}s`;
+      return looks
+        .filter(look => look?.id && look?.url)
+        .map((look, index) => ({
+          id: look.id,
+          mode,
+          remoteSeason: job.season,
+          title: `${getSeasonLabel(job.season)} ${job.gender === 'female' ? '여성' : '남성'} ${job.ageGroup}대 #${index + 1}`,
+          image: look.url,
+          thumbnail: look.url,
+          totalPrice: 0,
+          items: []
+        }));
+    } catch (err) {
+      console.warn('[AdminDelete] catalog load failed:', job, err);
+      return [];
+    }
+  }));
+
+  const byKey = new Map();
+  results.flat().forEach(look => {
+    const key = lookDeleteKey(look.id, look.mode);
+    if (!byKey.has(key)) byKey.set(key, look);
+  });
+  state.adminAllLooks = Array.from(byKey.values());
+  state.adminCatalogLoading = false;
+  return state.adminAllLooks;
+}
+
+async function renderAdminDeleteGrid() {
+  if (!dom.adminDeleteGrid) return;
+  if (state.adminCatalogLoading) {
+    dom.adminDeleteGrid.innerHTML = '<div class="empty-state" style="grid-column: span 3;">전체 업로드 이미지를 불러오는 중입니다.</div>';
+    return;
+  }
+  const allLooks = await loadAdminAllLooks();
+  const deleted = StorageService.getDeletedLooks();
+  const deletedKeys = new Set(deleted.map(item => lookDeleteKey(item.id, item.mode)));
+  if (dom.adminPanelLabel) {
+    dom.adminPanelLabel.textContent = `전체 업로드 이미지 ${allLooks.length}개 · 삭제요청 ${deleted.length}개`;
   }
 
   if (!allLooks.length) {
-    dom.adminDeleteGrid.innerHTML = '<div class="empty-state" style="grid-column: span 3;">삭제할 이미지가 없습니다.</div>';
+    dom.adminDeleteGrid.innerHTML = '<div class="empty-state" style="grid-column: span 3;">업로드 이미지를 불러오지 못했습니다.</div>';
     return;
   }
 
   dom.adminDeleteGrid.innerHTML = allLooks.map((look, index) => {
-    const isDeleted = deletedIds.has(look.id);
+    const isDeleted = deletedKeys.has(lookDeleteKey(look.id, look.mode));
     return `
       <article class="admin-delete-card ${isDeleted ? 'is-deleted' : ''}" data-id="${look.id}" data-mode="${look.mode}">
         <img class="admin-delete-thumb" src="${look.thumbnail}" alt="${look.title}" loading="lazy" />
-        <span class="admin-delete-title">${index + 1}. ${isDeleted ? '삭제됨' : look.title}</span>
+        <span class="admin-delete-title">${index + 1}. ${isDeleted ? '삭제요청됨' : look.title}</span>
+        <span class="admin-delete-meta">${getAdminSegmentLabel(look)}</span>
         <div class="admin-delete-actions">
           ${isDeleted
-            ? '<button class="admin-restore-btn" type="button" data-action="restore">복원</button>'
-            : '<button class="admin-delete-btn" type="button" data-action="delete">삭제</button>'}
+            ? '<button class="admin-restore-btn" type="button" data-action="restore">요청취소</button>'
+            : '<button class="admin-delete-btn" type="button" data-action="delete">삭제요청</button>'}
         </div>
       </article>
     `;
@@ -310,14 +380,15 @@ function renderAdminDeleteGrid() {
   dom.adminDeleteGrid.querySelectorAll('[data-action="delete"]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const card = e.currentTarget.closest('.admin-delete-card');
-      const look = outfitManager.getOutfit(card.dataset.mode, card.dataset.id);
+      const look = state.adminAllLooks.find(item => item.id === card.dataset.id && item.mode === card.dataset.mode)
+        || outfitManager.getOutfit(card.dataset.mode, card.dataset.id);
       StorageService.deleteLookFromCatalog(look);
       if (state.currentOutfit?.id === look.id) {
         renderOutfit(getVisibleOutfit(state.currentMode));
       }
       populateThumbnails(state.currentMode);
       renderAdminDeleteGrid();
-      showToast('이미지를 삭제했습니다.');
+      showToast('삭제요청에 추가했습니다.');
     });
   });
 
@@ -330,7 +401,7 @@ function renderAdminDeleteGrid() {
         renderOutfit(getVisibleOutfit(state.currentMode));
       }
       renderAdminDeleteGrid();
-      showToast('이미지를 복원했습니다.');
+      showToast('삭제요청을 취소했습니다.');
     });
   });
 }
@@ -405,7 +476,7 @@ async function uploadAdminDeleteRequest() {
       });
       await Share.share({
         title: 'TodayPick 삭제요청',
-        text: 'Google Drive의 TodayPick_user_config 오늘 날짜 폴더에 저장하면 자동 삭제 처리됩니다.',
+        text: 'Google Drive의 TodayPick_user_config 오늘 날짜 폴더 또는 삭제요청 폴더에 저장하면 자동 삭제 처리됩니다.',
         files: [writeResult.uri],
         dialogTitle: '삭제요청 업로드'
       });
