@@ -151,6 +151,7 @@ const dom = {
   adminPanel: document.getElementById('admin-panel'),
   adminPanelLabel: document.getElementById('admin-panel-label'),
   btnAdminLock: document.getElementById('btn-admin-lock'),
+  btnAdminCopyDeleteCode: document.getElementById('btn-admin-copy-delete-code'),
   adminDeleteGrid: document.getElementById('admin-delete-grid'),
   lblWorkerStatus: document.getElementById('lbl-worker-status'),
   toast: document.getElementById('toast'),
@@ -339,6 +340,39 @@ function setAdminUnlocked(unlocked) {
   if (dom.adminPanel) dom.adminPanel.hidden = !state.adminUnlocked;
   if (dom.adminPasswordInput) dom.adminPasswordInput.value = '';
   if (state.adminUnlocked) renderAdminDeleteGrid();
+}
+
+function makeDeleteCode(payload) {
+  const json = JSON.stringify(payload);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  bytes.forEach(byte => {
+    binary += String.fromCharCode(byte);
+  });
+  return `TPDEL1.${btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')}`;
+}
+
+async function copyAdminDeleteCode() {
+  const payload = StorageService.getDeleteRequestPayload();
+  if (!payload.deletedLooks.length) {
+    showToast('삭제 처리된 이미지가 없습니다.');
+    return;
+  }
+  const code = makeDeleteCode(payload);
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(code);
+      showToast('삭제코드를 복사했습니다.');
+      return;
+    }
+  } catch {}
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: 'TodayPick 삭제코드', text: code });
+      return;
+    }
+  } catch {}
+  showToast('삭제코드 복사에 실패했습니다.');
 }
 
 // Close all open dropdown menus
@@ -791,6 +825,13 @@ function setupEventListeners() {
       AudioHub.tap();
       setAdminUnlocked(false);
       showToast('관리자모드를 잠갔습니다.');
+    });
+  }
+
+  if (dom.btnAdminCopyDeleteCode) {
+    dom.btnAdminCopyDeleteCode.addEventListener('click', async () => {
+      AudioHub.tap();
+      await copyAdminDeleteCode();
     });
   }
 

@@ -127,6 +127,22 @@ export class StorageService {
     localStorage.setItem(STORAGE_KEYS.DELETED_LOOKS, JSON.stringify(next));
     return next;
   }
+
+  static getDeleteRequestPayload() {
+    return {
+      schema: 'todaypick.delete_request',
+      version: 1,
+      generatedAt: new Date().toISOString(),
+      deletedLooks: this.getDeletedLooks().map(item => ({
+        id: item.id,
+        mode: item.mode,
+        title: item.title || '',
+        image: item.image || '',
+        remoteSeason: item.remoteSeason || null,
+        deletedAt: item.deletedAt || null
+      }))
+    };
+  }
 }
 
 function getModeButtonScale() {

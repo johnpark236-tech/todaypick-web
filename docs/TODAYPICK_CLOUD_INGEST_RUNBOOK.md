@@ -96,6 +96,34 @@ gcloud storage cp gs://todaypick-daily-looks-363284724091/automation/dlq/260912/
 
 To reprocess a corrected source, upload a new file into the date root folder. A new SHA is treated as a new source.
 
+## Admin Delete Code
+
+The test app settings screen can generate a `TPDEL1.` delete code from admin mode. Apply the code from a trusted operator environment only. Do not put GCS credentials or service-account keys inside the APK.
+
+Dry run first:
+
+```bash
+python automation/daily_looks/scripts/apply_delete_request_code.py \
+  --code 'TPDEL1.<copied-code>' \
+  --dry-run
+```
+
+Apply to production catalogs:
+
+```bash
+python automation/daily_looks/scripts/apply_delete_request_code.py \
+  --code 'TPDEL1.<copied-code>'
+```
+
+Behavior:
+
+- removes matching look IDs from `production/<season>/<segment>.json`
+- leaves all GCS image assets in place
+- blocks updates that would make a catalog empty
+- writes a catalog backup under `production/deletion_backups/<run-id>/`
+- writes an audit report under `production/deletion_audit/<run-id>.json`
+- does not touch Google Play, AAB, versionCode, or production assets
+
 ## Windows Failover
 
 Normal operation:
