@@ -210,6 +210,36 @@ def test_delete_request_file_applies_and_moves_to_processed(tmp_path, monkeypatc
     assert any(row["status"] == "COMPLETED" and row["segment"] == "delete_request" for row in rows)
 
 
+def test_drive_shared_delete_request_title_applies(tmp_path, monkeypatch):
+    payload = {
+        "schema": "todaypick.delete_request",
+        "version": 1,
+        "deletedLooks": [
+            {
+                "id": "winter_female_10_260912_08",
+                "mode": "female_10s",
+                "remoteSeason": "winter",
+            }
+        ],
+    }
+    request_meta = delete_request_file(payload, file_id="title-delete-1", name="TodayPick 삭제요청", md5="title-delete-md5")
+    fake_drive = FakeDrive(delete_requests=[request_meta])
+    fake_dlq = FakeDlq()
+    state = cloud.StateStore(tmp_path / "state.sqlite3")
+    calls = []
+
+    monkeypatch.setattr(cloud, "RUNTIME_ROOT", tmp_path / "runtime")
+    monkeypatch.setattr(cloud, "apply_delete_payload", lambda data, bucket, project, dry_run=False: calls.append((data, dry_run)) or {
+        "catalogs": [{"removed": ["winter_female_10_260912_08"]}]
+    })
+
+    worker = cloud.CloudDriveIngestWorker(fake_drive, state, fake_dlq, "root", dry_run=False)
+    result = worker.scan_once("260912")
+    assert result["results"][0]["status"] == "COMPLETED_DELETE_REQUEST"
+    assert result["results"][0]["removed"] == 1
+    assert calls
+
+
 def test_delete_request_file_in_request_folder_applies(tmp_path, monkeypatch):
     payload = {
         "schema": "todaypick.delete_request",

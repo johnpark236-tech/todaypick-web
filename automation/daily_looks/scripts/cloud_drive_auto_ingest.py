@@ -57,6 +57,7 @@ MAX_ATTEMPTS = 3
 SOURCE_MIME_TYPES = {"image/png", "image/jpeg", "image/webp"}
 DELETE_REQUEST_RE = re.compile(r"^todaypick_delete_request_[0-9]{8}[-_][0-9]{6}\.json$", re.IGNORECASE)
 DELETE_REQUEST_MIME_TYPES = {"application/json", "text/plain", ""}
+DELETE_REQUEST_TITLE_HINTS = ("삭제요청", "delete request", "delete_request")
 DELETE_REQUEST_FOLDER_NAMES = ("삭제요청", "delete_requests", "DeleteRequests", "_DeleteRequests")
 TERMINAL_FAILURES = {
     "SOURCE_DECODE_FAILED",
@@ -112,6 +113,17 @@ def parse_source_name(filename):
         return None
     gender, age, segment = segment_from_match(match)
     return gender, age, segment, season_from_match(match)
+
+
+def is_delete_request_drive_file(item):
+    name = item.get("name", "")
+    mime_type = item.get("mimeType") or ""
+    if mime_type not in DELETE_REQUEST_MIME_TYPES:
+        return False
+    if DELETE_REQUEST_RE.match(name):
+        return True
+    lower_name = name.lower()
+    return any(hint in lower_name for hint in DELETE_REQUEST_TITLE_HINTS)
 
 
 def acquire_lock():
@@ -388,11 +400,9 @@ class DriveApiClient:
         for item in result.get("files", []):
             if item.get("mimeType") == "application/vnd.google-apps.folder":
                 continue
-            if not DELETE_REQUEST_RE.match(item.get("name", "")):
+            if not is_delete_request_drive_file(item):
                 continue
             mime_type = item.get("mimeType") or ""
-            if mime_type not in DELETE_REQUEST_MIME_TYPES:
-                continue
             requests.append(DriveFile(
                 id=item["id"],
                 name=item["name"],
