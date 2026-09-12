@@ -401,7 +401,6 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
                 GcsDlq,
                 StateStore,
                 STATE_DB,
-                DEFAULT_ROOT_FOLDER_ID,
             )
             log_event("starting automatic ingest pass", date_folder=date_folder)
             state_store = StateStore(STATE_DB)
