@@ -1,0 +1,10 @@
+[Unit]
+Description=TodayPick cloud-primary Google Drive ingest one-shot reconciliation
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/todaypick-web
+ExecStart=/opt/todaypick-web/.venv/bin/python /opt/todaypick-web/automation/daily_looks/scripts/cloud_drive_auto_ingest.py --once --poll-interval 120
+Environment=PYTHONUNBUFFERED=1

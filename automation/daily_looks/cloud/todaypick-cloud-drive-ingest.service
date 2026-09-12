@@ -1,0 +1,15 @@
+[Unit]
+Description=TodayPick cloud-primary Google Drive ingest worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/todaypick-web
+ExecStart=/opt/todaypick-web/.venv/bin/python /opt/todaypick-web/automation/daily_looks/scripts/cloud_drive_auto_ingest.py --poll-interval 120
+Restart=on-failure
+RestartSec=20
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

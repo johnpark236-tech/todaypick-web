@@ -13,7 +13,7 @@
   "output_format": "webp",
   "webp_quality": 90,
   "file_stable_checks": 3,
-  "file_stable_interval_seconds": 1,
+  "file_stable_interval_seconds": 2,
   "crop_inset_ratio": {
     "left": 0.012,
     "right": 0.012,

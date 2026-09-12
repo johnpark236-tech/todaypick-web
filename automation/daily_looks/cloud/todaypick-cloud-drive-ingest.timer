@@ -1,0 +1,10 @@
+[Unit]
+Description=TodayPick cloud-primary Google Drive ingest scheduled check
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=todaypick-cloud-drive-ingest-once.service
+
+[Install]
+WantedBy=timers.target

@@ -35,7 +35,9 @@ Thumbs.db
 # Daily Look Automation Outputs
 automation/daily_looks/output/
 automation/daily_looks/remote_pipeline/
+automation/daily_looks/runtime/
 automation/daily_looks/state/
+automation/daily_looks/source_*/
 automation/daily_looks/tmp_*/
 automation/daily_looks/scripts/__pycache__/
 

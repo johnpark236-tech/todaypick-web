@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = PROJECT_ROOT / "automation" / "daily_looks" / "config" / "remote_daily_looks.json"
-FILENAME_RE = re.compile(r"^(여성|남성)\s*(10|20|30|40|50|60)대\.(png|jpg|jpeg|webp)$", re.IGNORECASE)
+FILENAME_RE = re.compile(r"^(?:(여성|남성)\s*(10|20|30|40|50|60)대|(female|male)_(10|20|30|40|50|60))\.(png|jpg|jpeg|webp)$", re.IGNORECASE)
 KST = timezone(timedelta(hours=9))
 LOCAL_URL_RE = re.compile(r"^(?:[a-zA-Z]:[\\/]|file:|\\.\\.?[\\/]|/|http://(?:localhost|127\\.0\\.0\\.1)(?::\\d+)?(?:/|$))")
 GCLOUD_BIN = shutil.which("gcloud") or shutil.which("gcloud.cmd") or "gcloud"
@@ -78,8 +78,12 @@ def season_for_date_folder(date_folder):
 
 
 def segment_from_match(match):
-    gender = "female" if match.group(1) == "여성" else "male"
-    age = int(match.group(2))
+    if match.group(1):
+        gender = "female" if match.group(1) == "여성" else "male"
+        age = int(match.group(2))
+    else:
+        gender = match.group(3).lower()
+        age = int(match.group(4))
     return gender, age, f"{gender}_{age}"
 
 
@@ -706,8 +710,8 @@ def run(args):
     date_folder = today_yymmdd(args.date)
     source_root = Path(args.source_root or cfg["source_root"])
     state_path = resolve_project_path(cfg["state_path"])
-    staging_root = resolve_project_path(cfg["staging_root"])
-    review_root = resolve_project_path(cfg["review_root"])
+    staging_root = Path(args.staging_root) if args.staging_root else resolve_project_path(cfg["staging_root"])
+    review_root = Path(args.review_root) if args.review_root else resolve_project_path(cfg["review_root"])
     manifest_root = resolve_project_path(cfg["manifest_root"])
     manifest_latest = manifest_root / "latest.json"
     manifest_previous = manifest_root / "previous.json"
@@ -820,6 +824,8 @@ if __name__ == "__main__":
     parser.add_argument("--date", help="YYMMDD date folder. Defaults to Asia/Seoul today.")
     parser.add_argument("--source-root", help="Google Drive synced TodayPick_user_config path.")
     parser.add_argument("--remote-asset-base-url", default=None, help="Production asset base URL for non-dry-run manifests.")
+    parser.add_argument("--staging-root", help="Override crop staging output root.")
+    parser.add_argument("--review-root", help="Override review sheet output root.")
     parser.add_argument("--dry-run", action="store_true", default=True, help="Read, crop, validate, and write preview only.")
     parser.add_argument("--live", dest="dry_run", action="store_false", help="Allow local manifest publish when --publish-local is set.")
     parser.add_argument("--publish-local", action="store_true", help="Promote preview to local latest.json. Does not upload remote assets.")
