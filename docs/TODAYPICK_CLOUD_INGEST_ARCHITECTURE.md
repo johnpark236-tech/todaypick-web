@@ -83,9 +83,18 @@ Canonical crop behavior:
 
 - `second_row_top_overlap_ratio=0.0`
 - no cross-row crop
+- reject internal white separators wider than `4px`
+- trim `2px` from internal canonical grid boundaries before final aspect crop to keep visible borders out of app previews
 - top row excess trim bias `35:65`
 - bottom row excess trim bias `65:35`
 - production output size remains the current config value `648x1152`
+
+Generation quality requirements:
+
+- every panel must use a natural seasonal lifestyle background, not a plain solid color only
+- character height should stay around `72-80%` of the logical panel height and must not exceed `82%`
+- keep clear background above hair and below shoes so app display scaling does not crop heads or feet
+- visible white borders, thick separators, adjacent-panel pixels, cropped heads, cropped shoes, sticker graphics, readable text, logos, and watermarks are publish blockers
 
 Legacy behavior is preserved for explicit legacy/local workflows. New Drive ingest does not silently route non-canonical sources through legacy processing.
 

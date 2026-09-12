@@ -13,6 +13,7 @@ from remote_daily_looks import (  # noqa: E402
     CANONICAL_V3_PROFILE,
     CANONICAL_V3_WIDTH,
     CANONICAL_V3_HEIGHT,
+    CANONICAL_V3_MAX_SEPARATOR_PX,
     FileSystemPublisher,
     GcsPublisher,
     SourceImage,
@@ -131,6 +132,37 @@ def make_canonical_sheet(path):
     return path
 
 
+def make_separator_sheet(path, separator_px):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    image = Image.new("RGB", (CANONICAL_V3_WIDTH, CANONICAL_V3_HEIGHT), (220, 230, 238))
+    for row in range(2):
+        for col in range(5):
+            color = (80 + col * 20, 120 + row * 30, 150 + col * 8)
+            x0 = col * 256
+            x1 = (col + 1) * 256
+            y0 = row * 584
+            y1 = (row + 1) * 584
+            Image.new("RGB", (x1 - x0, y1 - y0), color).save(path.with_suffix(f".{row}{col}.tmp.png"))
+            patch = Image.open(path.with_suffix(f".{row}{col}.tmp.png"))
+            image.paste(patch, (x0, y0))
+            path.with_suffix(f".{row}{col}.tmp.png").unlink()
+    half = separator_px // 2
+    for x in (256, 512, 768, 1024):
+        for dx in range(separator_px):
+            px = x - half + dx
+            if 0 <= px < CANONICAL_V3_WIDTH:
+                for y in range(CANONICAL_V3_HEIGHT):
+                    image.putpixel((px, y), (255, 255, 255))
+    y = 584
+    for dy in range(separator_px):
+        py = y - half + dy
+        if 0 <= py < CANONICAL_V3_HEIGHT:
+            for x in range(CANONICAL_V3_WIDTH):
+                image.putpixel((x, py), (255, 255, 255))
+    image.save(path)
+    return path
+
+
 def assert_latest_unchanged(root, before):
     current = json.loads((root / "latest.json").read_text(encoding="utf-8"))
     assert current == before
@@ -200,6 +232,15 @@ def run():
         ok, reason, _ = validate_source(portrait, cfg, crop_profile=CANONICAL_V3_PROFILE)
         assert not ok
         assert "1280x1168" in reason
+
+        thin_separator = make_separator_sheet(root / "thin_separator.png", CANONICAL_V3_MAX_SEPARATOR_PX)
+        ok, reason, _ = validate_source(thin_separator, cfg, crop_profile=CANONICAL_V3_PROFILE)
+        assert ok, reason
+
+        wide_separator = make_separator_sheet(root / "wide_separator.png", CANONICAL_V3_MAX_SEPARATOR_PX + 3)
+        ok, reason, _ = validate_source(wide_separator, cfg, crop_profile=CANONICAL_V3_PROFILE)
+        assert not ok
+        assert "separator too wide" in reason
 
         _, row2_y0, _, _ = canonical_v3_crop_box(1, 0, cfg["cut_width"] / float(cfg["cut_height"]))
         assert row2_y0 >= CANONICAL_V3_CELL_HEIGHT

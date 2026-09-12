@@ -63,9 +63,20 @@ CANONICAL_SOURCE_SIZE=1280x1168
 GRID=5x2
 LOGICAL_CELL=256x584
 CUT_PROFILE=canonical_v3
+SEASONAL_BACKGROUND=YES
+CHARACTER_HEIGHT=72-80%, MAX=82%
+VISIBLE_BORDER=NO
+WIDE_SEPARATOR=NO
 ```
 
 If a new source is `1024x1536`, portrait, or any arbitrary ratio, the worker must reject it and leave production unchanged.
+
+Quality gate before production publish:
+
+1. Reject source sheets with internal white separators wider than `4px`.
+2. Crop with the canonical internal boundary safe trim so separator pixels do not appear in app previews.
+3. Open the review sheet or app preview and reject any crop with a cut-off head, hair, legs, shoes, bag, visible border, adjacent-panel pixels, plain solid-color-only background, readable text, logo, or watermark.
+4. Publish only when all 10 crops pass.
 
 ## Dry Run
 

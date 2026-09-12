@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
+from PIL import Image, ImageDraw, ImageFont, ImageStat, UnidentifiedImageError
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -41,6 +41,8 @@ CANONICAL_V3_CELL_WIDTH = 256
 CANONICAL_V3_CELL_HEIGHT = 584
 CANONICAL_V3_TOP_ROW_TRIM_BIAS = (0.35, 0.65)
 CANONICAL_V3_BOTTOM_ROW_TRIM_BIAS = (0.65, 0.35)
+CANONICAL_V3_MAX_SEPARATOR_PX = 4
+CANONICAL_V3_INNER_SEPARATOR_TRIM_PX = 2
 
 
 @dataclass
@@ -195,6 +197,9 @@ def validate_source(path, cfg, crop_profile=LEGACY_PROFILE):
             return False, f"canonical_v3 source must be 1280x1168, got {width}x{height}", None
         if cfg["expected_rows"] != CANONICAL_V3_ROWS or cfg["expected_columns"] != CANONICAL_V3_COLUMNS:
             return False, "unsupported canonical_v3 grid config", None
+        ok, reason = validate_canonical_v3_separators(im)
+        if not ok:
+            return False, reason, None
         return True, "PASS", im
 
     if width < 1000 or height < 600:
@@ -207,11 +212,58 @@ def validate_source(path, cfg, crop_profile=LEGACY_PROFILE):
     return True, "PASS", im
 
 
+def _separator_like_strip(im, box):
+    stat = ImageStat.Stat(im.crop(box).convert("RGB"))
+    mean = stat.mean
+    stddev = stat.stddev
+    return min(mean) >= 246 and max(stddev) <= 8
+
+
+def _max_separator_run(im, boundary, axis):
+    max_run = 0
+    current = 0
+    for offset in range(-12, 13):
+        pos = boundary + offset
+        if axis == "x":
+            if pos < 0 or pos >= im.width:
+                continue
+            box = (pos, 0, pos + 1, im.height)
+        else:
+            if pos < 0 or pos >= im.height:
+                continue
+            box = (0, pos, im.width, pos + 1)
+        if _separator_like_strip(im, box):
+            current += 1
+            max_run = max(max_run, current)
+        else:
+            current = 0
+    return max_run
+
+
+def validate_canonical_v3_separators(im):
+    for boundary in (256, 512, 768, 1024):
+        run = _max_separator_run(im, boundary, "x")
+        if run > CANONICAL_V3_MAX_SEPARATOR_PX:
+            return False, f"canonical_v3 separator too wide at x={boundary}: {run}px"
+    run = _max_separator_run(im, 584, "y")
+    if run > CANONICAL_V3_MAX_SEPARATOR_PX:
+        return False, f"canonical_v3 separator too wide at y=584: {run}px"
+    return True, "PASS"
+
+
 def canonical_v3_crop_box(row, col, target_ratio):
     x0 = col * CANONICAL_V3_CELL_WIDTH
     x1 = (col + 1) * CANONICAL_V3_CELL_WIDTH
     y0 = row * CANONICAL_V3_CELL_HEIGHT
     y1 = (row + 1) * CANONICAL_V3_CELL_HEIGHT
+    if col > 0:
+        x0 += CANONICAL_V3_INNER_SEPARATOR_TRIM_PX
+    if col < CANONICAL_V3_COLUMNS - 1:
+        x1 -= CANONICAL_V3_INNER_SEPARATOR_TRIM_PX
+    if row > 0:
+        y0 += CANONICAL_V3_INNER_SEPARATOR_TRIM_PX
+    if row < CANONICAL_V3_ROWS - 1:
+        y1 -= CANONICAL_V3_INNER_SEPARATOR_TRIM_PX
     cell_w = x1 - x0
     cell_h = y1 - y0
     desired_h = round(cell_w / target_ratio)
