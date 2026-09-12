@@ -1,0 +1,12 @@
+[Unit]
+Description=TodayPick 06:00 KST Daily 12 Look Sheet Auto Generator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/todaypick-web
+ExecStart=/opt/todaypick-web/.venv/bin/python /opt/todaypick-web/automation/daily_looks/scripts/daily_auto_generate.py
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=journal+console
+StandardError=journal+console

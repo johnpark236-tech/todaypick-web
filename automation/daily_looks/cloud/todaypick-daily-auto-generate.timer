@@ -1,0 +1,11 @@
+[Unit]
+Description=TodayPick Daily 12 Look Sheet Auto Generator Timer (Daily 06:00 KST / 21:00 UTC)
+
+[Timer]
+# 06:00:00 Asia/Seoul = 21:00:00 UTC
+OnCalendar=*-*-* 21:00:00 UTC
+Persistent=true
+Unit=todaypick-daily-auto-generate.service
+
+[Install]
+WantedBy=timers.target
