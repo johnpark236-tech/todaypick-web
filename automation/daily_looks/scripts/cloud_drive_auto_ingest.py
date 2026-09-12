@@ -10,6 +10,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -335,8 +336,11 @@ class DriveApiClient:
         credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/drive"])
         self.service = build("drive", "v3", credentials=credentials, cache_discovery=False)
         self.media_downloader = MediaIoBaseDownload
+        self.local_files = {}
 
     def find_child_folder(self, parent_id, name):
+        if not parent_id or str(parent_id).startswith("local_"):
+            return None
         safe_name = name.replace("'", "\\'")
         q = (
             f"'{parent_id}' in parents and trashed = false "
@@ -353,6 +357,8 @@ class DriveApiClient:
         return files[0]["id"] if files else None
 
     def ensure_child_folder(self, parent_id, name):
+        if not parent_id or str(parent_id).startswith("local_"):
+            return f"local_{name}"
         existing = self.find_child_folder(parent_id, name)
         if existing:
             return existing
@@ -360,67 +366,105 @@ class DriveApiClient:
         folder = self.service.files().create(body=body, fields="id", supportsAllDrives=True).execute()
         return folder["id"]
 
-    def list_source_files(self, date_folder_id):
-        q = f"'{date_folder_id}' in parents and trashed = false"
-        result = self.service.files().list(
-            q=q,
-            fields="files(id,name,mimeType,modifiedTime,size,md5Checksum,parents)",
-            pageSize=100,
-            supportsAllDrives=True,
-            includeItemsFromAllDrives=True,
-            orderBy="name",
-        ).execute()
+    def list_source_files(self, date_folder_id, date_folder=None):
         sources = []
-        for item in result.get("files", []):
-            if item.get("mimeType") == "application/vnd.google-apps.folder":
-                continue
-            parsed = parse_source_name(item.get("name", ""))
-            if not parsed:
-                continue
-            mime_type = item.get("mimeType") or ""
-            if mime_type and mime_type not in SOURCE_MIME_TYPES:
-                continue
-            sources.append(DriveFile(
-                id=item["id"],
-                name=item["name"],
-                mime_type=mime_type,
-                modified_time=item.get("modifiedTime", ""),
-                size=int(item.get("size", 0) or 0),
-                md5_checksum=item.get("md5Checksum", ""),
-                parent_id=(item.get("parents") or [date_folder_id])[0],
-            ))
+        if date_folder_id and not str(date_folder_id).startswith("local_"):
+            try:
+                q = f"'{date_folder_id}' in parents and trashed = false"
+                result = self.service.files().list(
+                    q=q,
+                    fields="files(id,name,mimeType,modifiedTime,size,md5Checksum,parents)",
+                    pageSize=100,
+                    supportsAllDrives=True,
+                    includeItemsFromAllDrives=True,
+                    orderBy="name",
+                ).execute()
+                for item in result.get("files", []):
+                    if item.get("mimeType") == "application/vnd.google-apps.folder":
+                        continue
+                    parsed = parse_source_name(item.get("name", ""))
+                    if not parsed:
+                        continue
+                    mime_type = item.get("mimeType") or ""
+                    if mime_type and mime_type not in SOURCE_MIME_TYPES:
+                        continue
+                    sources.append(DriveFile(
+                        id=item["id"],
+                        name=item["name"],
+                        mime_type=mime_type,
+                        modified_time=item.get("modifiedTime", ""),
+                        size=int(item.get("size", 0) or 0),
+                        md5_checksum=item.get("md5Checksum", ""),
+                        parent_id=(item.get("parents") or [date_folder_id])[0],
+                    ))
+            except Exception as exc:
+                log_event("drive list source error", error=str(exc))
+
+        folder_name = date_folder or (date_folder_id if not str(date_folder_id).startswith("local_") else str(date_folder_id).replace("local_", ""))
+        if folder_name:
+            inbox_dir = RUNTIME_ROOT / "inbox" / folder_name
+            if inbox_dir.exists():
+                for item_path in sorted(inbox_dir.glob("*.*")):
+                    if item_path.is_dir() or item_path.name.startswith("."):
+                        continue
+                    parsed = parse_source_name(item_path.name)
+                    if not parsed:
+                        continue
+                    if any(s.name == item_path.name for s in sources):
+                        continue
+                    sha = sha256_file(item_path)
+                    local_id = f"local_{sha[:16]}"
+                    self.local_files[local_id] = item_path
+                    sources.append(DriveFile(
+                        id=local_id,
+                        name=item_path.name,
+                        mime_type="image/png",
+                        modified_time=datetime.fromtimestamp(item_path.stat().st_mtime, tz=timezone.utc).isoformat(),
+                        size=item_path.stat().st_size,
+                        md5_checksum=sha[:32],
+                        parent_id=f"local_{folder_name}",
+                    ))
         return sources
 
     def list_delete_request_files(self, date_folder_id):
-        q = f"'{date_folder_id}' in parents and trashed = false"
-        result = self.service.files().list(
-            q=q,
-            fields="files(id,name,mimeType,modifiedTime,size,md5Checksum,parents)",
-            pageSize=100,
-            supportsAllDrives=True,
-            includeItemsFromAllDrives=True,
-            orderBy="name",
-        ).execute()
-        requests = []
-        for item in result.get("files", []):
-            if item.get("mimeType") == "application/vnd.google-apps.folder":
-                continue
-            if not is_delete_request_drive_file(item):
-                continue
-            mime_type = item.get("mimeType") or ""
-            requests.append(DriveFile(
-                id=item["id"],
-                name=item["name"],
-                mime_type=mime_type,
-                modified_time=item.get("modifiedTime", ""),
-                size=int(item.get("size", 0) or 0),
-                md5_checksum=item.get("md5Checksum", ""),
-                parent_id=(item.get("parents") or [date_folder_id])[0],
-            ))
-        return requests
+        if not date_folder_id or str(date_folder_id).startswith("local_"):
+            return []
+        try:
+            q = f"'{date_folder_id}' in parents and trashed = false"
+            result = self.service.files().list(
+                q=q,
+                fields="files(id,name,mimeType,modifiedTime,size,md5Checksum,parents)",
+                pageSize=100,
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True,
+                orderBy="name",
+            ).execute()
+            requests = []
+            for item in result.get("files", []):
+                if item.get("mimeType") == "application/vnd.google-apps.folder":
+                    continue
+                if not is_delete_request_drive_file(item):
+                    continue
+                mime_type = item.get("mimeType") or ""
+                requests.append(DriveFile(
+                    id=item["id"],
+                    name=item["name"],
+                    mime_type=mime_type,
+                    modified_time=item.get("modifiedTime", ""),
+                    size=int(item.get("size", 0) or 0),
+                    md5_checksum=item.get("md5Checksum", ""),
+                    parent_id=(item.get("parents") or [date_folder_id])[0],
+                ))
+            return requests
+        except Exception as exc:
+            log_event("drive list delete requests error", error=str(exc))
+            return []
 
     def download_file(self, file_id, destination):
         destination.parent.mkdir(parents=True, exist_ok=True)
+        if file_id in self.local_files:
+            shutil.copy2(self.local_files[file_id], destination)
+            return
         request = self.service.files().get_media(fileId=file_id, supportsAllDrives=True)
         with destination.open("wb") as fh:
             downloader = self.media_downloader(fh, request)
@@ -429,6 +473,17 @@ class DriveApiClient:
                 _, done = downloader.next_chunk()
 
     def move_file(self, file_id, old_parent_id, new_parent_id):
+        if file_id in self.local_files:
+            local_src = self.local_files[file_id]
+            if local_src.exists():
+                folder_name = new_parent_id.replace("local_", "") if str(new_parent_id).startswith("local_") else new_parent_id
+                dest_dir = local_src.parent / folder_name
+                dest_dir.mkdir(parents=True, exist_ok=True)
+                dest = dest_dir / local_src.name
+                if dest.exists():
+                    dest.unlink()
+                shutil.move(str(local_src), str(dest))
+            return
         self.service.files().update(
             fileId=file_id,
             addParents=new_parent_id,
@@ -481,28 +536,44 @@ class CloudDriveIngestWorker:
         )
 
     def scan_once(self, date_folder):
-        date_folder_id = self.drive.find_child_folder(self.root_folder_id, date_folder)
-        if not date_folder_id:
+        date_folder_id = None
+        try:
+            date_folder_id = self.drive.find_child_folder(self.root_folder_id, date_folder)
+        except Exception as exc:
+            log_event("find date folder error", error=str(exc))
+
+        inbox_dir = RUNTIME_ROOT / "inbox" / date_folder
+        has_local = inbox_dir.exists() and any(p for p in inbox_dir.glob("*.*") if not p.is_dir())
+
+        if not date_folder_id and not has_local:
             log_event("date folder not found", date_folder=date_folder, root_folder_id=self.root_folder_id)
             return {"date_folder": date_folder, "status": "NO_DAILY_FOLDER", "processed": 0}
-        delete_requests = self.drive.list_delete_request_files(date_folder_id)
+
+        effective_date_folder_id = date_folder_id or f"local_{date_folder}"
+        delete_requests = self.drive.list_delete_request_files(date_folder_id) if date_folder_id else []
         delete_request_folders = []
         seen_delete_request_ids = {item.id for item in delete_requests}
-        for folder_name in DELETE_REQUEST_FOLDER_NAMES:
-            request_folder_id = self.drive.find_child_folder(date_folder_id, folder_name)
-            if not request_folder_id:
-                continue
-            delete_request_folders.append({"name": folder_name, "id": request_folder_id})
-            for request_file in self.drive.list_delete_request_files(request_folder_id):
-                if request_file.id in seen_delete_request_ids:
+        if date_folder_id:
+            for folder_name in DELETE_REQUEST_FOLDER_NAMES:
+                request_folder_id = self.drive.find_child_folder(date_folder_id, folder_name)
+                if not request_folder_id:
                     continue
-                seen_delete_request_ids.add(request_file.id)
-                delete_requests.append(request_file)
-        files = self.drive.list_source_files(date_folder_id)
+                delete_request_folders.append({"name": folder_name, "id": request_folder_id})
+                for request_file in self.drive.list_delete_request_files(request_folder_id):
+                    if request_file.id in seen_delete_request_ids:
+                        continue
+                    seen_delete_request_ids.add(request_file.id)
+                    delete_requests.append(request_file)
+
+        try:
+            files = self.drive.list_source_files(effective_date_folder_id, date_folder=date_folder)
+        except TypeError:
+            files = self.drive.list_source_files(effective_date_folder_id)
+
         log_event(
             "cloud drive scan",
             date_folder=date_folder,
-            date_folder_id=date_folder_id,
+            date_folder_id=effective_date_folder_id,
             delete_request_folders=delete_request_folders,
             discovered=len(files),
             delete_requests=len(delete_requests),
@@ -513,13 +584,13 @@ class CloudDriveIngestWorker:
                 log_event("metadata skip completed delete request", file_id=drive_file.id, filename=drive_file.name)
                 results.append({"filename": drive_file.name, "status": "SKIP_COMPLETED_DELETE_REQUEST"})
                 continue
-            results.append(self.process_delete_request(drive_file, date_folder, date_folder_id))
+            results.append(self.process_delete_request(drive_file, date_folder, effective_date_folder_id))
         for drive_file in files:
             if self.state.completed_by_metadata(drive_file):
                 log_event("metadata skip completed source", file_id=drive_file.id, filename=drive_file.name)
                 results.append({"filename": drive_file.name, "status": "SKIP_COMPLETED_METADATA"})
                 continue
-            results.append(self.process_file(drive_file, date_folder, date_folder_id))
+            results.append(self.process_file(drive_file, date_folder, effective_date_folder_id))
         return {"date_folder": date_folder, "status": "OK", "processed": len(results), "results": results}
 
     def process_delete_request(self, drive_file, date_folder, date_folder_id):

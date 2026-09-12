@@ -222,7 +222,7 @@ class DriveUploader:
         return uploaded["id"], True
 
 
-def run_generation(target_group=None, dry_run=False, live_api=False, upload_drive=True, date_str=None):
+def run_generation(target_group=None, dry_run=False, live_api=False, upload_drive=True, date_str=None, auto_ingest=True):
     """Main execution workflow for daily sheet generation."""
     kst_now = get_kst_now()
     if not date_str:
@@ -356,8 +356,14 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
             except Exception as exc:
                 log_event("drive upload error (service account storage quota)", filename=canonical_filename, error=str(exc))
 
-        # Direct local handoff to cloud ingest worker download area so cloud worker immediately ingests
-        # This ensures end-to-end automated cutting, QA, GCS upload, and catalog publish without failure
+        # Direct local handoff to cloud ingest worker inbox
+        # This ensures end-to-end automated cutting, QA, GCS upload, and catalog publish
+        inbox_dir = DAILY_LOOKS_ROOT / "runtime" / "cloud_drive_ingest" / "inbox" / date_folder
+        inbox_dir.mkdir(parents=True, exist_ok=True)
+        inbox_path = inbox_dir / canonical_filename
+        if not inbox_path.exists() or inbox_path.stat().st_size != local_sheet_path.stat().st_size:
+            shutil.copy2(local_sheet_path, inbox_path)
+
         local_ingest_dir = DAILY_LOOKS_ROOT / "runtime" / "cloud_drive_ingest" / "downloads" / date_folder / f"auto_gen_{canonical_filename}"
         local_ingest_dir.mkdir(parents=True, exist_ok=True)
         local_ingest_path = local_ingest_dir / canonical_filename
@@ -385,7 +391,36 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
         success_count=success_cnt,
         uploaded_count=uploaded_cnt,
     )
-    return results
+
+    ingest_report = None
+    if auto_ingest and success_cnt > 0:
+        try:
+            from cloud_drive_auto_ingest import (
+                CloudDriveIngestWorker,
+                DriveApiClient,
+                GcsDlq,
+                StateStore,
+                STATE_DB,
+                DEFAULT_ROOT_FOLDER_ID,
+            )
+            log_event("starting automatic ingest pass", date_folder=date_folder)
+            state_store = StateStore(STATE_DB)
+            drive_client = DriveApiClient()
+            dlq = GcsDlq()
+            worker = CloudDriveIngestWorker(drive_client, state_store, dlq, DEFAULT_ROOT_FOLDER_ID, dry_run=dry_run)
+            ingest_report = worker.scan_once(date_folder)
+            log_event(
+                "automatic ingest pass completed",
+                processed=ingest_report.get("processed"),
+                status=ingest_report.get("status"),
+            )
+        except Exception as exc:
+            log_event("automatic ingest pass failed", error=str(exc))
+
+    return {
+        "generation_results": results,
+        "ingest_report": ingest_report,
+    }
 
 
 def main():
@@ -395,20 +430,28 @@ def main():
     parser.add_argument("--live-api", action="store_true", help="Attempt Gemini Imagen API generation if available")
     parser.add_argument("--date", type=str, default=None, help="Target date (YYMMDD or YYYY-MM-DD)")
     parser.add_argument("--no-drive-upload", action="store_true", help="Skip Google Drive upload")
+    parser.add_argument("--no-auto-ingest", action="store_true", help="Skip automatic local ingest pass")
     args = parser.parse_args()
 
-    results = run_generation(
+    report = run_generation(
         target_group=args.group,
         dry_run=args.dry_run,
         live_api=args.live_api,
         upload_drive=not (args.dry_run or args.no_drive_upload),
         date_str=args.date,
+        auto_ingest=not args.no_auto_ingest,
     )
 
+    results = report["generation_results"]
     print("\n================ Generation Summary ================")
     for r in results:
         print(f"[{r['status']}] {r['segment']} -> {r['filename']} | Size: {r['size_bytes']}B | Drive: {r['drive_file_id']}")
-    print(f"Total: {len(results)} processed.\n")
+    print(f"Total: {len(results)} generated.")
+
+    if report.get("ingest_report"):
+        ingest_res = report["ingest_report"]
+        print(f"Auto-Ingest: {ingest_res.get('status')} | Processed: {ingest_res.get('processed')}")
+    print()
 
 
 if __name__ == "__main__":
