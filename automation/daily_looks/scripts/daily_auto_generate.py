@@ -17,7 +17,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DAILY_LOOKS_ROOT = PROJECT_ROOT / "automation" / "daily_looks"
@@ -89,6 +89,17 @@ def save_run_ledger(ledger):
     tmp_path.replace(RUN_LEDGER_PATH)
 
 
+def mark_run_failed(ledger, run_key, date_folder, selected_groups, reason):
+    ledger.setdefault("runs", {})[run_key] = {
+        "status": "GENERATION_FAILED",
+        "date_folder": date_folder,
+        "target_groups": selected_groups,
+        "failed_at": get_kst_now().isoformat(timespec="seconds"),
+        "reason": str(reason),
+    }
+    save_run_ledger(ledger)
+
+
 def acquire_run_lock():
     LOG_ROOT.mkdir(parents=True, exist_ok=True)
     try:
@@ -132,7 +143,7 @@ def season_for_month(month):
 
 
 def create_canonical_test_sheet(group_key, season, date_folder, prompt_text=""):
-    """Creates a strictly compliant 1313x1198 5x2 sheet passing validate_source and crop QA."""
+    """TEST_ONLY: creates a technical placeholder sheet for non-production tests."""
     im = Image.new("RGB", (CANONICAL_V3_WIDTH, CANONICAL_V3_HEIGHT), (242, 243, 245))
     draw = ImageDraw.Draw(im)
 
@@ -393,27 +404,35 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
         if live_api:
             # Check GEMINI / Imagen API
             gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-            if gemini_key:
-                try:
-                    from google import genai
-                    client = genai.Client(api_key=gemini_key)
-                    res = client.models.generate_images(
-                        model="imagen-3.0-generate-002",
-                        prompt=prompt_text,
-                        config=dict(number_of_images=1, aspect_ratio="16:9"),
-                    )
-                    for gen_im in res.generated_images:
-                        raw = Image.open(io.BytesIO(gen_im.image.image_bytes))
-                        # Resize to canonical 1313x1198
-                        canon = raw.resize((CANONICAL_V3_WIDTH, CANONICAL_V3_HEIGHT), Image.Resampling.LANCZOS)
-                        canon.save(local_sheet_path, "PNG")
-                        generated = True
-                        api_msg = "imagen-3.0-generate-002"
-                        break
-                except Exception as exc:
-                    log_event("imagen api call failed, falling back to canonical generator", group=group_key, error=str(exc))
+            if not gemini_key:
+                mark_run_failed(ledger, run_key, date_folder, selected_groups, "live_api requested but GEMINI_API_KEY/GOOGLE_API_KEY is not configured")
+                raise RuntimeError("GENERATION_FAILED: live_api requested but GEMINI_API_KEY/GOOGLE_API_KEY is not configured")
+            try:
+                from google import genai
+                client = genai.Client(api_key=gemini_key)
+                res = client.models.generate_images(
+                    model="imagen-3.0-generate-002",
+                    prompt=prompt_text,
+                    config=dict(number_of_images=1, aspect_ratio="1:1"),
+                )
+                for gen_im in res.generated_images:
+                    raw = Image.open(io.BytesIO(gen_im.image.image_bytes)).convert("RGB")
+                    canon = ImageOps.contain(raw, (CANONICAL_V3_WIDTH, CANONICAL_V3_HEIGHT), method=Image.Resampling.LANCZOS)
+                    canvas = Image.new("RGB", (CANONICAL_V3_WIDTH, CANONICAL_V3_HEIGHT), (242, 242, 240))
+                    canvas.paste(canon, ((CANONICAL_V3_WIDTH - canon.width) // 2, (CANONICAL_V3_HEIGHT - canon.height) // 2))
+                    canvas.save(local_sheet_path, "PNG")
+                    generated = True
+                    api_msg = "imagen-3.0-generate-002"
+                    break
+            except Exception as exc:
+                log_event("imagen api call failed, fail closed", group=group_key, error=str(exc))
+                mark_run_failed(ledger, run_key, date_folder, selected_groups, exc)
+                raise RuntimeError(f"GENERATION_FAILED: {exc}") from exc
 
         if not generated:
+            if not dry_run:
+                mark_run_failed(ledger, run_key, date_folder, selected_groups, "production generation requires --live-api; placeholder fallback is disabled")
+                raise RuntimeError("GENERATION_FAILED: production generation requires --live-api; placeholder fallback is disabled")
             # High-fidelity canonical generator compliant with MASTER v3
             im = create_canonical_test_sheet(group_key, season, date_folder, prompt_text)
             im.save(local_sheet_path, "PNG")
@@ -514,7 +533,21 @@ def main():
     parser.add_argument("--no-drive-upload", action="store_true", help="Skip Google Drive upload")
     parser.add_argument("--no-auto-ingest", action="store_true", help="Skip automatic local ingest pass")
     parser.add_argument("--force", action="store_true", help="Ignore daily generation ledger and generate again")
+    parser.add_argument("--quality-test", action="store_true", help="Run one-sheet real image quality QA only; no Drive, ingest, GCS, or catalog publish")
+    parser.add_argument("--quality-source", type=str, default=None, help="Existing real generated source image to normalize and QA in --quality-test mode")
+    parser.add_argument("--season", type=str, default="autumn", help="Season for --quality-test first-mile QA")
     args = parser.parse_args()
+
+    if args.quality_test:
+        from real_image_quality_test import run_quality_test
+        result = run_quality_test(
+            group=args.group,
+            season=args.season,
+            date_str=args.date,
+            source_path=args.quality_source,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
 
     if not acquire_run_lock():
         log_event("daily generation skipped already running", lock=str(RUN_LOCK_PATH))
