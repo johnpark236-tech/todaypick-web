@@ -27,6 +27,7 @@ OUTPUT_ROOT = DAILY_LOOKS_ROOT / "output"
 RUN_LEDGER_PATH = LOG_ROOT / "daily_auto_generate_ledger.json"
 RUN_LOCK_PATH = LOG_ROOT / "daily_auto_generate.lock"
 RUN_LOCK_MAX_AGE_SECONDS = 6 * 60 * 60
+SCHEDULE_CONFIG_PATH = CONFIG_ROOT / "daily_generation_schedule.json"
 
 KST = timezone(timedelta(hours=9))
 
@@ -89,15 +90,70 @@ def save_run_ledger(ledger):
     tmp_path.replace(RUN_LEDGER_PATH)
 
 
-def mark_run_failed(ledger, run_key, date_folder, selected_groups, reason):
+def mark_run_failed(ledger, run_key, date_folder, selected_groups, reason, run_meta=None):
+    run_meta = run_meta or {}
     ledger.setdefault("runs", {})[run_key] = {
         "status": "GENERATION_FAILED",
         "date_folder": date_folder,
+        "date": run_meta.get("date_iso"),
+        "time": run_meta.get("scheduled_time"),
+        "revision": run_meta.get("schedule_revision"),
+        "run_id": run_meta.get("run_id", run_key),
+        "trigger_source": run_meta.get("trigger_source"),
         "target_groups": selected_groups,
         "failed_at": get_kst_now().isoformat(timespec="seconds"),
+        "finished_at": get_kst_now().isoformat(timespec="seconds"),
         "reason": str(reason),
     }
     save_run_ledger(ledger)
+
+
+def load_schedule_context():
+    default = {
+        "time": "06:00",
+        "revision": 0,
+        "timezone": "Asia/Seoul",
+    }
+    if not SCHEDULE_CONFIG_PATH.exists():
+        return default
+    try:
+        data = json.loads(SCHEDULE_CONFIG_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return default
+    return {
+        "time": str(data.get("time") or default["time"]),
+        "revision": int(data.get("revision", 0) or 0),
+        "timezone": str(data.get("timezone") or default["timezone"]),
+    }
+
+
+def make_run_identity(date_iso, date_folder, selected_groups, trigger_source, scheduled_time=None, schedule_revision=None, run_id=None):
+    group_part = "all" if selected_groups == GROUPS_ORDER else ",".join(selected_groups)
+    source = trigger_source or "timer"
+    if run_id:
+        return run_id, {
+            "date_iso": date_iso,
+            "date_folder": date_folder,
+            "scheduled_time": scheduled_time,
+            "schedule_revision": schedule_revision,
+            "trigger_source": source,
+            "run_id": run_id,
+            "group_part": group_part,
+        }
+    safe_time = (scheduled_time or "manual").replace(":", "-")
+    if source == "run_now":
+        run_id = f"{date_iso}__run-now__{get_kst_now().strftime('%H-%M-%S')}__{group_part}"
+    else:
+        run_id = f"{date_iso}__{safe_time}__rev{int(schedule_revision or 0)}__{source}__{group_part}"
+    return run_id, {
+        "date_iso": date_iso,
+        "date_folder": date_folder,
+        "scheduled_time": scheduled_time,
+        "schedule_revision": int(schedule_revision or 0),
+        "trigger_source": source,
+        "run_id": run_id,
+        "group_part": group_part,
+    }
 
 
 def acquire_run_lock():
@@ -293,7 +349,19 @@ class DriveUploader:
         return uploaded["id"], True
 
 
-def run_generation(target_group=None, dry_run=False, live_api=False, upload_drive=True, date_str=None, auto_ingest=True, force=False):
+def run_generation(
+    target_group=None,
+    dry_run=False,
+    live_api=False,
+    upload_drive=True,
+    date_str=None,
+    auto_ingest=True,
+    force=False,
+    trigger_source="timer",
+    scheduled_time=None,
+    schedule_revision=None,
+    run_id=None,
+):
     """Main execution workflow for daily sheet generation."""
     kst_now = get_kst_now()
     if not date_str:
@@ -320,6 +388,9 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
         dry_run=dry_run,
         live_api=live_api,
         upload_drive=upload_drive,
+        trigger_source=trigger_source,
+        scheduled_time=scheduled_time,
+        schedule_revision=schedule_revision,
     )
 
     # 1. Output directory setup
@@ -356,7 +427,19 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
     else:
         selected_groups = GROUPS_ORDER
 
-    run_key = f"{date_folder}/{'all' if selected_groups == GROUPS_ORDER else ','.join(selected_groups)}"
+    if scheduled_time is None or schedule_revision is None:
+        schedule_ctx = load_schedule_context()
+        scheduled_time = scheduled_time or schedule_ctx["time"]
+        schedule_revision = schedule_revision if schedule_revision is not None else schedule_ctx["revision"]
+    run_key, run_meta = make_run_identity(
+        date_iso,
+        date_folder,
+        selected_groups,
+        trigger_source,
+        scheduled_time=scheduled_time,
+        schedule_revision=schedule_revision,
+        run_id=run_id,
+    )
     ledger = load_run_ledger()
     prior = ledger.get("runs", {}).get(run_key)
     if prior and prior.get("status") == "COMPLETED" and not force:
@@ -367,6 +450,18 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
             "status": "SKIP_ALREADY_COMPLETED",
             "run_key": run_key,
         }
+    ledger.setdefault("runs", {})[run_key] = {
+        "status": "RUNNING",
+        "date_folder": date_folder,
+        "date": date_iso,
+        "time": scheduled_time,
+        "revision": int(schedule_revision or 0),
+        "run_id": run_meta["run_id"],
+        "trigger_source": trigger_source,
+        "target_groups": selected_groups,
+        "started_at": get_kst_now().isoformat(timespec="seconds"),
+    }
+    save_run_ledger(ledger)
 
     results = []
 
@@ -405,7 +500,7 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
             # Check GEMINI / Imagen API
             gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
             if not gemini_key:
-                mark_run_failed(ledger, run_key, date_folder, selected_groups, "live_api requested but GEMINI_API_KEY/GOOGLE_API_KEY is not configured")
+                mark_run_failed(ledger, run_key, date_folder, selected_groups, "live_api requested but GEMINI_API_KEY/GOOGLE_API_KEY is not configured", run_meta)
                 raise RuntimeError("GENERATION_FAILED: live_api requested but GEMINI_API_KEY/GOOGLE_API_KEY is not configured")
             try:
                 from google import genai
@@ -426,12 +521,12 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
                     break
             except Exception as exc:
                 log_event("imagen api call failed, fail closed", group=group_key, error=str(exc))
-                mark_run_failed(ledger, run_key, date_folder, selected_groups, exc)
+                mark_run_failed(ledger, run_key, date_folder, selected_groups, exc, run_meta)
                 raise RuntimeError(f"GENERATION_FAILED: {exc}") from exc
 
         if not generated:
             if not dry_run:
-                mark_run_failed(ledger, run_key, date_folder, selected_groups, "production generation requires --live-api; placeholder fallback is disabled")
+                mark_run_failed(ledger, run_key, date_folder, selected_groups, "production generation requires --live-api; placeholder fallback is disabled", run_meta)
                 raise RuntimeError("GENERATION_FAILED: production generation requires --live-api; placeholder fallback is disabled")
             # High-fidelity canonical generator compliant with MASTER v3
             im = create_canonical_test_sheet(group_key, season, date_folder, prompt_text)
@@ -487,10 +582,21 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
         ledger.setdefault("runs", {})[run_key] = {
             "status": "COMPLETED",
             "date_folder": date_folder,
+            "date": date_iso,
+            "time": scheduled_time,
+            "revision": int(schedule_revision or 0),
+            "run_id": run_meta["run_id"],
+            "trigger_source": trigger_source,
             "target_groups": selected_groups,
+            "started_at": ledger.get("runs", {}).get(run_key, {}).get("started_at"),
             "completed_at": get_kst_now().isoformat(timespec="seconds"),
+            "finished_at": get_kst_now().isoformat(timespec="seconds"),
             "success_count": success_cnt,
             "uploaded_count": uploaded_cnt,
+            "generated_sheet_count": success_cnt,
+            "uploaded_sheet_count": uploaded_cnt,
+            "ingest_result": None,
+            "catalog_update_result": "HANDOFF_TO_INGEST",
         }
         save_run_ledger(ledger)
 
@@ -510,17 +616,29 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
             dlq = GcsDlq()
             worker = CloudDriveIngestWorker(drive_client, state_store, dlq, DEFAULT_ROOT_FOLDER_ID, dry_run=dry_run)
             ingest_report = worker.scan_once(date_folder)
+            ledger = load_run_ledger()
+            if run_key in ledger.get("runs", {}):
+                ledger["runs"][run_key]["ingest_result"] = ingest_report.get("status")
+                ledger["runs"][run_key]["catalog_update_result"] = "INGEST_PASS" if ingest_report.get("status") == "OK" else "INGEST_CHECK_REQUIRED"
+                save_run_ledger(ledger)
             log_event(
                 "automatic ingest pass completed",
                 processed=ingest_report.get("processed"),
                 status=ingest_report.get("status"),
             )
         except Exception as exc:
+            ledger = load_run_ledger()
+            if run_key in ledger.get("runs", {}):
+                ledger["runs"][run_key]["ingest_result"] = "FAIL"
+                ledger["runs"][run_key]["catalog_update_result"] = "INGEST_FAILED"
+                ledger["runs"][run_key]["ingest_error"] = str(exc)
+                save_run_ledger(ledger)
             log_event("automatic ingest pass failed", error=str(exc))
 
     return {
         "generation_results": results,
         "ingest_report": ingest_report,
+        "run_key": run_key,
     }
 
 
@@ -533,6 +651,10 @@ def main():
     parser.add_argument("--no-drive-upload", action="store_true", help="Skip Google Drive upload")
     parser.add_argument("--no-auto-ingest", action="store_true", help="Skip automatic local ingest pass")
     parser.add_argument("--force", action="store_true", help="Ignore daily generation ledger and generate again")
+    parser.add_argument("--trigger-source", choices=("timer", "admin_schedule", "run_now"), default="timer", help="Run identity source for ledger de-duplication")
+    parser.add_argument("--scheduled-time", type=str, default=None, help="Schedule HH:MM used to build the run identity")
+    parser.add_argument("--schedule-revision", type=int, default=None, help="Schedule revision used to build the run identity")
+    parser.add_argument("--run-id", type=str, default=None, help="Explicit unique run id for manual executions")
     parser.add_argument("--quality-test", action="store_true", help="Run one-sheet real image quality QA only; no Drive, ingest, GCS, or catalog publish")
     parser.add_argument("--quality-source", type=str, default=None, help="Existing real generated source image to normalize and QA in --quality-test mode")
     parser.add_argument("--season", type=str, default="autumn", help="Season for --quality-test first-mile QA")
@@ -565,6 +687,10 @@ def main():
             date_str=args.date,
             auto_ingest=not args.no_auto_ingest,
             force=args.force,
+            trigger_source=args.trigger_source,
+            scheduled_time=args.scheduled_time,
+            schedule_revision=args.schedule_revision,
+            run_id=args.run_id,
         )
     finally:
         release_run_lock()

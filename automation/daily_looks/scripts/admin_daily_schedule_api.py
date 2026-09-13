@@ -8,6 +8,7 @@ import hmac
 import json
 import os
 import subprocess
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,7 @@ from admin_daily_schedule import (
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RUN_NOW_SCRIPT = PROJECT_ROOT / "automation" / "daily_looks" / "scripts" / "daily_auto_generate.py"
 LOCK_PATH = PROJECT_ROOT / "automation" / "daily_looks" / "logs" / "daily_auto_generate.lock"
+KST = timezone(timedelta(hours=9), name="KST")
 
 
 def configured_password_ok(password: str) -> bool:
@@ -43,8 +45,17 @@ def run_daily_generation_now() -> dict[str, Any]:
     if LOCK_PATH.exists():
         return {"success": False, "status": "RUNNING", "message": "daily generation lock exists"}
     python_bin = os.environ.get("TODAYPICK_PYTHON", "python")
+    run_id = f"{datetime.now(KST).strftime('%Y-%m-%d__run-now__%H-%M-%S')}"
     proc = subprocess.run(
-        [python_bin, str(RUN_NOW_SCRIPT)],
+        [
+            python_bin,
+            str(RUN_NOW_SCRIPT),
+            "--trigger-source",
+            "run_now",
+            "--run-id",
+            run_id,
+            "--force",
+        ],
         cwd=str(PROJECT_ROOT),
         check=False,
         text=True,
@@ -55,6 +66,7 @@ def run_daily_generation_now() -> dict[str, Any]:
         "success": proc.returncode == 0,
         "status": "PASS" if proc.returncode == 0 else "FAIL",
         "returncode": proc.returncode,
+        "run_id": run_id,
         "stdout_tail": proc.stdout[-4000:],
         "stderr_tail": proc.stderr[-4000:],
     }
@@ -97,6 +109,10 @@ class AdminScheduleHandler(BaseHTTPRequestHandler):
             "enabled": config.enabled,
             "time": config.time,
             "timezone": TIMEZONE_NAME,
+            "revision": config.revision,
+            "updated_at": config.updated_at,
+            "updated_by": config.updated_by,
+            "next_run_at": config.next_run_at,
             "timer": TIMER_NAME,
         }
         if os.name != "nt":

@@ -38,6 +38,11 @@ class Schedule:
     enabled: bool
     time: str
     timezone: str = TIMEZONE_NAME
+    revision: int = 0
+    updated_at: str | None = None
+    updated_by: str = "admin"
+    next_run_at: str | None = None
+    last_applied_timer_signature: str | None = None
 
 
 def validate_hhmm(value: str) -> str:
@@ -72,14 +77,35 @@ def timer_override_text(kst_time: str) -> str:
     )
 
 
+def calculate_next_run_at(kst_time: str, now: datetime | None = None) -> str:
+    validate_hhmm(kst_time)
+    current = now.astimezone(KST) if now else datetime.now(KST)
+    hour, minute = [int(part) for part in kst_time.split(":")]
+    candidate = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if candidate <= current:
+        candidate = candidate + timedelta(days=1)
+    return candidate.isoformat(timespec="seconds")
+
+
+def timer_signature(schedule: Schedule) -> str:
+    return f"{schedule.time}|rev{int(schedule.revision)}|{schedule.timezone}"
+
+
 def read_config(path: Path = CONFIG_PATH) -> Schedule:
     if not path.exists():
-        return Schedule(enabled=True, time=DEFAULT_TIME)
+        return Schedule(enabled=True, time=DEFAULT_TIME, next_run_at=calculate_next_run_at(DEFAULT_TIME))
     data = json.loads(path.read_text(encoding="utf-8"))
+    revision = int(data.get("revision", 0) or 0)
+    time_value = validate_hhmm(data.get("time", DEFAULT_TIME))
     return Schedule(
         enabled=bool(data.get("enabled", True)),
-        time=validate_hhmm(data.get("time", DEFAULT_TIME)),
+        time=time_value,
         timezone=str(data.get("timezone") or TIMEZONE_NAME),
+        revision=revision,
+        updated_at=data.get("updated_at"),
+        updated_by=str(data.get("updated_by") or "admin"),
+        next_run_at=data.get("next_run_at") or calculate_next_run_at(time_value),
+        last_applied_timer_signature=data.get("last_applied_timer_signature"),
     )
 
 
@@ -89,6 +115,11 @@ def write_config_atomic(schedule: Schedule, path: Path = CONFIG_PATH) -> None:
         "enabled": bool(schedule.enabled),
         "time": validate_hhmm(schedule.time),
         "timezone": TIMEZONE_NAME,
+        "revision": int(schedule.revision),
+        "updated_at": schedule.updated_at,
+        "updated_by": schedule.updated_by,
+        "next_run_at": schedule.next_run_at or calculate_next_run_at(schedule.time),
+        "last_applied_timer_signature": schedule.last_applied_timer_signature or timer_signature(schedule),
     }
     fd, tmp_name = tempfile.mkstemp(prefix=path.name, suffix=".tmp", dir=str(path.parent))
     try:
@@ -156,12 +187,37 @@ def systemd_readback() -> dict[str, Any]:
     return data
 
 
-def update_schedule(kst_time: str, *, apply_systemd: bool = False) -> dict[str, Any]:
+def update_schedule(kst_time: str, *, apply_systemd: bool = False, updated_by: str = "admin") -> dict[str, Any]:
     validate_hhmm(kst_time)
-    result: dict[str, Any] = {"time": kst_time, "timezone": TIMEZONE_NAME}
+    before = read_config()
+    revision = before.revision + 1 if before.time != kst_time else before.revision
+    next_run_at = calculate_next_run_at(kst_time)
+    updated = Schedule(
+        enabled=True,
+        time=kst_time,
+        timezone=TIMEZONE_NAME,
+        revision=revision,
+        updated_at=datetime.now(KST).isoformat(timespec="seconds"),
+        updated_by=updated_by,
+        next_run_at=next_run_at,
+    )
+    updated = Schedule(
+        **{
+            **updated.__dict__,
+            "last_applied_timer_signature": timer_signature(updated),
+        }
+    )
+    result: dict[str, Any] = {
+        "time": kst_time,
+        "timezone": TIMEZONE_NAME,
+        "revision_before": before.revision,
+        "revision": updated.revision,
+        "next_run_at": next_run_at,
+        "schedule_changed": before.time != kst_time,
+    }
     if apply_systemd:
         result["systemd"] = apply_systemd_override(kst_time)
-    write_config_atomic(Schedule(enabled=True, time=kst_time))
+    write_config_atomic(updated)
     return result
 
 

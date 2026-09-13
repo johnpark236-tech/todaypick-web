@@ -499,7 +499,13 @@ function renderAdminScheduleReadback(payload) {
   if (dom.adminScheduleTimeInput) dom.adminScheduleTimeInput.value = time;
   const timerOutput = payload?.readback?.list_timers?.stdout || '';
   if (dom.adminScheduleReadback) {
-    dom.adminScheduleReadback.textContent = timerOutput ? `다음 실행: ${timerOutput.split('\n')[1] || timerOutput}` : '다음 실행: readback 대기';
+    const nextRun = payload?.next_run_at ? new Date(payload.next_run_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '';
+    const revision = Number.isInteger(payload?.revision) ? ` · rev ${payload.revision}` : '';
+    if (nextRun) {
+      dom.adminScheduleReadback.textContent = `다음 실행: ${nextRun} KST${revision}`;
+    } else {
+      dom.adminScheduleReadback.textContent = timerOutput ? `다음 실행: ${timerOutput.split('\n')[1] || timerOutput}${revision}` : `다음 실행: readback 대기${revision}`;
+    }
   }
 }
 
@@ -527,7 +533,8 @@ async function updateAdminScheduleTime() {
       body: JSON.stringify({ password: state.adminPassword, time })
     });
     renderAdminScheduleReadback(result);
-    showToast(`${time} KST로 변경했습니다.`);
+    const nextRun = result.next_run_at ? new Date(result.next_run_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : `${time} KST`;
+    showToast(`저장 완료: 다음 자동 생성 예정 ${nextRun} KST`);
   } catch (err) {
     showToast(`시간 변경 실패: ${err.message}`);
   } finally {

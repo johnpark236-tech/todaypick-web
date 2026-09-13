@@ -33,10 +33,21 @@ class AdminDailyScheduleTest(unittest.TestCase):
     def test_config_roundtrip(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "daily_generation_schedule.json"
-            schedule.write_config_atomic(schedule.Schedule(enabled=True, time="13:30"), path)
+            schedule.write_config_atomic(schedule.Schedule(enabled=True, time="13:30", revision=4), path)
             data = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(data["time"], "13:30")
+            self.assertEqual(data["revision"], 4)
+            self.assertIn("next_run_at", data)
             self.assertEqual(schedule.read_config(path).time, "13:30")
+            self.assertEqual(schedule.read_config(path).revision, 4)
+
+    def test_next_run_future_time_stays_today(self):
+        now = schedule.datetime(2026, 9, 13, 6, 20, tzinfo=schedule.KST)
+        self.assertEqual(schedule.calculate_next_run_at("07:00", now), "2026-09-13T07:00:00+09:00")
+
+    def test_next_run_past_time_moves_to_tomorrow(self):
+        now = schedule.datetime(2026, 9, 13, 6, 20, tzinfo=schedule.KST)
+        self.assertEqual(schedule.calculate_next_run_at("05:00", now), "2026-09-14T05:00:00+09:00")
 
 
 if __name__ == "__main__":
