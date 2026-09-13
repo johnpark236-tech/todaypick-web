@@ -3858,7 +3858,11 @@ export class OutfitManager {
           remoteIndex: index + 1,
           title: `${template.title} #${index + 1}`,
           image: remoteLook.url,
-          thumbnail: remoteLook.url
+          thumbnail: remoteLook.url,
+          // 1-CUT / 10-CUT fields (undefined for legacy items without these fields)
+          setId: remoteLook.setId || remoteLook.set_id || undefined,
+          sheetUrl: remoteLook.sheetUrl || remoteLook.sheet_url || undefined,
+          cutIndex: remoteLook.cutIndex != null ? Number(remoteLook.cutIndex) : (remoteLook.cut_index != null ? Number(remoteLook.cut_index) : undefined),
         };
       });
   }

@@ -123,6 +123,13 @@ def sha256_file(path):
     return h.hexdigest()
 
 
+def build_set_id(source, date_folder, sha256_hex):
+    """Deterministic setId: {season}_{gender}_{age}_{date}_{sha_short}"""
+    season = source.season or season_for_date_folder(date_folder)
+    sha_short = sha256_hex[:8]
+    return f"{season}_{source.gender}_{source.age}_{date_folder}_{sha_short}"
+
+
 def load_ledger(path):
     if not path.exists():
         return {"schema_version": 1, "sources": {}}
@@ -380,6 +387,7 @@ def crop_source_image(im, out_dir, source, date_folder, cfg, crop_profile=LEGACY
         validations.append({"index": idx + 1, "status": "PASS" if ok else "FAIL", "reason": reason})
         cut_files.append({
             "index": idx + 1,
+            "cut_index": idx + 1,  # 1-indexed cut position (1..10)
             "path": str(out_path),
             "filename": filename,
             "sha256": file_sha,
@@ -613,11 +621,18 @@ def build_manifest(base_manifest, processed, date_folder, remote_base_url, dry_r
                 "sha256": item["sha256"],
                 "width": 648,
                 "height": 1152,
+                "cut_index": item.get("cut_index") or item.get("index"),
+                "sheet_url": item.get("sheet_url"),  # stamped by publisher before build_manifest
             })
         existing_entry = manifest["segments"].get(source.segment, {})
         existing_looks = existing_entry.get("looks") if isinstance(existing_entry, dict) else []
         if not isinstance(existing_looks, list):
             existing_looks = []
+        # Stamp each look with set_id (cut_index and sheet_url are already in look dict)
+        set_id = build_set_id(source, date_folder, source.sha256)
+        for look in looks:
+            look["set_id"] = set_id
+
         merged_looks = merge_cumulative_looks(existing_looks, looks)
         manifest["segments"][source.segment] = {
             "source_date": date_folder,
@@ -651,6 +666,17 @@ class FileSystemPublisher:
         shutil.copy2(source_path, dest)
         url = build_public_asset_url(self.public_base_url, date_folder, source, item)
         return {"url": url, "path": str(dest)}
+
+    def upload_sheet(self, source_path, date_folder, source):
+        """Upload the original 2×5 sheet for local/fs publisher — returns public URL."""
+        ext = Path(source_path).suffix.lower()
+        dest_dir = self.root / "sheets" / source.gender / str(source.age) / date_folder
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / f"sheet{ext}"
+        if not dest.exists():
+            shutil.copy2(source_path, dest)
+        url = f"{self.public_base_url.rstrip('/')}/sheets/{source.gender}/{source.age}/{date_folder}/sheet{ext}"
+        return url if validate_public_asset_url(url) else str(dest)
 
     def validate_asset_url(self, url):
         if self.fail_url_validation:
@@ -772,6 +798,24 @@ class GcsPublisher:
                 self._object_cache.add(object_name)
         return {"url": self._public_url(object_name), "path": self._storage_url(object_name)}
 
+    def upload_sheet(self, source_path, date_folder, source):
+        """Upload the original 2×5 sheet PNG/WebP and return its public URL."""
+        ext = Path(source_path).suffix.lower()
+        content_type_map = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
+        content_type = content_type_map.get(ext, "image/png")
+        object_name = f"{self.prefix}/sheets/{source.gender}/{source.age}/{date_folder}/sheet{ext}"
+        if not self._object_exists(object_name):
+            self._run_gcloud([
+                "storage", "cp",
+                f"--content-type={content_type}",
+                f"--cache-control={self.ASSET_CACHE_CONTROL}",
+                str(source_path),
+                self._storage_url(object_name),
+            ])
+            if self._object_cache is not None:
+                self._object_cache.add(object_name)
+        return self._public_url(object_name)
+
     def validate_asset_url(self, url):
         if not validate_public_asset_url(url):
             return False
@@ -847,6 +891,17 @@ def atomic_publish_segments(processed, date_folder, publisher):
                 raise RuntimeError(f"URL validation failed: {upload['url']}")
             segment_uploads.append({**item, "url": upload["url"]})
         uploaded.append((source, segment_uploads))
+
+    # Upload sheet images and collect sheet URLs
+    for source, segment_uploads in uploaded:
+        sheet_url = None
+        try:
+            sheet_url = publisher.upload_sheet(source.path, date_folder, source)
+        except Exception as exc:
+            print(f"[WARN] sheet upload failed for {source.segment}: {exc}")
+        if sheet_url:
+            for look in segment_uploads:
+                look["sheet_url"] = sheet_url
 
     manifest = build_manifest(base_manifest, uploaded, date_folder, publisher.public_base_url, dry_run=False)
     ok, reason = validate_complete_manifest(manifest, require_public_urls=True)

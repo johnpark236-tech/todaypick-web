@@ -70,6 +70,14 @@
               <img id="main-character-img" class="character-img" src="" alt="추천 코디" />
             </div>
 
+            <!-- 10-cut toggle button (left side, near character) — hidden for legacy items -->
+            <button
+              id="btn-view-sheet"
+              class="btn-view-sheet"
+              aria-label="10개 코디 보기"
+              hidden
+            >10개 코디 보기</button>
+
             <!-- Quick Action Floating Buttons -->
             <div class="stage-quick-actions">
               <button id="btn-save-outfit" class="action-btn btn-save" aria-label="코디 저장">
@@ -90,6 +98,16 @@
               </button>
             </div>
 
+          </div>
+
+          <!-- Sheet View Overlay (STATE_B: 10-cut sheet view) -->
+          <div id="sheet-view-overlay" class="sheet-view-overlay" hidden aria-label="10개 코디 보기">
+            <button id="btn-exit-sheet-view" class="btn-exit-sheet-view" aria-label="1컷 보기">1컷 보기</button>
+            <div class="sheet-view-img-wrap">
+              <img id="sheet-view-img" class="sheet-view-img" src="" alt="10개 코디 세트" />
+              <!-- Invisible 5×2 hit grid built by JS -->
+              <div id="sheet-hit-grid" class="sheet-hit-grid" aria-hidden="true"></div>
+            </div>
           </div>
 
           <!-- Bottom Thumbnail Strip -->
@@ -130,7 +148,7 @@
         <section id="view-settings" class="view-section">
           <h2 class="section-headline">앱 설정</h2>
           <div class="settings-group">
-            <h3 class="settings-group-title">UI 오프셋 & 스케일 조정</h3>
+            <h3 class="settings-group-title">UI 오프셋 &amp; 스케일 조정</h3>
             <div class="setting-item">
               <div class="setting-label-row">
                 <span>캐릭터 크기 (Scale)</span>
@@ -186,7 +204,7 @@
           </div>
 
           <div class="settings-group">
-            <h3 class="settings-group-title">Now Playing & 이퀄라이저 설정</h3>
+            <h3 class="settings-group-title">Now Playing &amp; 이퀄라이저 설정</h3>
             <div class="setting-item">
               <div class="setting-label-row">
                 <span>음원 제목 크기</span>

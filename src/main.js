@@ -44,7 +44,8 @@ const state = {
   adminUnlocked: false,
   adminPassword: '',
   adminCatalogLoading: false,
-  adminAllLooks: []
+  adminAllLooks: [],
+  sheetViewActive: false  // STATE_A=false, STATE_B/C=true
 };
 
 const outfitManager = new OutfitManager();
@@ -180,7 +181,13 @@ const dom = {
   updateVerCurrent: document.getElementById('update-ver-current'),
   updateVerLatest: document.getElementById('update-ver-latest'),
   btnUpdateLater: document.getElementById('btn-update-later'),
-  btnUpdateNow: document.getElementById('btn-update-now')
+  btnUpdateNow: document.getElementById('btn-update-now'),
+  // 1-CUT / 10-CUT TOGGLE
+  btnViewSheet: document.getElementById('btn-view-sheet'),
+  sheetViewOverlay: document.getElementById('sheet-view-overlay'),
+  sheetViewImg: document.getElementById('sheet-view-img'),
+  sheetHitGrid: document.getElementById('sheet-hit-grid'),
+  btnExitSheetView: document.getElementById('btn-exit-sheet-view'),
 };
 
 // Toast notification
@@ -267,6 +274,154 @@ function renderOutfit(outfit) {
       c.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
     }
   });
+
+  // Update 10-cut button visibility (hide if no sheetUrl)
+  updateSheetButton(outfit);
+}
+
+// ── 1-CUT / 10-CUT TOGGLE: Sheet view state machine ────────────────────────
+
+/**
+ * Show/hide the "10개 코디 보기" button based on current outfit.
+ * Legacy items without sheetUrl keep the button hidden.
+ */
+function updateSheetButton(outfit) {
+  if (!dom.btnViewSheet) return;
+  const hasSheet = Boolean(outfit?.sheetUrl);
+  dom.btnViewSheet.hidden = !hasSheet;
+}
+
+/**
+ * Calculate 1-indexed cutIndex (1..10) from relative sheet coordinates.
+ * col = floor(relativeX / renderedWidth * 5)
+ * row = floor(relativeY / renderedHeight * 2)
+ * cutIndex = row * 5 + col + 1
+ */
+export function calcCutIndexFromCoords(relativeX, relativeY, renderedWidth, renderedHeight) {
+  if (!renderedWidth || !renderedHeight) return 1;
+  const col = Math.max(0, Math.min(4, Math.floor((relativeX / renderedWidth) * 5)));
+  const row = Math.max(0, Math.min(1, Math.floor((relativeY / renderedHeight) * 2)));
+  return Math.max(1, Math.min(10, row * 5 + col + 1));
+}
+
+/**
+ * Handle direct click/touch on sheet image using getBoundingClientRect.
+ */
+function handleSheetPointer(e) {
+  const outfit = state.currentOutfit;
+  if (!outfit?.sheetUrl) return;
+  const img = dom.sheetViewImg;
+  if (!img) return;
+  const rect = img.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+
+  const clientX = e.clientX ?? (e.touches && e.touches[0] ? e.touches[0].clientX : null);
+  const clientY = e.clientY ?? (e.touches && e.touches[0] ? e.touches[0].clientY : null);
+  if (clientX == null || clientY == null) return;
+
+  const relativeX = clientX - rect.left;
+  const relativeY = clientY - rect.top;
+  if (relativeX < 0 || relativeX > rect.width || relativeY < 0 || relativeY > rect.height) {
+    return;
+  }
+
+  const cutIdx = calcCutIndexFromCoords(relativeX, relativeY, rect.width, rect.height);
+  const allLooks = getVisibleLooks(state.currentMode);
+  const target = allLooks.find(l => (l.setId === outfit.setId || !outfit.setId) && l.cutIndex === cutIdx)
+    || allLooks.find(l => l.cutIndex === cutIdx);
+
+  if (target) {
+    closeSheetView();
+    renderOutfit(target);
+    AudioHub.tap();
+  } else {
+    console.warn('[SheetView] no look found for cutIndex', cutIdx);
+  }
+}
+
+/**
+ * Build the invisible 5×2 hit grid as child buttons of #sheet-hit-grid.
+ * Each cell maps to cutIndex = row*5 + col + 1 (1-indexed).
+ */
+function buildSheetHitGrid(setLooks) {
+  if (!dom.sheetHitGrid) return;
+  dom.sheetHitGrid.innerHTML = '';
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 5; col++) {
+      const cutIdx = row * 5 + col + 1;
+      const cell = document.createElement('div');
+      cell.className = 'sheet-hit-cell';
+      cell.setAttribute('data-cut-index', String(cutIdx));
+      cell.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Brief flash feedback
+        cell.classList.add('flash');
+        setTimeout(() => cell.classList.remove('flash'), 200);
+        // Find the look with this cutIndex in the same setId
+        const target = setLooks.find(l => l.cutIndex === cutIdx)
+          || getVisibleLooks(state.currentMode).find(l => l.cutIndex === cutIdx);
+        if (target) {
+          closeSheetView();
+          renderOutfit(target);
+          AudioHub.tap();
+        } else {
+          console.warn('[SheetView] no look found for cutIndex', cutIdx);
+        }
+      });
+      dom.sheetHitGrid.appendChild(cell);
+    }
+  }
+}
+
+/**
+ * Open the sheet view overlay (STATE_B).
+ * Lazy-loads the sheet image.
+ */
+function openSheetView() {
+  const outfit = state.currentOutfit;
+  if (!outfit?.sheetUrl) return;
+  state.sheetViewActive = true;
+
+  // Collect sibling looks with same setId
+  const allLooks = getVisibleLooks(state.currentMode);
+  const setLooks = allLooks.filter(l => l.setId && l.setId === outfit.setId);
+
+  // Build invisible hit grid
+  buildSheetHitGrid(setLooks);
+
+  // Lazy load sheet image
+  if (dom.sheetViewImg) {
+    dom.sheetViewImg.style.opacity = '0';
+    dom.sheetViewImg.src = '';
+    const img = new Image();
+    img.onload = () => {
+      if (state.sheetViewActive && dom.sheetViewImg) {
+        dom.sheetViewImg.src = img.src;
+        dom.sheetViewImg.style.opacity = '1';
+      }
+    };
+    img.onerror = () => {
+      console.warn('[SheetView] sheet image load failed:', outfit.sheetUrl);
+      closeSheetView();
+    };
+    img.src = outfit.sheetUrl;
+  }
+
+  if (dom.sheetViewOverlay) dom.sheetViewOverlay.hidden = false;
+  if (dom.btnViewSheet) dom.btnViewSheet.hidden = true;
+  AudioHub.tap();
+}
+
+/**
+ * Close the sheet view overlay and return to single view (STATE_A).
+ */
+function closeSheetView() {
+  state.sheetViewActive = false;
+  if (dom.sheetViewOverlay) dom.sheetViewOverlay.hidden = true;
+  if (dom.sheetViewImg) { dom.sheetViewImg.src = ''; dom.sheetViewImg.style.opacity = '0'; }
+  if (dom.sheetHitGrid) dom.sheetHitGrid.innerHTML = '';
+  // Restore toggle button visibility based on current outfit
+  updateSheetButton(state.currentOutfit);
 }
 
 // Populate Thumbnails Carousel
@@ -771,6 +926,12 @@ function handleBackButton() {
     return;
   }
 
+  // Priority 1b: Sheet View Overlay is open -> Close sheet view
+  if (state.sheetViewActive) {
+    closeSheetView();
+    return;
+  }
+
   // Priority 2: Price Sheet Modal is open -> Close Price Sheet only (Do not exit)
   if (state.isPriceSheetOpen) {
     setPriceSheet(false);
@@ -1083,6 +1244,26 @@ function setupEventListeners() {
       state.visibleThumbCount += PAGE_SIZE;
       populateThumbnails(state.currentMode);
     });
+  }
+
+  // ── 10-CUT toggle button ────────────────────────────────────────────────
+  if (dom.btnViewSheet) {
+    dom.btnViewSheet.addEventListener('click', () => {
+      openSheetView();
+    });
+  }
+
+  // ── 1-CUT return button ─────────────────────────────────────────────────
+  if (dom.btnExitSheetView) {
+    dom.btnExitSheetView.addEventListener('click', () => {
+      closeSheetView();
+      AudioHub.tap();
+    });
+  }
+
+  // ── Sheet image direct coordinate tap ───────────────────────────────────
+  if (dom.sheetViewImg) {
+    dom.sheetViewImg.addEventListener('click', handleSheetPointer);
   }
 
   if (dom.btnAdminConfirm) {

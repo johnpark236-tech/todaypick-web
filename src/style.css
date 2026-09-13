@@ -572,6 +572,125 @@ body {
   display: none !important;
 }
 
+/* ── 10-CUT TOGGLE BUTTON (left side of stage) ──────────── */
+.btn-view-sheet {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 10;
+  background: rgba(108, 85, 232, 0.88);
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  box-shadow: 0 4px 14px rgba(108, 85, 232, 0.35);
+  cursor: pointer;
+  min-height: 36px;
+  min-width: 44px;
+  touch-action: manipulation;
+  transition: transform 0.14s ease, background-color 0.18s ease;
+  white-space: nowrap;
+}
+
+.btn-view-sheet:active {
+  transform: scale(0.93);
+}
+
+/* ── SHEET VIEW OVERLAY (STATE_B) ───────────────────────── */
+.sheet-view-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: rgba(15, 17, 26, 0.92);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+}
+
+/* When not hidden, overlay covers the stage-area */
+.sheet-view-overlay:not([hidden]) {
+  display: flex;
+}
+
+.btn-exit-sheet-view {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 60;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  min-height: 36px;
+  min-width: 44px;
+  touch-action: manipulation;
+  transition: background-color 0.16s ease;
+  white-space: nowrap;
+}
+
+.btn-exit-sheet-view:active {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.sheet-view-img-wrap {
+  position: relative;
+  width: 100%;
+  max-height: calc(100% - 52px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.sheet-view-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  display: block;
+  transition: opacity 0.18s ease;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Invisible 5×2 hit grid — absolutely overlaid on sheet-view-img */
+.sheet-hit-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  cursor: pointer;
+}
+
+.sheet-hit-cell {
+  /* Completely transparent — touch target only */
+  background: transparent;
+  border: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.12s ease;
+}
+
+.sheet-hit-cell:active,
+.sheet-hit-cell.flash {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+}
+
 /* Carousel / Thumbnail Strip */
 .selection-area {
   height: calc(var(--thumbnail-height) + 20px);
