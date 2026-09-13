@@ -6,7 +6,8 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/todaypick-web
-ExecStart=/opt/todaypick-web/.venv/bin/python /opt/todaypick-web/automation/daily_looks/scripts/daily_auto_generate.py
+EnvironmentFile=-/etc/todaypick/daily-auto-generate.env
+ExecStart=/opt/todaypick-web/.venv/bin/python /opt/todaypick-web/automation/daily_looks/scripts/daily_auto_generate.py --live-api
 Environment=PYTHONUNBUFFERED=1
 StandardOutput=journal+console
 StandardError=journal+console

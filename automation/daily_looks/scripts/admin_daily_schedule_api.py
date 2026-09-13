@@ -28,6 +28,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RUN_NOW_SCRIPT = PROJECT_ROOT / "automation" / "daily_looks" / "scripts" / "daily_auto_generate.py"
 LOCK_PATH = PROJECT_ROOT / "automation" / "daily_looks" / "logs" / "daily_auto_generate.lock"
 KST = timezone(timedelta(hours=9), name="KST")
+DAILY_GENERATE_ENV_PATH = Path("/etc/todaypick/daily-auto-generate.env")
 
 
 def configured_password_ok(password: str) -> bool:
@@ -41,6 +42,18 @@ def configured_password_ok(password: str) -> bool:
     return False
 
 
+def subprocess_env_with_daily_generate_secrets() -> dict[str, str]:
+    env = os.environ.copy()
+    if DAILY_GENERATE_ENV_PATH.exists():
+        for line in DAILY_GENERATE_ENV_PATH.read_text(encoding="utf-8").splitlines():
+            clean = line.strip()
+            if not clean or clean.startswith("#") or "=" not in clean:
+                continue
+            key, value = clean.split("=", 1)
+            env[key.strip()] = value.strip().strip('"').strip("'")
+    return env
+
+
 def run_daily_generation_now() -> dict[str, Any]:
     if LOCK_PATH.exists():
         return {"success": False, "status": "RUNNING", "message": "daily generation lock exists"}
@@ -50,6 +63,7 @@ def run_daily_generation_now() -> dict[str, Any]:
         [
             python_bin,
             str(RUN_NOW_SCRIPT),
+            "--live-api",
             "--trigger-source",
             "run_now",
             "--run-id",
@@ -61,6 +75,7 @@ def run_daily_generation_now() -> dict[str, Any]:
         text=True,
         capture_output=True,
         timeout=60 * 60,
+        env=subprocess_env_with_daily_generate_secrets(),
     )
     return {
         "success": proc.returncode == 0,
