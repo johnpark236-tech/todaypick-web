@@ -29,8 +29,18 @@ MIDDLE_BLEED_TRIM_PX = 24
 INNER_COLUMN_TRIM_PX = 2
 
 GROUP_TO_SEGMENT = {
-    "female_10s": "female_10",
-    "female_10": "female_10",
+    "female_10s": "female_10", "female_10": "female_10",
+    "female_20s": "female_20", "female_20": "female_20",
+    "female_30s": "female_30", "female_30": "female_30",
+    "female_40s": "female_40", "female_40": "female_40",
+    "female_50s": "female_50", "female_50": "female_50",
+    "female_60s": "female_60", "female_60": "female_60",
+    "male_10s": "male_10", "male_10": "male_10",
+    "male_20s": "male_20", "male_20": "male_20",
+    "male_30s": "male_30", "male_30": "male_30",
+    "male_40s": "male_40", "male_40": "male_40",
+    "male_50s": "male_50", "male_50": "male_50",
+    "male_60s": "male_60", "male_60": "male_60",
 }
 
 
@@ -184,14 +194,16 @@ def score_quality(technical_pass, validations):
 
 def run_quality_test(group="female_10", season="autumn", date_str=None, source_path=None):
     if group not in GROUP_TO_SEGMENT:
-        raise ValueError("quality-test first mile only supports female_10/female_10s")
+        raise ValueError(f"unsupported quality-test group: {group}")
     if season != "autumn":
-        raise ValueError("quality-test first mile only supports autumn")
+        raise ValueError("quality-test expansion currently supports autumn")
     if not source_path:
         raise RuntimeError("GENERATION_FAILED: no live provider configured; pass --quality-source with a real AI sheet")
 
     date_folder = today_yymmdd(date_str)
     segment = GROUP_TO_SEGMENT[group]
+    gender, age_text = segment.split("_", 1)
+    age = int(age_text)
     out_dir = OUTPUT_ROOT / "quality_qa" / date_folder / segment
     cuts_dir = out_dir / "cuts"
     review_dir = out_dir / "review"
@@ -220,8 +232,8 @@ def run_quality_test(group="female_10", season="autumn", date_str=None, source_p
 
     src = SourceImage(
         path=source,
-        gender="female",
-        age=10,
+        gender=gender,
+        age=age,
         segment=segment,
         filename=source.name,
         size=source.stat().st_size,
