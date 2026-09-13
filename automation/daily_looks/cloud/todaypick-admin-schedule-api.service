@@ -1,0 +1,15 @@
+[Unit]
+Description=TodayPick admin daily generation schedule API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/todaypick-web
+EnvironmentFile=/etc/todaypick/admin-schedule.env
+ExecStart=/opt/todaypick-web/.venv/bin/python /opt/todaypick-web/automation/daily_looks/scripts/admin_daily_schedule_api.py --host 127.0.0.1 --port 8787
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

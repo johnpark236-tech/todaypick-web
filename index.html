@@ -239,6 +239,27 @@
                 <button id="btn-admin-upload-delete-request" class="btn-primary" type="button">삭제요청 업로드</button>
                 <button id="btn-admin-copy-delete-code" class="btn-secondary" type="button">삭제코드 복사</button>
               </div>
+              <section id="admin-schedule-panel" class="admin-schedule-panel" hidden>
+                <h4 class="admin-schedule-title">자동 이미지 생성 설정</h4>
+                <div class="admin-schedule-status">
+                  <span>상태</span>
+                  <strong id="admin-schedule-enabled">확인 중</strong>
+                </div>
+                <div class="admin-schedule-status">
+                  <span>현재 실행 시간</span>
+                  <strong id="admin-schedule-current-time">--:-- KST</strong>
+                </div>
+                <label class="admin-schedule-field">
+                  <span>새 실행 시간</span>
+                  <input id="admin-schedule-time-input" class="admin-time-input" type="time" step="60" value="06:00" />
+                </label>
+                <div class="admin-request-actions">
+                  <button id="btn-admin-schedule-update" class="btn-primary" type="button">시간 변경</button>
+                  <button id="btn-admin-schedule-run-now" class="btn-secondary" type="button">지금 실행</button>
+                </div>
+                <button id="btn-admin-schedule-restore" class="btn-secondary admin-restore-default-btn" type="button">06:00 기본값 복원</button>
+                <div class="admin-schedule-readback" id="admin-schedule-readback">다음 실행: 확인 중</div>
+              </section>
               <div id="admin-delete-grid" class="admin-delete-grid"></div>
             </div>
           </div>

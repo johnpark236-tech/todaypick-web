@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  echo "usage: todaypick-set-daily-time HH:MM" >&2
+  exit 2
+fi
+
+TIME_VALUE="$1"
+if [[ ! "$TIME_VALUE" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]]; then
+  echo "invalid HH:MM time" >&2
+  exit 2
+fi
+
+cd /opt/todaypick-web
+/opt/todaypick-web/.venv/bin/python /opt/todaypick-web/automation/daily_looks/scripts/admin_daily_schedule.py set --time "$TIME_VALUE" --apply-systemd

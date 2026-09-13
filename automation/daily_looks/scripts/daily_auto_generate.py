@@ -24,6 +24,9 @@ DAILY_LOOKS_ROOT = PROJECT_ROOT / "automation" / "daily_looks"
 CONFIG_ROOT = DAILY_LOOKS_ROOT / "config"
 LOG_ROOT = DAILY_LOOKS_ROOT / "logs"
 OUTPUT_ROOT = DAILY_LOOKS_ROOT / "output"
+RUN_LEDGER_PATH = LOG_ROOT / "daily_auto_generate_ledger.json"
+RUN_LOCK_PATH = LOG_ROOT / "daily_auto_generate.lock"
+RUN_LOCK_MAX_AGE_SECONDS = 6 * 60 * 60
 
 KST = timezone(timedelta(hours=9))
 
@@ -68,6 +71,53 @@ def log_event(message, **fields):
     with (LOG_ROOT / "daily_auto_generate.log").open("a", encoding="utf-8") as fh:
         fh.write(line + "\n")
     print(line, flush=True)
+
+
+def load_run_ledger():
+    if not RUN_LEDGER_PATH.exists():
+        return {"runs": {}}
+    try:
+        return json.loads(RUN_LEDGER_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {"runs": {}}
+
+
+def save_run_ledger(ledger):
+    LOG_ROOT.mkdir(parents=True, exist_ok=True)
+    tmp_path = RUN_LEDGER_PATH.with_suffix(".json.tmp")
+    tmp_path.write_text(json.dumps(ledger, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_path.replace(RUN_LEDGER_PATH)
+
+
+def acquire_run_lock():
+    LOG_ROOT.mkdir(parents=True, exist_ok=True)
+    try:
+        fd = os.open(str(RUN_LOCK_PATH), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        try:
+            data = json.loads(RUN_LOCK_PATH.read_text(encoding="utf-8"))
+            created_at = datetime.fromisoformat(data.get("created_at"))
+            if (get_kst_now() - created_at).total_seconds() > RUN_LOCK_MAX_AGE_SECONDS:
+                RUN_LOCK_PATH.unlink(missing_ok=True)
+                fd = os.open(str(RUN_LOCK_PATH), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            else:
+                return False
+        except Exception:
+            return False
+    payload = {
+        "pid": os.getpid(),
+        "created_at": get_kst_now().isoformat(timespec="seconds"),
+    }
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False)
+    return True
+
+
+def release_run_lock():
+    try:
+        RUN_LOCK_PATH.unlink(missing_ok=True)
+    except Exception:
+        pass
 
 
 def season_for_month(month):
@@ -232,7 +282,7 @@ class DriveUploader:
         return uploaded["id"], True
 
 
-def run_generation(target_group=None, dry_run=False, live_api=False, upload_drive=True, date_str=None, auto_ingest=True):
+def run_generation(target_group=None, dry_run=False, live_api=False, upload_drive=True, date_str=None, auto_ingest=True, force=False):
     """Main execution workflow for daily sheet generation."""
     kst_now = get_kst_now()
     if not date_str:
@@ -294,6 +344,18 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
             selected_groups = [target_group]
     else:
         selected_groups = GROUPS_ORDER
+
+    run_key = f"{date_folder}/{'all' if selected_groups == GROUPS_ORDER else ','.join(selected_groups)}"
+    ledger = load_run_ledger()
+    prior = ledger.get("runs", {}).get(run_key)
+    if prior and prior.get("status") == "COMPLETED" and not force:
+        log_event("daily generation skipped already completed", date_folder=date_folder, run_key=run_key)
+        return {
+            "generation_results": [],
+            "ingest_report": None,
+            "status": "SKIP_ALREADY_COMPLETED",
+            "run_key": run_key,
+        }
 
     results = []
 
@@ -402,6 +464,17 @@ def run_generation(target_group=None, dry_run=False, live_api=False, upload_driv
         uploaded_count=uploaded_cnt,
     )
 
+    if success_cnt == len(selected_groups):
+        ledger.setdefault("runs", {})[run_key] = {
+            "status": "COMPLETED",
+            "date_folder": date_folder,
+            "target_groups": selected_groups,
+            "completed_at": get_kst_now().isoformat(timespec="seconds"),
+            "success_count": success_cnt,
+            "uploaded_count": uploaded_cnt,
+        }
+        save_run_ledger(ledger)
+
     ingest_report = None
     if auto_ingest and success_cnt > 0:
         try:
@@ -440,16 +513,28 @@ def main():
     parser.add_argument("--date", type=str, default=None, help="Target date (YYMMDD or YYYY-MM-DD)")
     parser.add_argument("--no-drive-upload", action="store_true", help="Skip Google Drive upload")
     parser.add_argument("--no-auto-ingest", action="store_true", help="Skip automatic local ingest pass")
+    parser.add_argument("--force", action="store_true", help="Ignore daily generation ledger and generate again")
     args = parser.parse_args()
 
-    report = run_generation(
-        target_group=args.group,
-        dry_run=args.dry_run,
-        live_api=args.live_api,
-        upload_drive=not (args.dry_run or args.no_drive_upload),
-        date_str=args.date,
-        auto_ingest=not args.no_auto_ingest,
-    )
+    if not acquire_run_lock():
+        log_event("daily generation skipped already running", lock=str(RUN_LOCK_PATH))
+        print("\n================ Generation Summary ================")
+        print("SKIP_ALREADY_RUNNING")
+        print()
+        return
+
+    try:
+        report = run_generation(
+            target_group=args.group,
+            dry_run=args.dry_run,
+            live_api=args.live_api,
+            upload_drive=not (args.dry_run or args.no_drive_upload),
+            date_str=args.date,
+            auto_ingest=not args.no_auto_ingest,
+            force=args.force,
+        )
+    finally:
+        release_run_lock()
 
     results = report["generation_results"]
     print("\n================ Generation Summary ================")

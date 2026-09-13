@@ -1196,6 +1196,72 @@ body {
   font-size: 12px;
 }
 
+.admin-schedule-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #FFFFFF;
+}
+
+.admin-schedule-panel[hidden] {
+  display: none;
+}
+
+.admin-schedule-title {
+  margin: 0;
+  color: var(--color-text-main);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-schedule-status,
+.admin-schedule-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-schedule-status strong {
+  color: var(--color-text-main);
+  font-size: 12px;
+}
+
+.admin-time-input {
+  width: 112px;
+  height: 38px;
+  padding: 0 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-main);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.admin-time-input:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+.admin-restore-default-btn {
+  width: 100%;
+  min-height: 38px;
+}
+
+.admin-schedule-readback {
+  min-height: 18px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .admin-delete-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

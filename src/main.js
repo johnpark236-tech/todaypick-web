@@ -27,7 +27,7 @@ const ADMIN_SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 const ADMIN_GENDERS = ['female', 'male'];
 const ADMIN_AGE_GROUPS = [10, 20, 30, 40, 50, 60];
 const PAGE_SIZE = 20;
-const ADMIN_PASSWORD = '2040';
+const LEGACY_ADMIN_PASSWORD_SHA256 = 'df34d853f2f2f1f14b92359f695426dcefc150b3f3a886c05c045b37baa2ee99';
 
 // Application state
 const state = {
@@ -42,6 +42,7 @@ const state = {
   isPriceSheetOpen: false,
   isExitDialogOpen: false,
   adminUnlocked: false,
+  adminPassword: '',
   adminCatalogLoading: false,
   adminAllLooks: []
 };
@@ -159,6 +160,14 @@ const dom = {
   btnAdminUploadDeleteRequest: document.getElementById('btn-admin-upload-delete-request'),
   btnAdminCopyDeleteCode: document.getElementById('btn-admin-copy-delete-code'),
   adminDeleteGrid: document.getElementById('admin-delete-grid'),
+  adminSchedulePanel: document.getElementById('admin-schedule-panel'),
+  adminScheduleEnabled: document.getElementById('admin-schedule-enabled'),
+  adminScheduleCurrentTime: document.getElementById('admin-schedule-current-time'),
+  adminScheduleTimeInput: document.getElementById('admin-schedule-time-input'),
+  btnAdminScheduleUpdate: document.getElementById('btn-admin-schedule-update'),
+  btnAdminScheduleRunNow: document.getElementById('btn-admin-schedule-run-now'),
+  btnAdminScheduleRestore: document.getElementById('btn-admin-schedule-restore'),
+  adminScheduleReadback: document.getElementById('admin-schedule-readback'),
   lblWorkerStatus: document.getElementById('lbl-worker-status'),
   toast: document.getElementById('toast'),
   exitDialogBackdrop: document.getElementById('exit-dialog-backdrop'),
@@ -411,7 +420,152 @@ function setAdminUnlocked(unlocked) {
   if (dom.adminLoginRow) dom.adminLoginRow.hidden = state.adminUnlocked;
   if (dom.adminPanel) dom.adminPanel.hidden = !state.adminUnlocked;
   if (dom.adminPasswordInput) dom.adminPasswordInput.value = '';
-  if (state.adminUnlocked) renderAdminDeleteGrid();
+  if (!state.adminUnlocked) state.adminPassword = '';
+  if (state.adminUnlocked) {
+    renderAdminDeleteGrid();
+    refreshAdminScheduleStatus();
+  }
+}
+
+function getAdminScheduleConfig() {
+  return state.config?.adminScheduleControl || { enabled: false, apiBaseUrl: '' };
+}
+
+function isAdminScheduleControlEnabled() {
+  const cfg = getAdminScheduleConfig();
+  return Boolean(cfg.enabled && cfg.apiBaseUrl);
+}
+
+function adminScheduleUrl(path) {
+  const base = String(getAdminScheduleConfig().apiBaseUrl || '').replace(/\/+$/, '');
+  return `${base}${path}`;
+}
+
+async function adminApiFetch(path, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {})
+  };
+  if (state.adminPassword && !headers['X-TodayPick-Admin-Password']) {
+    headers['X-TodayPick-Admin-Password'] = state.adminPassword;
+  }
+  const res = await fetch(adminScheduleUrl(path), {
+    ...options,
+    headers,
+    cache: 'no-store'
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || body.success === false) {
+    throw new Error(body.message || body.error || `HTTP ${res.status}`);
+  }
+  return body;
+}
+
+async function verifyAdminPassword(password) {
+  if (!isAdminScheduleControlEnabled()) {
+    const digest = await sha256Hex(password);
+    if (digest !== LEGACY_ADMIN_PASSWORD_SHA256) {
+      throw new Error('invalid_admin_password');
+    }
+    return;
+  }
+  await adminApiFetch('/api/admin/verify', {
+    method: 'POST',
+    body: JSON.stringify({ password })
+  });
+}
+
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(value);
+  const hash = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(hash))
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function setAdminScheduleBusy(isBusy) {
+  [dom.btnAdminScheduleUpdate, dom.btnAdminScheduleRunNow, dom.btnAdminScheduleRestore].forEach(btn => {
+    if (btn) btn.disabled = isBusy;
+  });
+}
+
+function renderAdminScheduleReadback(payload) {
+  if (!dom.adminSchedulePanel) return;
+  dom.adminSchedulePanel.hidden = !isAdminScheduleControlEnabled();
+  if (!isAdminScheduleControlEnabled()) return;
+  const time = payload?.readback?.current_time || payload?.time || '06:00';
+  if (dom.adminScheduleEnabled) dom.adminScheduleEnabled.textContent = payload?.enabled === false ? 'OFF' : 'ON';
+  if (dom.adminScheduleCurrentTime) dom.adminScheduleCurrentTime.textContent = `${time} KST`;
+  if (dom.adminScheduleTimeInput) dom.adminScheduleTimeInput.value = time;
+  const timerOutput = payload?.readback?.list_timers?.stdout || '';
+  if (dom.adminScheduleReadback) {
+    dom.adminScheduleReadback.textContent = timerOutput ? `다음 실행: ${timerOutput.split('\n')[1] || timerOutput}` : '다음 실행: readback 대기';
+  }
+}
+
+async function refreshAdminScheduleStatus() {
+  if (!dom.adminSchedulePanel) return;
+  dom.adminSchedulePanel.hidden = !isAdminScheduleControlEnabled();
+  if (!isAdminScheduleControlEnabled()) return;
+  try {
+    renderAdminScheduleReadback(await adminApiFetch('/api/admin/daily-generation/schedule'));
+  } catch (err) {
+    if (dom.adminScheduleReadback) dom.adminScheduleReadback.textContent = `상태 확인 실패: ${err.message}`;
+  }
+}
+
+async function updateAdminScheduleTime() {
+  const time = dom.adminScheduleTimeInput?.value || '';
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+    showToast('HH:MM 형식으로 입력해주세요.');
+    return;
+  }
+  setAdminScheduleBusy(true);
+  try {
+    const result = await adminApiFetch('/api/admin/daily-generation/schedule', {
+      method: 'PUT',
+      body: JSON.stringify({ password: state.adminPassword, time })
+    });
+    renderAdminScheduleReadback(result);
+    showToast(`${time} KST로 변경했습니다.`);
+  } catch (err) {
+    showToast(`시간 변경 실패: ${err.message}`);
+  } finally {
+    setAdminScheduleBusy(false);
+  }
+}
+
+async function runAdminScheduleNow() {
+  setAdminScheduleBusy(true);
+  try {
+    const result = await adminApiFetch('/api/admin/daily-generation/run-now', {
+      method: 'POST',
+      body: JSON.stringify({ password: state.adminPassword })
+    });
+    showToast(result.status === 'RUNNING' ? '이미 실행 중입니다.' : `지금 실행: ${result.status || '요청 완료'}`);
+    await refreshAdminScheduleStatus();
+  } catch (err) {
+    showToast(`지금 실행 실패: ${err.message}`);
+  } finally {
+    setAdminScheduleBusy(false);
+  }
+}
+
+async function restoreAdminScheduleDefault() {
+  if (!window.confirm('자동 이미지 생성 시간을 06:00 KST로 복원할까요?')) return;
+  setAdminScheduleBusy(true);
+  try {
+    const result = await adminApiFetch('/api/admin/daily-generation/restore-default', {
+      method: 'POST',
+      body: JSON.stringify({ password: state.adminPassword })
+    });
+    renderAdminScheduleReadback(result);
+    showToast('06:00 KST로 복원했습니다.');
+  } catch (err) {
+    showToast(`기본값 복원 실패: ${err.message}`);
+  } finally {
+    setAdminScheduleBusy(false);
+  }
 }
 
 function makeDeleteCode(payload) {
@@ -925,12 +1079,15 @@ function setupEventListeners() {
   }
 
   if (dom.btnAdminConfirm) {
-    dom.btnAdminConfirm.addEventListener('click', () => {
+    dom.btnAdminConfirm.addEventListener('click', async () => {
       AudioHub.tap();
-      if (dom.adminPasswordInput?.value === ADMIN_PASSWORD) {
+      const password = dom.adminPasswordInput?.value || '';
+      try {
+        await verifyAdminPassword(password);
+        state.adminPassword = password;
         setAdminUnlocked(true);
         showToast('관리자모드가 열렸습니다.');
-      } else {
+      } catch {
         showToast('비밀번호가 맞지 않습니다.');
       }
     });
@@ -964,6 +1121,27 @@ function setupEventListeners() {
     dom.btnAdminUploadDeleteRequest.addEventListener('click', async () => {
       AudioHub.tap();
       await uploadAdminDeleteRequest();
+    });
+  }
+
+  if (dom.btnAdminScheduleUpdate) {
+    dom.btnAdminScheduleUpdate.addEventListener('click', async () => {
+      AudioHub.tap();
+      await updateAdminScheduleTime();
+    });
+  }
+
+  if (dom.btnAdminScheduleRunNow) {
+    dom.btnAdminScheduleRunNow.addEventListener('click', async () => {
+      AudioHub.tap();
+      await runAdminScheduleNow();
+    });
+  }
+
+  if (dom.btnAdminScheduleRestore) {
+    dom.btnAdminScheduleRestore.addEventListener('click', async () => {
+      AudioHub.tap();
+      await restoreAdminScheduleDefault();
     });
   }
 

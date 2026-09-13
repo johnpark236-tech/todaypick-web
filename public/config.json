@@ -15,5 +15,9 @@
     "enabled": true,
     "manifestUrl": "https://storage.googleapis.com/todaypick-daily-looks-363284724091/production/latest.json",
     "indexUrl": "https://storage.googleapis.com/todaypick-daily-looks-363284724091/production/index.json"
+  },
+  "adminScheduleControl": {
+    "enabled": true,
+    "apiBaseUrl": "https://todaypick-coupang-proxy.johnpark236.workers.dev"
   }
 }
