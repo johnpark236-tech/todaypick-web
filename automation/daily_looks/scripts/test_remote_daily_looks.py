@@ -24,8 +24,10 @@ from remote_daily_looks import (  # noqa: E402
     canonical_v3_cell_box,
     canonical_v3_column_boundaries,
     canonical_v3_crop_box,
+    compose_single_cuts_to_canonical_sheet,
     crop_source_image,
     load_config,
+    roundtrip_canonical_sheet,
     season_for_date_folder,
     season_for_month,
     season_from_match,
@@ -36,6 +38,7 @@ from remote_daily_looks import (  # noqa: E402
     validate_index_manifest,
     validate_public_asset_url,
     validate_source,
+    technical_validate_cut,
 )
 
 
@@ -166,6 +169,17 @@ def make_separator_sheet(path, separator_px):
     return path
 
 
+def make_single_cut(path, color, marker):
+    im = Image.new("RGB", (648, 1152), color)
+    # Non-text, deterministic marker blocks make roundtrip mapping testable
+    # without pretending to perform semantic vision QA.
+    for x in range(40 + marker * 3, 120 + marker * 3):
+        for y in range(90, 190):
+            im.putpixel((x % 648, y), (255 - color[0], 255 - color[1], 255 - color[2]))
+    im.save(path, "PNG")
+    return path
+
+
 
 def assert_latest_unchanged(root, before):
     current = json.loads((root / "latest.json").read_text(encoding="utf-8"))
@@ -284,6 +298,40 @@ def run():
         )
         assert crop_ok2
         assert [Path(item["path"]).name for item in cut_files] == [Path(item["path"]).name for item in cut_files2]
+
+        # Technical cut validation is intentionally not visual QA.
+        # A mechanically valid image can still be a semantically broken crop.
+        valid_but_not_visual = root / "technical_only.webp"
+        noisy = Image.new("RGB", (648, 1152), (90, 120, 180))
+        for x in range(0, 648, 4):
+            for y in range(0, 1152, 4):
+                noisy.putpixel((x, y), ((x + y) % 255, (x * 3) % 255, (y * 5) % 255))
+        noisy.save(valid_but_not_visual, "WEBP", quality=95)
+        ok, reason = technical_validate_cut(valid_but_not_visual, cfg)
+        assert ok, reason
+        assert reason == "TECHNICAL_PASS"
+
+        # Single-first composition must roundtrip to exactly 10 mapped cells.
+        single_dir = root / "singles"
+        single_dir.mkdir()
+        singles = [
+            make_single_cut(single_dir / f"single_{idx:02d}.png", (20 * idx % 255, 80, 180), idx)
+            for idx in range(1, 11)
+        ]
+        composed = compose_single_cuts_to_canonical_sheet(singles, root / "composed.png")
+        assert Image.open(composed).size == (1313, 1198)
+        roundtrip = roundtrip_canonical_sheet(composed, root / "roundtrip")
+        assert len(roundtrip) == 10
+        assert [path.name for path in roundtrip] == [f"roundtrip_{idx:02d}.png" for idx in range(1, 11)]
+        # Mapping contract: each cell should be visually closer to its own source
+        # than to another source after deterministic composition.
+        for idx, path in enumerate(roundtrip):
+            cell = Image.open(path).convert("RGB").resize((64, 114), Image.Resampling.LANCZOS)
+            own = Image.open(singles[idx]).convert("RGB").resize((64, 114), Image.Resampling.LANCZOS)
+            other = Image.open(singles[(idx + 1) % 10]).convert("RGB").resize((64, 114), Image.Resampling.LANCZOS)
+            own_delta = sum(abs(a - b) for a, b in zip(cell.tobytes(), own.tobytes()))
+            other_delta = sum(abs(a - b) for a, b in zip(cell.tobytes(), other.tobytes()))
+            assert own_delta < other_delta, f"roundtrip mapping mismatch at {idx + 1}"
 
         # === CANONICAL SIZE TESTS (section 13) ===
         # 1313x1198 MUST pass

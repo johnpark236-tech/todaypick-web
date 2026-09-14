@@ -1,10 +1,11 @@
-"""TodayPick Daily Auto Generate Pipeline
+"""TodayPick Daily Auto Generate Pipeline.
 
-Generates 12 groups (female/male 10s~60s) of 2x5 canonical look sheets (1313x1198),
-creates/ensures TodayPick_user_config/YYMMDD folder on Google Drive,
-and uploads generated source sheets.
-Existing cloud_drive_auto_ingest.service on the VM will automatically detect,
-validate, cut (10x 648x1152), and publish to GCS and seasonal catalogs.
+Production runs are routed to the MASTER v3.2 single-first orchestrator:
+120 independent singles -> visual QA -> deterministic 12 sheets -> roundtrip QA.
+
+The old 2x5 sheet-first generator below is retained only for dry-run and
+historical tests. It is not reachable from scheduled or Run Now production
+entrypoints.
 """
 
 import argparse
@@ -18,6 +19,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageOps
+
+from single_first_daily_generate import (
+    SEGMENTS as V32_SEGMENTS,
+    SingleFirstOptions,
+    run_single_first_daily_generation,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DAILY_LOOKS_ROOT = PROJECT_ROOT / "automation" / "daily_looks"
@@ -55,6 +62,8 @@ GROUP_TO_KR_NAME = {
     "male_10s": "남성10대", "male_20s": "남성20대", "male_30s": "남성30대",
     "male_40s": "남성40대", "male_50s": "남성50대", "male_60s": "남성60대",
 }
+
+SEGMENT_TO_GROUP = {segment: group for group, segment in GROUP_TO_SEGMENT.items()}
 
 SEASON_TO_KR = {
     "spring": "봄", "summer": "여름", "autumn": "가을", "winter": "겨울",
@@ -362,7 +371,11 @@ def run_generation(
     schedule_revision=None,
     run_id=None,
 ):
-    """Main execution workflow for daily sheet generation."""
+    """Main execution workflow.
+
+    Non-dry-run execution must use v3.2 single-first. Sheet-first production
+    generation is disabled by design.
+    """
     kst_now = get_kst_now()
     if not date_str:
         date_folder = kst_now.strftime("%y%m%d")  # e.g. 260912
@@ -451,7 +464,7 @@ def run_generation(
             "run_key": run_key,
         }
     ledger.setdefault("runs", {})[run_key] = {
-        "status": "RUNNING",
+        "status": "STARTED",
         "date_folder": date_folder,
         "date": date_iso,
         "time": scheduled_time,
@@ -462,6 +475,64 @@ def run_generation(
         "started_at": get_kst_now().isoformat(timespec="seconds"),
     }
     save_run_ledger(ledger)
+
+    if not dry_run:
+        selected_segments = [GROUP_TO_SEGMENT.get(group, group) for group in selected_groups]
+        unknown_segments = [segment for segment in selected_segments if segment not in V32_SEGMENTS]
+        if unknown_segments:
+            mark_run_failed(ledger, run_key, date_folder, selected_groups, f"unknown v3.2 segments: {unknown_segments}", run_meta)
+            raise RuntimeError(f"unknown v3.2 segments: {unknown_segments}")
+        if not live_api:
+            mark_run_failed(ledger, run_key, date_folder, selected_groups, "production generation requires v3.2 single-first live capability", run_meta)
+            raise RuntimeError("GENERATION_FAILED: production generation requires v3.2 single-first live capability")
+        try:
+            ledger.setdefault("runs", {})[run_key]["status"] = "GENERATING_SINGLES"
+            save_run_ledger(ledger)
+            report = run_single_first_daily_generation(
+                SingleFirstOptions(
+                    date_folder=date_folder,
+                    date_iso=date_iso,
+                    season=season,
+                    segments=selected_segments,
+                    trigger_source=trigger_source,
+                    scheduled_time=scheduled_time,
+                    schedule_revision=int(schedule_revision or 0),
+                    run_id=run_meta["run_id"],
+                    publish=True,
+                )
+            )
+        except Exception as exc:
+            mark_run_failed(ledger, run_key, date_folder, selected_groups, exc, run_meta)
+            raise RuntimeError(f"GENERATION_FAILED: {exc}") from exc
+
+        ledger = load_run_ledger()
+        ledger.setdefault("runs", {})[run_key] = {
+            "status": "COMPLETED",
+            "date_folder": date_folder,
+            "date": date_iso,
+            "time": scheduled_time,
+            "revision": int(schedule_revision or 0),
+            "run_id": run_meta["run_id"],
+            "trigger_source": trigger_source,
+            "target_groups": selected_groups,
+            "target_segments": selected_segments,
+            "started_at": ledger.get("runs", {}).get(run_key, {}).get("started_at"),
+            "finished_at": get_kst_now().isoformat(timespec="seconds"),
+            "generated_single_count": report.get("single_target"),
+            "generated_sheet_count": report.get("sheet_target"),
+            "uploaded_sheet_count": report.get("sheet_target"),
+            "ingest_result": "BYPASSED_V32_AUTHORITATIVE_SINGLES",
+            "catalog_update_result": report.get("status"),
+            "report_path": report.get("report_path"),
+        }
+        save_run_ledger(ledger)
+        return {
+            "generation_results": [],
+            "ingest_report": None,
+            "status": report.get("status"),
+            "run_key": run_key,
+            "single_first_report": report,
+        }
 
     results = []
 
@@ -655,6 +726,8 @@ def main():
     parser.add_argument("--scheduled-time", type=str, default=None, help="Schedule HH:MM used to build the run identity")
     parser.add_argument("--schedule-revision", type=int, default=None, help="Schedule revision used to build the run identity")
     parser.add_argument("--run-id", type=str, default=None, help="Explicit unique run id for manual executions")
+    parser.add_argument("--v32-smoke", action="store_true", help="Run isolated v3.2 single-first smoke test for one segment; never publishes")
+    parser.add_argument("--smoke-segment", type=str, default="female_10", help="Segment for --v32-smoke")
     parser.add_argument("--quality-test", action="store_true", help="Run one-sheet real image quality QA only; no Drive, ingest, GCS, or catalog publish")
     parser.add_argument("--quality-source", type=str, default=None, help="Existing real generated source image to normalize and QA in --quality-test mode")
     parser.add_argument("--season", type=str, default="autumn", help="Season for --quality-test first-mile QA")
@@ -667,6 +740,27 @@ def main():
             season=args.season,
             date_str=args.date,
             source_path=args.quality_source,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+
+    if args.v32_smoke:
+        date_folder = args.date or get_kst_now().strftime("%y%m%d")
+        date_iso = f"20{date_folder[:2]}-{date_folder[2:4]}-{date_folder[4:]}" if len(date_folder) == 6 else date_folder
+        run_id = args.run_id or f"{date_iso}__v32-smoke__{args.smoke_segment}"
+        result = run_single_first_daily_generation(
+            SingleFirstOptions(
+                date_folder=date_folder.replace("-", "")[2:] if "-" in date_folder else date_folder,
+                date_iso=date_iso,
+                season=args.season,
+                segments=[args.smoke_segment],
+                trigger_source=args.trigger_source,
+                scheduled_time=args.scheduled_time,
+                schedule_revision=args.schedule_revision,
+                run_id=run_id,
+                publish=False,
+                smoke=True,
+            )
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return

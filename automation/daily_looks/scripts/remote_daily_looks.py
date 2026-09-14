@@ -44,6 +44,8 @@ CANONICAL_V3_TOP_ROW_TRIM_BIAS = (0.35, 0.65)
 CANONICAL_V3_BOTTOM_ROW_TRIM_BIAS = (0.65, 0.35)
 CANONICAL_V3_MAX_SEPARATOR_PX = 4
 CANONICAL_V3_INNER_SEPARATOR_TRIM_PX = 2
+SINGLE_CUT_WIDTH = 648
+SINGLE_CUT_HEIGHT = 1152
 
 
 @dataclass
@@ -320,6 +322,53 @@ def render_contain_with_blurred_background(cell, target_size):
     return canvas
 
 
+def compose_single_cuts_to_canonical_sheet(single_paths, output_path):
+    """Compose 10 independently approved single cuts into the canonical 5x2 sheet.
+
+    This is the safe production direction for new assets:
+    approved 648x1152 singles -> deterministic 1313x1198 sheet.
+    """
+    if len(single_paths) != CANONICAL_V3_COLUMNS * CANONICAL_V3_ROWS:
+        raise ValueError(f"expected 10 single cuts, got {len(single_paths)}")
+    canvas = Image.new("RGB", (CANONICAL_V3_WIDTH, CANONICAL_V3_HEIGHT), (240, 240, 240))
+    x_bounds = canonical_v3_column_boundaries()
+    y_bounds = [0, CANONICAL_V3_CELL_HEIGHT, CANONICAL_V3_HEIGHT]
+    for index, path in enumerate(single_paths):
+        row = index // CANONICAL_V3_COLUMNS
+        col = index % CANONICAL_V3_COLUMNS
+        x0, x1 = x_bounds[col], x_bounds[col + 1]
+        y0, y1 = y_bounds[row], y_bounds[row + 1]
+        cell_w = x1 - x0
+        cell_h = y1 - y0
+        single = Image.open(path).convert("RGB")
+        cell = render_contain_with_blurred_background(single, (cell_w, cell_h))
+        canvas.paste(cell, (x0, y0))
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    canvas.save(output_path, "PNG")
+    return output_path
+
+
+def roundtrip_canonical_sheet(sheet_path, out_dir):
+    """Cut a composed canonical sheet back into 10 cell images for mapping QA."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    sheet = Image.open(sheet_path).convert("RGB")
+    if sheet.size != (CANONICAL_V3_WIDTH, CANONICAL_V3_HEIGHT):
+        raise ValueError(f"canonical sheet must be 1313x1198, got {sheet.size}")
+    x_bounds = canonical_v3_column_boundaries()
+    y_bounds = [0, CANONICAL_V3_CELL_HEIGHT, CANONICAL_V3_HEIGHT]
+    cuts = []
+    for index in range(CANONICAL_V3_COLUMNS * CANONICAL_V3_ROWS):
+        row = index // CANONICAL_V3_COLUMNS
+        col = index % CANONICAL_V3_COLUMNS
+        cell = sheet.crop((x_bounds[col], y_bounds[row], x_bounds[col + 1], y_bounds[row + 1]))
+        out = out_dir / f"roundtrip_{index + 1:02d}.png"
+        cell.save(out, "PNG")
+        cuts.append(out)
+    return cuts
+
+
 def legacy_crop_box(width, height, row, col, cfg, target_ratio):
     cell_w = width / cfg["expected_columns"]
     cell_h = height / cfg["expected_rows"]
@@ -383,7 +432,7 @@ def crop_source_image(im, out_dir, source, date_folder, cfg, crop_profile=LEGACY
             out_path.unlink()
         tmp_path.rename(out_path)
 
-        ok, reason = validate_cut(out_path, cfg)
+        ok, reason = technical_validate_cut(out_path, cfg)
         validations.append({"index": idx + 1, "status": "PASS" if ok else "FAIL", "reason": reason})
         cut_files.append({
             "index": idx + 1,
@@ -397,7 +446,13 @@ def crop_source_image(im, out_dir, source, date_folder, cfg, crop_profile=LEGACY
     return all(v["status"] == "PASS" for v in validations), cut_files, validations
 
 
-def validate_cut(path, cfg):
+def technical_validate_cut(path, cfg):
+    """Validate only mechanical file properties.
+
+    This deliberately does not assert visual quality, head/feet visibility,
+    one-person semantics, or adjacent-row contamination. Those checks require
+    a separate visual QA gate.
+    """
     try:
         with Image.open(path) as im:
             width, height = im.size
@@ -408,7 +463,12 @@ def validate_cut(path, cfg):
         return False, f"wrong size: {width}x{height}"
     if path.stat().st_size < 10 * 1024:
         return False, "output too small"
-    return True, "PASS"
+    return True, "TECHNICAL_PASS"
+
+
+def validate_cut(path, cfg):
+    """Backward-compatible alias for technical validation only."""
+    return technical_validate_cut(path, cfg)
 
 
 def build_review_sheet(segment, date_folder, cut_files, review_root, cfg):
