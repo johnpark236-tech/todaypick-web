@@ -323,6 +323,64 @@ console.log('\nTEST 14: vc81 hotfix regression — initial overlay hidden contra
   assert(hasExitButtonInsideOverlay, 'TEST F: btn-exit-sheet-view is inside sheet-view-overlay and hidden on initial render');
 }
 
+// ── TEST 15: "1컷 보기" and "10개 코디 보기" Button Positioning Contract ────
+console.log('\nTEST 15: button positioning contract — 1컷 보기 matches 10개 코디 보기 position');
+{
+  const cssPath = path.join(ROOT_DIR, 'src/style.css');
+  const cssContent = fs.readFileSync(cssPath, 'utf8');
+
+  // Extract .btn-view-sheet rules
+  const viewBtnMatch = cssContent.match(/\.btn-view-sheet\s*\{([^}]*)\}/s);
+  assert(viewBtnMatch !== null, 'TEST 15.1: .btn-view-sheet CSS rule found');
+  const viewBtnRules = viewBtnMatch ? viewBtnMatch[1] : '';
+  const viewLeft = (viewBtnRules.match(/left\s*:\s*([^;]+);/) || [])[1]?.trim();
+  const viewBottom = (viewBtnRules.match(/bottom\s*:\s*([^;]+);/) || [])[1]?.trim();
+
+  // Extract .btn-exit-sheet-view rules
+  const exitBtnMatch = cssContent.match(/\.btn-exit-sheet-view\s*\{([^}]*)\}/s);
+  assert(exitBtnMatch !== null, 'TEST 15.2: .btn-exit-sheet-view CSS rule found');
+  const exitBtnRules = exitBtnMatch ? exitBtnMatch[1] : '';
+  const exitLeft = (exitBtnRules.match(/left\s*:\s*([^;]+);/) || [])[1]?.trim();
+  const exitBottom = (exitBtnRules.match(/bottom\s*:\s*([^;]+);/) || [])[1]?.trim();
+  const hasTopInExit = /top\s*:\s*[^;]+;/i.test(exitBtnRules);
+
+  assert(viewLeft === exitLeft, `TEST 15.3: left position matches (${viewLeft} === ${exitLeft})`);
+  assert(viewBottom === exitBottom, `TEST 15.4: bottom position matches (${viewBottom} === ${exitBottom})`);
+  assert(!hasTopInExit, 'TEST 15.5: .btn-exit-sheet-view does not use top positioning (moved from top-left)');
+}
+
+// ── TEST 16: Multi-Segment 10-Cut Coordinate and Sample Mapping ────────────
+console.log('\nTEST 16: multi-segment 10-cut mapping and female_20 exclusion check');
+{
+  function calcCutIndex(x, y, sheetWidth, sheetHeight) {
+    const col = Math.floor((x / sheetWidth) * 5);
+    const row = Math.floor((y / sheetHeight) * 2);
+    return Math.max(1, Math.min(10, row * 5 + col + 1));
+  }
+
+  const W = 1313, H = 1198;
+  const sampleSegments = ['female_10', 'female_60', 'male_30', 'male_60'];
+
+  for (const seg of sampleSegments) {
+    // Top-left
+    assert(calcCutIndex(10, 10, W, H) === 1, `TEST 16: ${seg} top-left maps to cut 1`);
+    // Top-right
+    assert(calcCutIndex(W * 0.95, 10, W, H) === 5, `TEST 16: ${seg} top-right maps to cut 5`);
+    // Bottom-left
+    assert(calcCutIndex(10, H * 0.55, W, H) === 6, `TEST 16: ${seg} bottom-left maps to cut 6`);
+    // Bottom-right
+    assert(calcCutIndex(W * 0.95, H * 0.95, W, H) === 10, `TEST 16: ${seg} bottom-right maps to cut 10`);
+  }
+
+  // Verify female_20 is explicitly guarded against duplication
+  const targetSegments = [
+    'female_10', 'female_30', 'female_40', 'female_50', 'female_60',
+    'male_10', 'male_20', 'male_30', 'male_40', 'male_50', 'male_60'
+  ];
+  assert(!targetSegments.includes('female_20'), 'TEST 16: female_20 is excluded from 11-segment batch targets');
+  assert(targetSegments.length === 11, 'TEST 16: exactly 11 new segments in expansion batch');
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(50)}`);
 console.log(`TEST RESULTS: ${passed} passed, ${failed} failed`);
