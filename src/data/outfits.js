@@ -3855,6 +3855,7 @@ export class OutfitManager {
           mode,
           remoteLookId: remoteLook.id,
           remoteSeason: season,
+          remoteSourceDate: remoteLook.sourceDate || remoteLook.source_date || null,
           remoteIndex: index + 1,
           title: `${template.title} #${index + 1}`,
           image: remoteLook.url,
@@ -3864,7 +3865,24 @@ export class OutfitManager {
           sheetUrl: remoteLook.sheetUrl || remoteLook.sheet_url || undefined,
           cutIndex: remoteLook.cutIndex != null ? Number(remoteLook.cutIndex) : (remoteLook.cut_index != null ? Number(remoteLook.cut_index) : undefined),
         };
-      });
+      })
+      .sort((a, b) => this.compareRemoteLooksForDisplay(a, b));
+  }
+
+  compareRemoteLooksForDisplay(a, b) {
+    const aSheet = Boolean(a?.sheetUrl);
+    const bSheet = Boolean(b?.sheetUrl);
+    if (aSheet !== bSheet) return bSheet ? 1 : -1;
+    if (aSheet && bSheet) {
+      const aDate = String(a.remoteSourceDate || '').padStart(6, '0');
+      const bDate = String(b.remoteSourceDate || '').padStart(6, '0');
+      if (aDate !== bDate) return bDate.localeCompare(aDate);
+      const aSet = String(a.setId || '');
+      const bSet = String(b.setId || '');
+      if (aSet !== bSet) return bSet.localeCompare(aSet);
+      return Number(a.cutIndex || 999) - Number(b.cutIndex || 999);
+    }
+    return Number(a.remoteIndex || 0) - Number(b.remoteIndex || 0);
   }
 
   resetRemoteCategory(mode) {

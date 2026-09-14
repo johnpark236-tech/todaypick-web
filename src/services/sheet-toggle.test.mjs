@@ -29,14 +29,24 @@ function makeLegacyLook(id = 'LEGACY_001') {
   return { id, url: `https://cdn.example.com/${id}.webp`, sha256: 'a'.repeat(64) };
 }
 
-function makeNewLook(id, cutIndex, setId = 'autumn_female_20_260914_abc12345', sheetUrl = 'https://cdn.example.com/sheet.png') {
+function makeNewLook(id, cutIndex, setId = 'autumn_female_20_260914_abc12345', sheetUrl = 'https://cdn.example.com/sheet.png', sourceDate = '260914') {
   return {
     id,
     url: `https://cdn.example.com/${id}.webp`,
     sha256: 'b'.repeat(64),
+    source_date: sourceDate,
     set_id: setId,
     sheet_url: sheetUrl,
     cut_index: cutIndex,
+  };
+}
+
+function makeLegacyLookWithSha(id, shaChar, sourceDate = '260910') {
+  return {
+    id,
+    url: `https://cdn.example.com/${id}.webp`,
+    sha256: shaChar.repeat(64),
+    source_date: sourceDate,
   };
 }
 
@@ -223,8 +233,37 @@ console.log('\nTEST 12: New sheet + cuts append structure');
   assert(allHaveSheet, 'all cuts share same sheetUrl');
 }
 
-// ── TEST 13: Initial Overlay Hidden & CSS Contract (vc81 Hotfix Regression) ─
-console.log('\nTEST 13: vc81 hotfix regression — initial overlay hidden contract');
+// ── TEST 13: Startup ordering prefers 10-cut-enabled remote items ──────────
+console.log('\nTEST 13: startup ordering prefers 10-cut-enabled items');
+{
+  const om = new OutfitManager();
+  const setId = 'autumn_female_20_260914_47bee2c5';
+  const sheetUrl = 'https://cdn.example.com/sheets/sheet_260914.png';
+  const legacy = Array.from({ length: 25 }, (_, i) =>
+    makeLegacyLookWithSha(`autumn_female_20_260910_${String(i + 1).padStart(2, '0')}`, String.fromCharCode(97 + (i % 20)), '260910')
+  );
+  const cuts = Array.from({ length: 10 }, (_, i) =>
+    makeNewLook(`autumn_female_20_260914_${String(i + 1).padStart(2, '0')}`, i + 1, setId, sheetUrl, '260914')
+  );
+  const catalog = {
+    schema_version: 2,
+    season: 'autumn',
+    gender: 'female',
+    age_group: 20,
+    count: 35,
+    looks: [...legacy, ...cuts],
+  };
+  om.applyRemoteCatalog(catalog);
+  const looks = om.getLooks('female_20s');
+  assert(looks.length === 35, 'all legacy + new items preserved');
+  assert(looks[0].id === 'autumn_female_20_260914_01', 'first rendered candidate is newest 10-cut cut 1');
+  assert(Boolean(looks[0].sheetUrl) === true, 'first rendered candidate has sheetUrl, so 10-cut button is visible');
+  assert(looks.slice(0, 10).every(look => look.setId === setId), 'initial thumbnail range includes all 10 new cuts first');
+  assert(looks.slice(10).some(look => !look.sheetUrl), 'legacy items remain selectable after new cuts');
+}
+
+// ── TEST 14: Initial Overlay Hidden & CSS Contract (vc81 Hotfix Regression) ─
+console.log('\nTEST 14: vc81 hotfix regression — initial overlay hidden contract');
 {
   const htmlPath = path.join(ROOT_DIR, 'index.html');
   const cssPath = path.join(ROOT_DIR, 'src/style.css');

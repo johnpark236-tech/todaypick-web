@@ -224,7 +224,30 @@ function applyNowPlayingSettings(titleScale, marqueeDist, eqHeight, eqWidth) {
 }
 
 function getVisibleLooks(mode = state.currentMode) {
-  return outfitManager.getLooks(mode).filter(look => !StorageService.isLookDeleted(look.id, look.mode));
+  return prioritizeSheetEnabledLooks(
+    outfitManager.getLooks(mode).filter(look => !StorageService.isLookDeleted(look.id, look.mode))
+  );
+}
+
+function prioritizeSheetEnabledLooks(looks) {
+  return looks
+    .map((look, index) => ({ look, index }))
+    .sort((a, b) => {
+      const aSheet = Boolean(a.look?.sheetUrl);
+      const bSheet = Boolean(b.look?.sheetUrl);
+      if (aSheet !== bSheet) return bSheet ? 1 : -1;
+      if (aSheet && bSheet) {
+        const aDate = String(a.look.remoteSourceDate || '').padStart(6, '0');
+        const bDate = String(b.look.remoteSourceDate || '').padStart(6, '0');
+        if (aDate !== bDate) return bDate.localeCompare(aDate);
+        const aSet = String(a.look.setId || '');
+        const bSet = String(b.look.setId || '');
+        if (aSet !== bSet) return bSet.localeCompare(aSet);
+        return Number(a.look.cutIndex || 999) - Number(b.look.cutIndex || 999);
+      }
+      return a.index - b.index;
+    })
+    .map(item => item.look);
 }
 
 function getVisibleOutfit(mode = state.currentMode, outfitId = null) {
