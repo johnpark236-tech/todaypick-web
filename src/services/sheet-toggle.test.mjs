@@ -17,6 +17,13 @@
  */
 
 // ── Helpers ──────────────────────────────────────────────────────────────
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT_DIR = path.resolve(__dirname, '../../');
 
 function makeLegacyLook(id = 'LEGACY_001') {
   return { id, url: `https://cdn.example.com/${id}.webp`, sha256: 'a'.repeat(64) };
@@ -214,6 +221,67 @@ console.log('\nTEST 12: New sheet + cuts append structure');
   // All share same sheetUrl
   const allHaveSheet = looks.filter(l => l.setId === setId).every(l => l.sheetUrl === sheetUrl);
   assert(allHaveSheet, 'all cuts share same sheetUrl');
+}
+
+// ── TEST 13: Initial Overlay Hidden & CSS Contract (vc81 Hotfix Regression) ─
+console.log('\nTEST 13: vc81 hotfix regression — initial overlay hidden contract');
+{
+  const htmlPath = path.join(ROOT_DIR, 'index.html');
+  const cssPath = path.join(ROOT_DIR, 'src/style.css');
+  const mainJsPath = path.join(ROOT_DIR, 'src/main.js');
+
+  const htmlContent = fs.readFileSync(htmlPath, 'utf8');
+  const cssContent = fs.readFileSync(cssPath, 'utf8');
+  const mainJsContent = fs.readFileSync(mainJsPath, 'utf8');
+
+  // TEST A: initial DOM has hidden attribute on sheet-view-overlay
+  const overlayTagMatch = htmlContent.match(/<div[^>]*id=["']sheet-view-overlay["'][^>]*>/i);
+  assert(overlayTagMatch !== null, 'TEST A.1: sheet-view-overlay element exists in index.html');
+  assert(overlayTagMatch && /\bhidden\b/i.test(overlayTagMatch[0]), 'TEST A.2: sheet-view-overlay has hidden attribute in initial DOM');
+
+  // TEST B: CSS specifies .sheet-view-overlay[hidden] -> display: none
+  const hiddenCssRegex = /\.sheet-view-overlay\[hidden\]\s*\{[^}]*display:\s*none/s;
+  assert(hiddenCssRegex.test(cssContent), 'TEST B.1: .sheet-view-overlay[hidden] has display: none rule');
+
+  // TEST B-2: Default .sheet-view-overlay must NOT have unconditioned display: flex
+  const defaultOverlayRegex = /\.sheet-view-overlay\s*\{([^}]*)\}/s;
+  const match = cssContent.match(defaultOverlayRegex);
+  const hasDisplayInBase = match && /display\s*:\s*flex/i.test(match[1]);
+  assert(!hasDisplayInBase, 'TEST B.2: .sheet-view-overlay base rule does NOT have display: flex (avoids overriding hidden)');
+
+  // TEST C: .sheet-view-overlay:not([hidden]) has display: flex
+  const notHiddenCssRegex = /\.sheet-view-overlay:not\(\[hidden\]\)\s*\{[^}]*display:\s*flex/s;
+  assert(notHiddenCssRegex.test(cssContent), 'TEST C: .sheet-view-overlay:not([hidden]) has display: flex');
+
+  // TEST D: Simulated DOM state machine & visibility
+  const mockOverlay = {
+    hidden: true,
+    get display() {
+      if (this.hidden) return 'none';
+      return 'flex';
+    }
+  };
+
+  // Initial state
+  assert(mockOverlay.hidden === true && mockOverlay.display === 'none', 'TEST D.1: initial state is hidden=true and display:none');
+
+  // Open state
+  mockOverlay.hidden = false;
+  assert(mockOverlay.hidden === false && mockOverlay.display === 'flex', 'TEST D.2: open state is hidden=false and display:flex');
+
+  // Close state
+  mockOverlay.hidden = true;
+  assert(mockOverlay.hidden === true && mockOverlay.display === 'none', 'TEST D.3: close state is hidden=true and display:none');
+
+  // TEST E: main.js initial state has sheetViewActive: false
+  const stateInitMatch = mainJsContent.match(/sheetViewActive\s*:\s*false/);
+  assert(stateInitMatch !== null, 'TEST E: main.js initializes sheetViewActive: false');
+
+  // TEST F: "1컷 보기" button is child of #sheet-view-overlay
+  const overlayBlockRegex = /<div[^>]*id=["']sheet-view-overlay["'][^>]*>([\s\S]*?)<\/div>/i;
+  const overlayBlockMatch = htmlContent.match(overlayBlockRegex);
+  const hasExitButtonInsideOverlay = overlayBlockMatch && overlayBlockMatch[1].includes('btn-exit-sheet-view');
+  assert(hasExitButtonInsideOverlay, 'TEST F: btn-exit-sheet-view is inside sheet-view-overlay and hidden on initial render');
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────
