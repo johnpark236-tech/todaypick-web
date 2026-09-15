@@ -370,6 +370,11 @@ def run_generation(
     scheduled_time=None,
     schedule_revision=None,
     run_id=None,
+    single_first_mode="live",
+    manual_input_base=None,
+    prepare_only=False,
+    verify_only=False,
+    publish=None,
 ):
     """Main execution workflow.
 
@@ -415,7 +420,7 @@ def run_generation(
     # 2. Drive uploader setup
     uploader = None
     drive_date_folder_id = None
-    if upload_drive:
+    if upload_drive and not (not dry_run and single_first_mode == "manual"):
         try:
             uploader = DriveUploader()
             drive_date_folder_id = uploader.ensure_child_folder(DEFAULT_ROOT_FOLDER_ID, date_folder)
@@ -482,7 +487,10 @@ def run_generation(
         if unknown_segments:
             mark_run_failed(ledger, run_key, date_folder, selected_groups, f"unknown v3.2 segments: {unknown_segments}", run_meta)
             raise RuntimeError(f"unknown v3.2 segments: {unknown_segments}")
-        if not live_api:
+        if single_first_mode not in {"live", "manual"}:
+            mark_run_failed(ledger, run_key, date_folder, selected_groups, f"unsupported single-first mode: {single_first_mode}", run_meta)
+            raise RuntimeError(f"unsupported single-first mode: {single_first_mode}")
+        if single_first_mode == "live" and not live_api:
             mark_run_failed(ledger, run_key, date_folder, selected_groups, "production generation requires v3.2 single-first live capability", run_meta)
             raise RuntimeError("GENERATION_FAILED: production generation requires v3.2 single-first live capability")
         try:
@@ -498,7 +506,11 @@ def run_generation(
                     scheduled_time=scheduled_time,
                     schedule_revision=int(schedule_revision or 0),
                     run_id=run_meta["run_id"],
-                    publish=True,
+                    mode=single_first_mode,
+                    manual_input_base=Path(manual_input_base) if manual_input_base else None,
+                    prepare_only=prepare_only,
+                    verify_only=verify_only,
+                    publish=bool(publish) if publish is not None else single_first_mode == "live",
                 )
             )
         except Exception as exc:
@@ -728,6 +740,11 @@ def main():
     parser.add_argument("--run-id", type=str, default=None, help="Explicit unique run id for manual executions")
     parser.add_argument("--v32-smoke", action="store_true", help="Run isolated v3.2 single-first smoke test for one segment; never publishes")
     parser.add_argument("--smoke-segment", type=str, default="female_10", help="Segment for --v32-smoke")
+    parser.add_argument("--single-first-mode", choices=("live", "manual"), default="live", help="v3.2 input mode for non-dry-run production routing")
+    parser.add_argument("--manual-input-base", type=str, default=None, help="Base folder containing single_first/<season>/<segment> or <segment> inputs")
+    parser.add_argument("--prepare-only", action="store_true", help="Prepare manual v3.2 candidates without publishing")
+    parser.add_argument("--verify-only", action="store_true", help="Verify manual v3.2 candidates without publishing")
+    parser.add_argument("--publish", action="store_true", help="Allow publish mode after v3.2 gates pass")
     parser.add_argument("--quality-test", action="store_true", help="Run one-sheet real image quality QA only; no Drive, ingest, GCS, or catalog publish")
     parser.add_argument("--quality-source", type=str, default=None, help="Existing real generated source image to normalize and QA in --quality-test mode")
     parser.add_argument("--season", type=str, default="autumn", help="Season for --quality-test first-mile QA")
@@ -758,6 +775,10 @@ def main():
                 scheduled_time=args.scheduled_time,
                 schedule_revision=args.schedule_revision,
                 run_id=run_id,
+                mode="manual" if args.manual_input_base else "live",
+                manual_input_base=Path(args.manual_input_base) if args.manual_input_base else None,
+                prepare_only=True,
+                verify_only=True,
                 publish=False,
                 smoke=True,
             )
@@ -785,6 +806,11 @@ def main():
             scheduled_time=args.scheduled_time,
             schedule_revision=args.schedule_revision,
             run_id=args.run_id,
+            single_first_mode=args.single_first_mode,
+            manual_input_base=args.manual_input_base,
+            prepare_only=args.prepare_only,
+            verify_only=args.verify_only,
+            publish=args.publish if args.publish else None,
         )
     finally:
         release_run_lock()

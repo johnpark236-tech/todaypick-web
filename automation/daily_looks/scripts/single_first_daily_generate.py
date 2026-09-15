@@ -24,7 +24,9 @@ from remote_daily_looks import (
     SINGLE_CUT_HEIGHT,
     SINGLE_CUT_WIDTH,
     compose_single_cuts_to_canonical_sheet,
+    load_config,
     roundtrip_canonical_sheet,
+    sha256_file,
     technical_validate_cut,
 )
 
@@ -32,6 +34,8 @@ from remote_daily_looks import (
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DAILY_LOOKS_ROOT = PROJECT_ROOT / "automation" / "daily_looks"
 REPORT_ROOT = DAILY_LOOKS_ROOT / "remote_pipeline" / "manifests"
+PREPARED_ROOT = DAILY_LOOKS_ROOT / "remote_pipeline" / "single_first_prepared"
+DEFAULT_DRIVE_SOURCE_ROOT = Path(os.environ.get("TODAYPICK_USER_CONFIG_ROOT", r"G:\내 드라이브\TodayPick_user_config"))
 KST = timezone(timedelta(hours=9), name="KST")
 
 SEGMENTS = [
@@ -65,6 +69,10 @@ class SingleFirstOptions:
     scheduled_time: str | None
     schedule_revision: int | None
     run_id: str
+    mode: str = "live"
+    manual_input_base: Path | None = None
+    prepare_only: bool = False
+    verify_only: bool = False
     publish: bool = False
     smoke: bool = False
 
@@ -91,6 +99,80 @@ def assert_visual_qa_pass(record: dict[str, Any], segment: str, index: int) -> N
         raise RuntimeError(f"{segment} #{index:02d}: visual QA failed: {failed}")
     if int(record.get("QA_SCORE", 0)) < 90:
         raise RuntimeError(f"{segment} #{index:02d}: QA_SCORE below 90")
+
+
+def find_manual_single(segment_dir: Path, index: int) -> Path | None:
+    candidates = [
+        segment_dir / f"{index:02d}.png",
+        segment_dir / f"{index:02d}.webp",
+        segment_dir / f"{index:02d}.jpg",
+        segment_dir / f"{index:02d}.jpeg",
+        segment_dir / f"single_{index:02d}.png",
+        segment_dir / f"single_{index:02d}.webp",
+        segment_dir / f"look_{index:02d}.png",
+        segment_dir / f"look_{index:02d}.webp",
+    ]
+    for path in candidates:
+        if path.exists():
+            return path
+    return None
+
+
+def load_visual_qa_manifest(segment_dir: Path) -> dict[tuple[str, int], dict[str, Any]]:
+    path = segment_dir / "visual_qa.json"
+    if not path.exists():
+        raise RuntimeError(f"{segment_dir}: visual_qa.json is required")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(data, dict) and "cuts" in data:
+        rows = data["cuts"]
+    elif isinstance(data, list):
+        rows = data
+    else:
+        raise RuntimeError(f"{path}: visual QA file must be a list or an object with cuts")
+    if not isinstance(rows, list):
+        raise RuntimeError(f"{path}: cuts must be a list")
+    qa: dict[tuple[str, int], dict[str, Any]] = {}
+    for item in rows:
+        if not isinstance(item, dict):
+            raise RuntimeError(f"{path}: each QA row must be an object")
+        item_segment = str(item.get("segment") or "")
+        index = int(item.get("index", item.get("cut_index", 0)) or 0)
+        if not item_segment or not index:
+            raise RuntimeError(f"{path}: each QA row requires segment and index")
+        qa[(item_segment, index)] = item
+    return qa
+
+
+def manual_base_for(options: SingleFirstOptions) -> Path:
+    if options.manual_input_base:
+        return Path(options.manual_input_base)
+    return DEFAULT_DRIVE_SOURCE_ROOT / options.date_folder / "single_first" / options.season
+
+
+def segment_input_dir(base: Path, season: str, segment: str) -> Path:
+    direct = base / segment
+    if direct.exists():
+        return direct
+    nested = base / season / segment
+    if nested.exists():
+        return nested
+    return direct
+
+
+def prepare_manual_single(path: Path, out_path: Path, cfg: dict[str, Any]) -> dict[str, Any]:
+    with Image.open(path) as im:
+        image = im.convert("RGB")
+    if image.size != (SINGLE_CUT_WIDTH, SINGLE_CUT_HEIGHT):
+        raise RuntimeError(f"{path}: expected {SINGLE_CUT_WIDTH}x{SINGLE_CUT_HEIGHT}, got {image.size}")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    image.save(out_path, "WEBP", quality=int(cfg.get("webp_quality", 90)))
+    ok, reason = technical_validate_cut(out_path, {"cut_width": SINGLE_CUT_WIDTH, "cut_height": SINGLE_CUT_HEIGHT})
+    if not ok:
+        raise RuntimeError(f"{path}: technical validation failed: {reason}")
+    return {
+        "path": out_path,
+        "sha256": sha256_file(out_path),
+    }
 
 
 def mean_abs_delta(a: Path, b: Path) -> float:
@@ -192,6 +274,68 @@ def process_segment_smoke(options: SingleFirstOptions, segment: str, work_root: 
     }
 
 
+def process_segment_manual(options: SingleFirstOptions, segment: str, input_base: Path, prepared_root: Path) -> dict[str, Any]:
+    segment_dir = segment_input_dir(input_base, options.season, segment)
+    if not segment_dir.exists():
+        raise RuntimeError(f"{segment}: missing input directory: {segment_dir}")
+    visual_qa = load_visual_qa_manifest(segment_dir)
+    cfg = load_config()
+    prepared_segment = prepared_root / segment
+    singles: list[Path] = []
+    look_records = []
+    for index in range(1, 11):
+        source = find_manual_single(segment_dir, index)
+        if not source:
+            raise RuntimeError(f"{segment}: missing approved single image #{index:02d}")
+        qa_record = visual_qa.get((segment, index))
+        if not qa_record:
+            raise RuntimeError(f"{segment} #{index:02d}: missing visual QA record")
+        assert_visual_qa_pass(qa_record, segment, index)
+        prepared = prepare_manual_single(source, prepared_segment / "singles_webp" / f"look_{index:02d}.webp", cfg)
+        singles.append(prepared["path"])
+        look_records.append({
+            "index": index,
+            "sha256": prepared["sha256"],
+            "width": SINGLE_CUT_WIDTH,
+            "height": SINGLE_CUT_HEIGHT,
+            "source_file": source.name,
+            "cut_index": index,
+        })
+
+    sheet = compose_single_cuts_to_canonical_sheet(singles, prepared_segment / "sheet.png")
+    roundtrip = roundtrip_canonical_sheet(sheet, prepared_segment / "roundtrip")
+    assert_roundtrip_mapping(singles, roundtrip)
+    sheet_sha = sha256_file(sheet)
+    set_id = f"{options.season}_{segment}_{options.date_folder}_{sheet_sha[:8]}"
+    for record in look_records:
+        record["set_id"] = set_id
+        record["sheet_sha256"] = sheet_sha
+
+    backup_path = None
+    if options.publish:
+        if options.verify_only or options.prepare_only:
+            raise RuntimeError("publish cannot be combined with prepare-only or verify-only")
+        if options.segments != SEGMENTS:
+            raise RuntimeError("publish mode requires all 12 segments to avoid partial production writes")
+        backup_path = f"production/{options.season}/previous/{segment}_{options.date_folder}_{int(time.time())}.json"
+
+    return {
+        "segment": segment,
+        "status": "PUBLISH_READY" if options.publish else "VERIFIED",
+        "input_dir": str(segment_dir),
+        "single_count": len(singles),
+        "visual_qa_count": 10,
+        "sheet_count": 1,
+        "sheet_path": str(sheet),
+        "sheet_sha256": sheet_sha,
+        "roundtrip_mapping": f"{len(roundtrip)}/10",
+        "roundtrip_mapping_1_to_1": True,
+        "set_id": set_id,
+        "backup_path": backup_path,
+        "publish_gate": "PASS",
+    }
+
+
 def run_single_first_daily_generation(options: SingleFirstOptions) -> dict[str, Any]:
     started = time.time()
     report_path = report_path_for(options.date_folder, options.run_id)
@@ -227,6 +371,22 @@ def run_single_first_daily_generation(options: SingleFirstOptions) -> dict[str, 
                 result = process_segment_smoke(options, options.segments[0], Path(td))
             report["segments"][options.segments[0]] = result
             report["status"] = "SMOKE_PASS"
+            report["duration_seconds"] = round(time.time() - started, 3)
+            write_json(report_path, report)
+            return {**report, "report_path": str(report_path)}
+
+        if options.mode == "manual":
+            report["states"].extend(["LOADING_APPROVED_SINGLES", "VISUAL_QA", "COMPOSING_SHEETS", "ROUNDTRIP_VALIDATION"])
+            input_base = manual_base_for(options)
+            prepared_root = PREPARED_ROOT / options.date_folder / options.season / options.run_id
+            for segment in options.segments:
+                report["segments"][segment] = process_segment_manual(options, segment, input_base, prepared_root)
+            report["manual_input_base"] = str(input_base)
+            report["prepared_root"] = str(prepared_root)
+            report["prepare_only"] = bool(options.prepare_only)
+            report["verify_only"] = bool(options.verify_only)
+            report["backup_before_publish"] = bool(options.publish)
+            report["status"] = "PUBLISH_READY" if options.publish else "VERIFIED"
             report["duration_seconds"] = round(time.time() - started, 3)
             write_json(report_path, report)
             return {**report, "report_path": str(report_path)}
