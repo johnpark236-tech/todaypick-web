@@ -57,8 +57,8 @@ function run() {
   assert.equal(manager.getLooks('female_20s').length, 10);
   assert.equal(manager.getLooks('female_20s')[0].image.startsWith('/assets/looks/'), true);
 
-  const pageSize = 20;
-  assert.equal(catalog(500).looks.slice(0, pageSize).length, 20);
+  const pageSize = 10;
+  assert.equal(catalog(500).looks.slice(0, pageSize).length, 10);
 
   console.log('seasonal catalog tests passed');
 }

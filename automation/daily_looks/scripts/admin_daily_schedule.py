@@ -1,8 +1,8 @@
 """Admin control for the TodayPick daily generation systemd timer.
 
-The UI time is always Asia/Seoul HH:MM. The VM currently runs the timer in UTC,
-so this module writes a UTC systemd drop-in while preserving the KST source of
-truth in daily_generation_schedule.json.
+The UI time is always an Asia/Seoul HH:MM base time. Production generation runs
+every six hours from that base time, and the VM timer is written in UTC while
+preserving the KST source of truth in daily_generation_schedule.json.
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ UTC = timezone.utc
 TIME_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 DEFAULT_TIME = "06:00"
 TIMEZONE_NAME = "Asia/Seoul"
+INTERVAL_HOURS = 6
 
 
 @dataclass(frozen=True)
@@ -66,24 +67,40 @@ def utc_to_kst_hhmm(utc_time: str) -> str:
 
 
 def timer_override_text(kst_time: str) -> str:
-    utc_time = kst_to_utc_hhmm(kst_time)
+    utc_times = [kst_to_utc_hhmm(slot) for slot in six_hour_slots(kst_time)]
     return (
         "[Timer]\n"
-        f"# {kst_time}:00 Asia/Seoul = {utc_time}:00 UTC\n"
+        f"# {kst_time}:00 Asia/Seoul base time; runs every {INTERVAL_HOURS} hours\n"
         "OnCalendar=\n"
-        f"OnCalendar=*-*-* {utc_time}:00 UTC\n"
+        + "".join(f"OnCalendar=*-*-* {utc_time}:00 UTC\n" for utc_time in utc_times)
+        +
         "Persistent=true\n"
         f"Unit={SERVICE_NAME}\n"
     )
 
 
+def six_hour_slots(kst_time: str) -> list[str]:
+    validate_hhmm(kst_time)
+    hour, minute = [int(part) for part in kst_time.split(":")]
+    base = datetime(2026, 1, 1, hour, minute, tzinfo=KST)
+    slots = []
+    for step in range(0, 24, INTERVAL_HOURS):
+        slot = base + timedelta(hours=step)
+        slots.append(f"{slot.hour:02d}:{slot.minute:02d}")
+    return sorted(set(slots))
+
+
 def calculate_next_run_at(kst_time: str, now: datetime | None = None) -> str:
     validate_hhmm(kst_time)
     current = now.astimezone(KST) if now else datetime.now(KST)
-    hour, minute = [int(part) for part in kst_time.split(":")]
-    candidate = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
-    if candidate <= current:
-        candidate = candidate + timedelta(days=1)
+    candidates = []
+    for slot in six_hour_slots(kst_time):
+        hour, minute = [int(part) for part in slot.split(":")]
+        candidate = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if candidate <= current:
+            candidate = candidate + timedelta(days=1)
+        candidates.append(candidate)
+    candidate = min(candidates)
     return candidate.isoformat(timespec="seconds")
 
 

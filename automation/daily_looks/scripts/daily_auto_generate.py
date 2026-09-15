@@ -25,6 +25,17 @@ from single_first_daily_generate import (
     SingleFirstOptions,
     run_single_first_daily_generation,
 )
+from prompt_rotation import (
+    CURSOR_PATH,
+    ROTATION,
+    advance_after_success,
+    build_rotation_run_id,
+    load_cursor,
+    load_prompt_for_target,
+    save_attempt,
+    target_for_index,
+    validate_prompt_library,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DAILY_LOOKS_ROOT = PROJECT_ROOT / "automation" / "daily_looks"
@@ -35,6 +46,7 @@ RUN_LEDGER_PATH = LOG_ROOT / "daily_auto_generate_ledger.json"
 RUN_LOCK_PATH = LOG_ROOT / "daily_auto_generate.lock"
 RUN_LOCK_MAX_AGE_SECONDS = 6 * 60 * 60
 SCHEDULE_CONFIG_PATH = CONFIG_ROOT / "daily_generation_schedule.json"
+PRODUCTION_INTERVAL_HOURS = 6
 
 KST = timezone(timedelta(hours=9))
 
@@ -134,6 +146,28 @@ def load_schedule_context():
         "revision": int(data.get("revision", 0) or 0),
         "timezone": str(data.get("timezone") or default["timezone"]),
     }
+
+
+def resolve_rotation_selection(target_group, trigger_source, date_iso, scheduled_time, schedule_revision):
+    """Return selected groups and rotation metadata for production single-first runs."""
+    prompt_validation = validate_prompt_library()
+    if target_group and target_group != "all":
+        selected_groups = [g for g in GROUPS_ORDER if g == target_group or GROUP_TO_SEGMENT.get(g) == target_group]
+        if not selected_groups:
+            selected_groups = [target_group]
+        return selected_groups, None, prompt_validation
+
+    cursor = load_cursor(CURSOR_PATH)
+    target = target_for_index(int(cursor["rotation_index"]), int(cursor.get("cycle_number") or 1))
+    selected_groups = [SEGMENT_TO_GROUP[target.segment]]
+    run_id = build_rotation_run_id(date_iso, scheduled_time, schedule_revision, trigger_source, target)
+    prompt = load_prompt_for_target(target)
+    return selected_groups, {
+        "cursor": cursor,
+        "target": target,
+        "run_id": run_id,
+        "prompt": prompt,
+    }, prompt_validation
 
 
 def make_run_identity(date_iso, date_folder, selected_groups, trigger_source, scheduled_time=None, schedule_revision=None, run_id=None):
@@ -375,6 +409,7 @@ def run_generation(
     prepare_only=False,
     verify_only=False,
     publish=None,
+    use_rotation=True,
 ):
     """Main execution workflow.
 
@@ -435,20 +470,34 @@ def run_generation(
     prompt_template = (CONFIG_ROOT / "prompt_template.txt").read_text(encoding="utf-8")
     negative_prompt = (CONFIG_ROOT / "negative_prompt.txt").read_text(encoding="utf-8")
 
-    # Select groups
-    if target_group and target_group != "all":
-        # Match either key (e.g. female_10s) or segment (e.g. female_10) or KR
-        selected_groups = [g for g in GROUPS_ORDER if g == target_group or GROUP_TO_SEGMENT.get(g) == target_group]
-        if not selected_groups:
-            # Fallback
-            selected_groups = [target_group]
-    else:
-        selected_groups = GROUPS_ORDER
-
     if scheduled_time is None or schedule_revision is None:
         schedule_ctx = load_schedule_context()
         scheduled_time = scheduled_time or schedule_ctx["time"]
         schedule_revision = schedule_revision if schedule_revision is not None else schedule_ctx["revision"]
+
+    rotation_meta = None
+    prompt_validation = None
+    if not dry_run and use_rotation:
+        selected_groups, rotation_meta, prompt_validation = resolve_rotation_selection(
+            target_group,
+            trigger_source,
+            date_iso,
+            scheduled_time,
+            schedule_revision,
+        )
+        if rotation_meta and not run_id:
+            run_id = rotation_meta["run_id"]
+        if rotation_meta:
+            season = rotation_meta["target"].season
+            season_kr = SEASON_TO_KR[season]
+    else:
+        if target_group and target_group != "all":
+            selected_groups = [g for g in GROUPS_ORDER if g == target_group or GROUP_TO_SEGMENT.get(g) == target_group]
+            if not selected_groups:
+                selected_groups = [target_group]
+        else:
+            selected_groups = GROUPS_ORDER
+
     run_key, run_meta = make_run_identity(
         date_iso,
         date_folder,
@@ -477,6 +526,16 @@ def run_generation(
         "run_id": run_meta["run_id"],
         "trigger_source": trigger_source,
         "target_groups": selected_groups,
+        "production_interval_hours": PRODUCTION_INTERVAL_HOURS,
+        "rotation": {
+            "enabled": bool(rotation_meta),
+            "count": len(ROTATION),
+            "index": rotation_meta["target"].rotation_index if rotation_meta else None,
+            "cycle_number": rotation_meta["target"].cycle_number if rotation_meta else None,
+            "target": rotation_meta["target"].rotation_key if rotation_meta else None,
+            "prompt_sha256": rotation_meta["prompt"]["sha256"] if rotation_meta else None,
+            "prompt_gcs_object": rotation_meta["prompt"]["gcs_object"] if rotation_meta else None,
+        },
         "started_at": get_kst_now().isoformat(timespec="seconds"),
     }
     save_run_ledger(ledger)
@@ -494,13 +553,17 @@ def run_generation(
             mark_run_failed(ledger, run_key, date_folder, selected_groups, "production generation requires v3.2 single-first live capability", run_meta)
             raise RuntimeError("GENERATION_FAILED: production generation requires v3.2 single-first live capability")
         try:
+            if rotation_meta:
+                if prompt_validation and not prompt_validation["ok"]:
+                    raise RuntimeError(f"prompt library validation failed: {prompt_validation['failures']}")
+                save_attempt(rotation_meta["cursor"], run_meta["run_id"], CURSOR_PATH)
             ledger.setdefault("runs", {})[run_key]["status"] = "GENERATING_SINGLES"
             save_run_ledger(ledger)
             report = run_single_first_daily_generation(
                 SingleFirstOptions(
                     date_folder=date_folder,
                     date_iso=date_iso,
-                    season=season,
+                    season=rotation_meta["target"].season if rotation_meta else season,
                     segments=selected_segments,
                     trigger_source=trigger_source,
                     scheduled_time=scheduled_time,
@@ -517,6 +580,11 @@ def run_generation(
             mark_run_failed(ledger, run_key, date_folder, selected_groups, exc, run_meta)
             raise RuntimeError(f"GENERATION_FAILED: {exc}") from exc
 
+        if rotation_meta and report.get("status") not in {"PUBLISHED", "COMPLETED"}:
+            mark_run_failed(ledger, run_key, date_folder, selected_groups, f"publish did not complete: {report.get('status')}", run_meta)
+            raise RuntimeError(f"GENERATION_FAILED: publish did not complete: {report.get('status')}")
+        advanced_cursor = advance_after_success(rotation_meta["cursor"], run_meta["run_id"], CURSOR_PATH) if rotation_meta else None
+
         ledger = load_run_ledger()
         ledger.setdefault("runs", {})[run_key] = {
             "status": "COMPLETED",
@@ -528,6 +596,18 @@ def run_generation(
             "trigger_source": trigger_source,
             "target_groups": selected_groups,
             "target_segments": selected_segments,
+            "production_interval_hours": PRODUCTION_INTERVAL_HOURS,
+            "rotation": {
+                "enabled": bool(rotation_meta),
+                "count": len(ROTATION),
+                "index": rotation_meta["target"].rotation_index if rotation_meta else None,
+                "cycle_number": rotation_meta["target"].cycle_number if rotation_meta else None,
+                "target": rotation_meta["target"].rotation_key if rotation_meta else None,
+                "prompt_sha256": rotation_meta["prompt"]["sha256"] if rotation_meta else None,
+                "prompt_gcs_object": rotation_meta["prompt"]["gcs_object"] if rotation_meta else None,
+                "advanced_to": advanced_cursor.get("current_segment") if advanced_cursor else None,
+                "cursor_path": str(CURSOR_PATH),
+            },
             "started_at": ledger.get("runs", {}).get(run_key, {}).get("started_at"),
             "finished_at": get_kst_now().isoformat(timespec="seconds"),
             "generated_single_count": report.get("single_target"),
@@ -544,6 +624,7 @@ def run_generation(
             "status": report.get("status"),
             "run_key": run_key,
             "single_first_report": report,
+            "rotation": ledger.get("runs", {}).get(run_key, {}).get("rotation"),
         }
 
     results = []

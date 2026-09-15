@@ -15,13 +15,16 @@ from typing import Any
 
 from admin_daily_schedule import (
     DEFAULT_TIME,
+    INTERVAL_HOURS,
     TIMER_NAME,
     TIMEZONE_NAME,
     read_config,
+    six_hour_slots,
     systemd_readback,
     update_schedule,
     validate_hhmm,
 )
+from prompt_rotation import CURSOR_PATH, ROTATION, load_cursor, target_for_index
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -124,12 +127,32 @@ class AdminScheduleHandler(BaseHTTPRequestHandler):
             "enabled": config.enabled,
             "time": config.time,
             "timezone": TIMEZONE_NAME,
+            "interval_hours": INTERVAL_HOURS,
+            "slots_kst": six_hour_slots(config.time),
             "revision": config.revision,
             "updated_at": config.updated_at,
             "updated_by": config.updated_by,
             "next_run_at": config.next_run_at,
             "timer": TIMER_NAME,
         }
+        try:
+            cursor = load_cursor(CURSOR_PATH)
+            target = target_for_index(int(cursor["rotation_index"]), int(cursor.get("cycle_number") or 1))
+            payload["rotation"] = {
+                "count": len(ROTATION),
+                "rotation_index": target.rotation_index,
+                "current_target": target.rotation_key,
+                "season": target.season,
+                "segment": target.segment,
+                "gender": target.gender,
+                "age": target.age,
+                "cycle_number": target.cycle_number,
+                "next_segment": cursor.get("next_segment"),
+                "last_success_segment": cursor.get("last_success_segment"),
+                "last_success_at": cursor.get("last_success_at"),
+            }
+        except Exception as exc:
+            payload["rotation"] = {"error": str(exc)}
         if os.name != "nt":
             payload["readback"] = systemd_readback()
         self._send_json(200, payload)

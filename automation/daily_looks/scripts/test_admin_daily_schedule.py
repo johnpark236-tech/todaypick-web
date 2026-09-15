@@ -25,9 +25,15 @@ class AdminDailyScheduleTest(unittest.TestCase):
         self.assertEqual(schedule.kst_to_utc_hhmm("00:00"), "15:00")
         self.assertEqual(schedule.kst_to_utc_hhmm("23:59"), "14:59")
 
+    def test_six_hour_slots(self):
+        self.assertEqual(schedule.six_hour_slots("06:00"), ["00:00", "06:00", "12:00", "18:00"])
+
     def test_override_resets_existing_calendar(self):
         text = schedule.timer_override_text("07:00")
         self.assertIn("OnCalendar=\n", text)
+        self.assertIn("OnCalendar=*-*-* 04:00:00 UTC", text)
+        self.assertIn("OnCalendar=*-*-* 10:00:00 UTC", text)
+        self.assertIn("OnCalendar=*-*-* 16:00:00 UTC", text)
         self.assertIn("OnCalendar=*-*-* 22:00:00 UTC", text)
 
     def test_config_roundtrip(self):
@@ -47,7 +53,7 @@ class AdminDailyScheduleTest(unittest.TestCase):
 
     def test_next_run_past_time_moves_to_tomorrow(self):
         now = schedule.datetime(2026, 9, 13, 6, 20, tzinfo=schedule.KST)
-        self.assertEqual(schedule.calculate_next_run_at("05:00", now), "2026-09-14T05:00:00+09:00")
+        self.assertEqual(schedule.calculate_next_run_at("05:00", now), "2026-09-13T11:00:00+09:00")
 
 
 if __name__ == "__main__":

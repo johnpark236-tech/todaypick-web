@@ -26,7 +26,7 @@ const ALL_GROUPS = [
 const ADMIN_SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 const ADMIN_GENDERS = ['female', 'male'];
 const ADMIN_AGE_GROUPS = [10, 20, 30, 40, 50, 60];
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 const LEGACY_ADMIN_PASSWORD_SHA256 = 'df34d853f2f2f1f14b92359f695426dcefc150b3f3a886c05c045b37baa2ee99';
 
 // Application state

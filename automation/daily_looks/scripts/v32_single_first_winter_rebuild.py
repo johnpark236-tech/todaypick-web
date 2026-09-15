@@ -33,6 +33,7 @@ from remote_daily_looks import (  # noqa: E402
     validate_leaf_catalog,
     write_json,
 )
+from prompt_rotation import accumulate_new_set_first  # noqa: E402
 
 
 SEGMENTS = [
@@ -208,6 +209,9 @@ def process_segment(args, cfg, visual_qa, segment, work_root):
             "set_id": set_id,
             "sheet_url": sheet_url,
             "cut_index": single.index,
+            "generation_method": "single_first",
+            "pipeline_version": "v3.2",
+            "single_first": True,
             "_local_path": str(single.path),
             "_object_name": object_name,
         })
@@ -238,6 +242,11 @@ def process_segment(args, cfg, visual_qa, segment, work_root):
             "looks": [],
         }
 
+    accumulation = accumulate_new_set_first(
+        old_catalog.get("looks", []),
+        [{k: v for k, v in look.items() if not k.startswith("_")} for look in looks],
+        existing_catalog=old_catalog,
+    )
     catalog = {
         **old_catalog,
         "schema_version": 2,
@@ -245,7 +254,7 @@ def process_segment(args, cfg, visual_qa, segment, work_root):
         "gender": gender,
         "age_group": age,
         "segment": segment,
-        "count": 10,
+        "count": len(accumulation["looks"]),
         "updated_at": now_iso(),
         "last_source_date": args.date,
         "last_10cut_set_id": set_id,
@@ -254,7 +263,10 @@ def process_segment(args, cfg, visual_qa, segment, work_root):
         "visual_qa_required": True,
         "source_file": source.filename,
         "source_sha256": source.sha256,
-        "looks": [{k: v for k, v in look.items() if not k.startswith("_")} for look in looks],
+        "catalog_policy": "new_single_first_set_first_preserve_single_first_history_exclude_sheet_first_legacy",
+        "legacy_sheet_first_removed": accumulation["legacy_removed"],
+        "preserved_single_first_history": accumulation["preserved_single_first"],
+        "looks": accumulation["looks"],
     }
     valid, valid_reason = validate_leaf_catalog(catalog, require_public_urls=True)
     if not valid:
@@ -300,9 +312,6 @@ def main():
     unknown = [segment for segment in selected_segments if segment not in SEGMENTS]
     if unknown:
         raise RuntimeError(f"unknown segments: {unknown}")
-    if args.publish and selected_segments != SEGMENTS:
-        raise RuntimeError("publish mode requires all 12 winter segments in canonical order")
-
     with tempfile.TemporaryDirectory() as td:
         work_root = Path(td)
         results = {}

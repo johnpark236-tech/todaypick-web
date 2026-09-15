@@ -315,8 +315,6 @@ def process_segment_manual(options: SingleFirstOptions, segment: str, input_base
     if options.publish:
         if options.verify_only or options.prepare_only:
             raise RuntimeError("publish cannot be combined with prepare-only or verify-only")
-        if options.segments != SEGMENTS:
-            raise RuntimeError("publish mode requires all 12 segments to avoid partial production writes")
         backup_path = f"production/{options.season}/previous/{segment}_{options.date_folder}_{int(time.time())}.json"
 
     return {

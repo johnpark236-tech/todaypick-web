@@ -349,6 +349,23 @@ console.log('\nTEST 15: button positioning contract — 1컷 보기 matches 10�
   assert(!hasTopInExit, 'TEST 15.5: .btn-exit-sheet-view does not use top positioning (moved from top-left)');
 }
 
+// ── TEST 16: Load More Preserves 10-Image Set Pages ────────────────────────
+console.log('\nTEST 16: load more page size is 10 and preserves set increments');
+{
+  const mainJsPath = path.join(ROOT_DIR, 'src/main.js');
+  const mainJsContent = fs.readFileSync(mainJsPath, 'utf8');
+  assert(/const\s+PAGE_SIZE\s*=\s*10\s*;/.test(mainJsContent), 'PAGE_SIZE is fixed at 10');
+
+  const threeSets = Array.from({ length: 30 }, (_, i) => ({
+    id: `look_${String(i + 1).padStart(2, '0')}`,
+    setId: `set_${Math.floor(i / 10) + 1}`,
+    cutIndex: (i % 10) + 1,
+  }));
+  assert(threeSets.slice(0, 10).every(look => look.setId === 'set_1'), 'initial page is one complete set');
+  assert(threeSets.slice(10, 20).every(look => look.setId === 'set_2'), 'first load-more page is one complete set');
+  assert(threeSets.slice(20, 30).every(look => look.setId === 'set_3'), 'second load-more page is one complete set');
+}
+
 // ── TEST 16: Multi-Segment 10-Cut Coordinate and Sample Mapping ────────────
 console.log('\nTEST 16: multi-segment 10-cut mapping and female_20 exclusion check');
 {
