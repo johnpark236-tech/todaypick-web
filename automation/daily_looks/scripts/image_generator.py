@@ -51,9 +51,56 @@ class GeminiImageAdapter(ImageGeneratorAdapter):
         except Exception as e:
             return False, f"Gemini API generation error: {str(e)}"
 
+class MultiProviderImageAdapter(ImageGeneratorAdapter):
+    """Adapter that delegates to the ProviderRouter (OpenArt / fal / Picsart)."""
+
+    def __init__(self):
+        self.backend_name = "MULTI_PROVIDER"
+        self._router = None
+
+    def _get_router(self):
+        if self._router is None:
+            from providers.provider_router import ProviderRouter
+            self._router = ProviderRouter()
+        return self._router
+
+    def is_available(self):
+        try:
+            router = self._get_router()
+            return bool(router.available_providers)
+        except Exception:
+            return False
+
+    def generate(self, prompt, negative_prompt, output_path, aspect_ratio="9:16"):
+        output_path = Path(output_path)
+        # Resolve width/height from aspect_ratio; default to single-cut spec 648x1152.
+        if aspect_ratio in ("9:16", "portrait"):
+            width, height = 648, 1152
+        elif aspect_ratio in ("16:9", "landscape"):
+            width, height = 1152, 648
+        elif aspect_ratio == "1:1":
+            width, height = 1024, 1024
+        else:
+            width, height = 648, 1152
+        try:
+            self._get_router().generate_single(
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                output_path=output_path,
+                width=width,
+                height=height,
+            )
+            return True, f"generated via {self.backend_name}"
+        except Exception as exc:
+            return False, str(exc)
+
+
 def get_image_generator(dry_run=True):
     if dry_run:
         return DryRunImageAdapter()
+    multi = MultiProviderImageAdapter()
+    if multi.is_available():
+        return multi
     gemini = GeminiImageAdapter()
     if gemini.is_available():
         return gemini

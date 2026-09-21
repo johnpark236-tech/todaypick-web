@@ -238,11 +238,101 @@ def smoke_visual_qa_record(segment: str, index: int) -> dict[str, Any]:
 def provider_capability() -> dict[str, Any]:
     provider = os.environ.get("TODAYPICK_SINGLE_FIRST_PROVIDER", "").strip()
     gemini = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    openart = bool(os.environ.get("OPENART_API_KEY", "").strip())
+    fal = bool(os.environ.get("FAL_KEY", "").strip())
+    picsart = bool(os.environ.get("PICSART_API_KEY", "").strip())
+    multi_capable = provider == "multi_provider" and (openart or fal or picsart)
+    legacy_gemini_capable = provider == "gemini_single_first" and gemini
     return {
         "provider": provider or None,
         "gemini_api_key_present": gemini,
-        "capable": provider == "gemini_single_first" and gemini,
+        "openart_key_present": openart,
+        "fal_key_present": fal,
+        "picsart_key_present": picsart,
+        "capable": multi_capable or legacy_gemini_capable,
+        "mode": "multi_provider" if multi_capable else ("gemini_single_first" if legacy_gemini_capable else None),
     }
+
+
+_NEGATIVE_PROMPT_PATH = DAILY_LOOKS_ROOT / "config" / "negative_prompt.txt"
+_SINGLE_PROMPT_TEMPLATE_PATH = DAILY_LOOKS_ROOT / "config" / "single_first_prompt_template.txt"
+_CANONICAL_PROMPT_ROOT = DEFAULT_DRIVE_SOURCE_ROOT / "00_IMAGE_PROMPTS" / "v3.2_single_first_48"
+
+_SEASON_FOLDER_MAP = {
+    "spring": "01_SPRING",
+    "summer": "02_SUMMER",
+    "autumn": "03_AUTUMN",
+    "winter": "04_WINTER",
+}
+
+
+def _canonical_prompt_path(segment: str, season: str) -> Path:
+    folder = _SEASON_FOLDER_MAP.get(season, f"04_{'WINTER'}")
+    filename = f"TodayPick_v3.2_{season}_{segment}_10looks.md"
+    return _CANONICAL_PROMPT_ROOT / folder / filename
+
+
+def _build_single_first_prompt(segment: str, season: str, index: int) -> str:
+    """Build prompt for look {index} from the canonical v3.2 prompt library.
+
+    Strategy:
+    1. Load the authoritative segment prompt file from Drive.
+    2. Extract the global header (all content before the first ### LOOK).
+    3. Extract the specific ### LOOK NN block.
+    4. Combine: global header + look-specific block.
+    5. If the canonical file is unavailable, append the generic template wrapper.
+    """
+    prompt_path = _canonical_prompt_path(segment, season)
+    wrapper_suffix = ""
+    if _SINGLE_PROMPT_TEMPLATE_PATH.exists():
+        wrapper_suffix = "\n\n" + _SINGLE_PROMPT_TEMPLATE_PATH.read_text(encoding="utf-8").strip()
+
+    if not prompt_path.exists():
+        # Canonical prompt not found; use generic wrapper as fallback.
+        return (
+            f"One full-body Korean fashion portrait, single character, head to toe. "
+            f"Segment: {segment}, season: {season.upper()}, look {index:02d} of 10. "
+            f"Full body mandatory: head, face, hair, hands, feet, shoes all visible. "
+            f"One person only. No text, watermark, or logos. "
+            f"2D digital illustration style, clean linework, Korean fashion app quality."
+            + wrapper_suffix
+        )
+
+    full_text = prompt_path.read_text(encoding="utf-8")
+
+    # Split on ### LOOK markers to isolate global header and per-look sections.
+    import re
+    look_pattern = re.compile(r"^### LOOK\s+(\d+)", re.MULTILINE)
+    markers = list(look_pattern.finditer(full_text))
+
+    if not markers:
+        return full_text + wrapper_suffix
+
+    global_header = full_text[: markers[0].start()].strip()
+
+    target_look = None
+    for i, m in enumerate(markers):
+        look_num = int(m.group(1))
+        if look_num == index:
+            end = markers[i + 1].start() if i + 1 < len(markers) else len(full_text)
+            target_look = full_text[m.start(): end].strip()
+            break
+
+    if target_look is None:
+        # Requested index not found; use global header only.
+        return global_header + wrapper_suffix
+
+    return global_header + "\n\n## Diversity Matrix\n\n" + target_look + wrapper_suffix
+
+
+def _load_negative_prompt_text() -> str:
+    if _NEGATIVE_PROMPT_PATH.exists():
+        return _NEGATIVE_PROMPT_PATH.read_text(encoding="utf-8").strip()
+    return (
+        "blurry, low quality, distorted anatomy, cropped head, cropped feet, "
+        "cut-off shoes, missing limbs, extra limbs, text, watermark, logo, "
+        "multiple people in frame, 3D render, photorealistic, deformed"
+    )
 
 
 def process_segment_smoke(options: SingleFirstOptions, segment: str, work_root: Path) -> dict[str, Any]:
@@ -394,12 +484,86 @@ def run_single_first_daily_generation(options: SingleFirstOptions) -> dict[str, 
         if not capability["capable"]:
             raise SingleFirstCapabilityError(
                 "v3.2 single-first autonomous image generation provider is not configured; "
-                "set TODAYPICK_SINGLE_FIRST_PROVIDER=gemini_single_first with GEMINI_API_KEY/GOOGLE_API_KEY"
+                "set TODAYPICK_SINGLE_FIRST_PROVIDER=multi_provider with at least one of "
+                "OPENART_API_KEY / FAL_KEY / PICSART_API_KEY"
             )
 
-        raise SingleFirstCapabilityError(
-            "gemini_single_first provider contract is reserved but not implemented; production fails closed"
-        )
+        if capability.get("mode") == "gemini_single_first":
+            raise SingleFirstCapabilityError(
+                "gemini_single_first provider contract is reserved but not implemented; "
+                "use TODAYPICK_SINGLE_FIRST_PROVIDER=multi_provider instead"
+            )
+
+        # Live autonomous single-first generation via provider router.
+        report["states"].extend([
+            "GENERATING_SINGLES", "VISUAL_QA", "COMPOSING_SHEETS", "ROUNDTRIP_VALIDATION",
+        ])
+        from providers.provider_router import ProviderRouter
+
+        try:
+            router = ProviderRouter()
+        except RuntimeError as exc:
+            raise SingleFirstCapabilityError(str(exc)) from exc
+
+        report["available_providers"] = router.available_providers
+        cfg = load_config()
+        work_root = PREPARED_ROOT / options.date_folder / options.season / options.run_id
+        neg_prompt = _load_negative_prompt_text()
+
+        for segment in options.segments:
+            segment_dir = work_root / segment
+            singles: list[Path] = []
+            qa_records: list[dict[str, Any]] = []
+
+            for index in range(1, 11):
+                out_path = segment_dir / "singles" / f"single_{index:02d}.webp"
+                prompt = _build_single_first_prompt(segment, options.season, index)
+                gen_result = router.generate_single(
+                    prompt=prompt,
+                    negative_prompt=neg_prompt,
+                    output_path=out_path,
+                    width=SINGLE_CUT_WIDTH,
+                    height=SINGLE_CUT_HEIGHT,
+                )
+                ok, reason = technical_validate_cut(
+                    out_path, {"cut_width": SINGLE_CUT_WIDTH, "cut_height": SINGLE_CUT_HEIGHT}
+                )
+                if not ok:
+                    raise RuntimeError(f"{segment} #{index:02d}: technical validation failed: {reason}")
+                singles.append(out_path)
+                qa_records.append({
+                    "segment": segment,
+                    "index": index,
+                    "provider": gen_result.get("provider_id"),
+                    "sha256": sha256_file(out_path),
+                    "width": SINGLE_CUT_WIDTH,
+                    "height": SINGLE_CUT_HEIGHT,
+                })
+
+            sheet = compose_single_cuts_to_canonical_sheet(
+                singles, segment_dir / "sheet.png"
+            )
+            roundtrip = roundtrip_canonical_sheet(sheet, segment_dir / "roundtrip")
+            assert_roundtrip_mapping(singles, roundtrip)
+            sheet_sha = sha256_file(sheet)
+            set_id = f"{options.season}_{segment}_{options.date_folder}_{sheet_sha[:8]}"
+
+            report["segments"][segment] = {
+                "segment": segment,
+                "status": "GENERATED",
+                "single_count": len(singles),
+                "qa_records": qa_records,
+                "sheet_path": str(sheet),
+                "sheet_sha256": sheet_sha,
+                "roundtrip_mapping": f"{len(roundtrip)}/10",
+                "set_id": set_id,
+                "publish": bool(options.publish),
+            }
+
+        report["status"] = "PUBLISHED" if options.publish else "GENERATED"
+        report["duration_seconds"] = round(time.time() - started, 3)
+        write_json(report_path, report)
+        return {**report, "report_path": str(report_path)}
     except Exception as exc:
         report["status"] = "FAILED"
         report["failures"].append({"error": str(exc), "type": type(exc).__name__})

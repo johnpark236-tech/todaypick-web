@@ -1,0 +1,22 @@
+{
+  "_comment": "Provider priority for single-first autonomous generation. Override with TODAYPICK_PROVIDER_PRIORITY env var.",
+  "priority": ["openart", "fal", "picsart"],
+  "providers": {
+    "openart": {
+      "key_env": "OPENART_API_KEY",
+      "model_env": "OPENART_MODEL_ID",
+      "base_env": "OPENART_API_BASE",
+      "default_base": "https://openart.ai"
+    },
+    "fal": {
+      "key_env": "FAL_KEY",
+      "model_env": "FAL_MODEL_ID",
+      "default_model": "fal-ai/flux/schnell"
+    },
+    "picsart": {
+      "key_env": "PICSART_API_KEY",
+      "base_env": "PICSART_API_BASE",
+      "default_base": "https://genai-api.picsart.io"
+    }
+  }
+}
