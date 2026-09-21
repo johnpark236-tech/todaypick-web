@@ -25,6 +25,14 @@ from admin_daily_schedule import (
     validate_hhmm,
 )
 from prompt_rotation import CURSOR_PATH, ROTATION, load_cursor, target_for_index
+from admin_delete_look import (
+    AdminDeleteRequest,
+    delete_look,
+    is_look_tombstoned,
+    STATE_DB_PATH,
+    VALID_SEASONS,
+    VALID_SEGMENTS,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -185,6 +193,9 @@ class AdminScheduleHandler(BaseHTTPRequestHandler):
                 return
             self._send_json(200, {"success": True})
             return
+        if self.path == "/api/admin/looks/delete":
+            self._handle_delete_look()
+            return
         if self.path not in (
             "/api/admin/daily-generation/run-now",
             "/api/admin/daily-generation/restore-default",
@@ -204,6 +215,46 @@ class AdminScheduleHandler(BaseHTTPRequestHandler):
             self._send_json(200, {"success": True, **result})
             return
         self._send_json(200, run_daily_generation_now())
+
+    def _handle_delete_look(self) -> None:
+        body = self._read_json()
+        if not self._auth(body):
+            self._send_json(403, {"success": False, "error": "invalid_admin_password"})
+            return
+
+        season = str(body.get("season") or "").strip()
+        segment = str(body.get("segment") or "").strip()
+        look_id = str(body.get("look_id") or "").strip()
+        dry_run = bool(body.get("dry_run", False))
+        deleted_by = str(body.get("deleted_by") or "admin").strip() or "admin"
+
+        if not season or season not in VALID_SEASONS:
+            self._send_json(400, {"success": False, "error": "invalid_season",
+                                   "message": f"season must be one of {sorted(VALID_SEASONS)}"})
+            return
+        if not segment or segment not in VALID_SEGMENTS:
+            self._send_json(400, {"success": False, "error": "invalid_segment",
+                                   "message": f"segment must be one of {sorted(VALID_SEGMENTS)}"})
+            return
+        if not look_id:
+            self._send_json(400, {"success": False, "error": "missing_look_id"})
+            return
+
+        req = AdminDeleteRequest(
+            season=season,
+            segment=segment,
+            look_id=look_id,
+            deleted_by=deleted_by,
+            dry_run=dry_run,
+        )
+        try:
+            result = delete_look(req)
+        except Exception as exc:
+            self._send_json(500, {"success": False, "error": "delete_failed", "message": str(exc)})
+            return
+
+        http_status = 200 if result.success else 400
+        self._send_json(http_status, result.to_dict())
 
 
 def main() -> int:

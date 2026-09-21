@@ -565,17 +565,48 @@ async function renderAdminDeleteGrid() {
   }).join('');
 
   dom.adminDeleteGrid.querySelectorAll('[data-action="delete"]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const card = e.currentTarget.closest('.admin-delete-card');
+      const lookKey = lookDeleteKey(card.dataset.id, card.dataset.mode);
+      if (_deletingLookKeys.has(lookKey)) return;
+
       const look = state.adminAllLooks.find(item => item.id === card.dataset.id && item.mode === card.dataset.mode)
         || outfitManager.getOutfit(card.dataset.mode, card.dataset.id);
-      StorageService.deleteLookFromCatalog(look);
-      if (state.currentOutfit?.id === look.id) {
-        renderOutfit(getVisibleOutfit(state.currentMode));
+      if (!look) return;
+
+      if (isAdminScheduleControlEnabled()) {
+        // Server-side delete: Drive backup + GCS catalog removal
+        _deletingLookKeys.add(lookKey);
+        btn.disabled = true;
+        btn.textContent = '삭제 중...';
+        try {
+          const { success, reason } = await deleteAdminLookViaServer(look);
+          if (success) {
+            StorageService.deleteLookFromCatalog(look);
+            if (state.currentOutfit?.id === look.id) {
+              renderOutfit(getVisibleOutfit(state.currentMode));
+            }
+            populateThumbnails(state.currentMode);
+            renderAdminDeleteGrid();
+            showToast('이미지가 삭제되었습니다.');
+          } else {
+            btn.disabled = false;
+            btn.textContent = '삭제요청';
+            showToast(`이미지를 삭제하지 못했습니다. (${reason || 'error'})`);
+          }
+        } finally {
+          _deletingLookKeys.delete(lookKey);
+        }
+      } else {
+        // Fallback: local-only delete request (no server)
+        StorageService.deleteLookFromCatalog(look);
+        if (state.currentOutfit?.id === look.id) {
+          renderOutfit(getVisibleOutfit(state.currentMode));
+        }
+        populateThumbnails(state.currentMode);
+        renderAdminDeleteGrid();
+        showToast('삭제요청에 추가했습니다.');
       }
-      populateThumbnails(state.currentMode);
-      renderAdminDeleteGrid();
-      showToast('삭제요청에 추가했습니다.');
     });
   });
 
@@ -750,6 +781,44 @@ async function restoreAdminScheduleDefault() {
     showToast(`기본값 복원 실패: ${err.message}`);
   } finally {
     setAdminScheduleBusy(false);
+  }
+}
+
+// ── Admin server-side delete ──────────────────────────────────────────────────
+
+const _deletingLookKeys = new Set();
+
+function _lookToApiParams(look) {
+  // look.id format: "{season}_{gender}_{ageGroup}_{date}_{index}"
+  // e.g. "autumn_female_10_260921_08"
+  const parts = (look.id || '').split('_');
+  const season = look.remoteSeason || parts[0] || '';
+  const parsed = parseMode(look.mode);
+  const segment = `${parsed.gender}_${parsed.ageGroup}`;
+  return { season, segment, look_id: look.id };
+}
+
+async function deleteAdminLookViaServer(look) {
+  if (!isAdminScheduleControlEnabled()) return { success: false, reason: 'api_disabled' };
+  const { season, segment, look_id } = _lookToApiParams(look);
+  if (!season || !segment || !look_id) return { success: false, reason: 'invalid_look' };
+  try {
+    const result = await adminApiFetch('/api/admin/looks/delete', {
+      method: 'POST',
+      body: JSON.stringify({
+        password: state.adminPassword,
+        season,
+        segment,
+        look_id,
+        dry_run: false
+      })
+    });
+    if (!result.success) {
+      return { success: false, reason: result.error || 'server_error', result };
+    }
+    return { success: true, result };
+  } catch (err) {
+    return { success: false, reason: err.message || 'fetch_error' };
   }
 }
 

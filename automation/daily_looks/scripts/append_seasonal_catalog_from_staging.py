@@ -1,5 +1,6 @@
 import argparse
 import json
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -7,6 +8,26 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_DEFAULT_STATE_DB = (
+    _SCRIPT_DIR.parents[2]
+    / "automation" / "daily_looks" / "runtime" / "cloud_single_first" / "state.sqlite3"
+)
+
+
+def load_deleted_sha256s(state_db_path: Path | None = None) -> frozenset:
+    """Load tombstoned SHA256 hashes from deleted_looks table."""
+    path = state_db_path or _DEFAULT_STATE_DB
+    if not path.exists():
+        return frozenset()
+    try:
+        con = sqlite3.connect(str(path))
+        rows = con.execute("SELECT sha256 FROM deleted_looks").fetchall()
+        con.close()
+        return frozenset(r[0] for r in rows if r[0])
+    except Exception:
+        return frozenset()
 
 from remote_daily_looks import (  # noqa: E402
     GCLOUD_BIN,
@@ -135,7 +156,14 @@ def sha256_from_name_or_file(path, sha12):
     return digest
 
 
-def dedupe_append(existing_looks, new_looks):
+def dedupe_append(existing_looks, new_looks, tombstoned_sha256s: frozenset | None = None):
+    """
+    Merge new_looks into existing_looks with SHA256/ID dedup.
+
+    tombstoned_sha256s: frozenset of SHA256 hashes deleted by admin delete.
+    Tombstoned hashes are blocked from re-registration even if removed from catalog.
+    """
+    tombstoned = tombstoned_sha256s or frozenset()
     merged = []
     seen_ids = set()
     seen_sha = set()
@@ -150,11 +178,16 @@ def dedupe_append(existing_looks, new_looks):
             seen_sha.add(sha)
         merged.append(look)
     for look in new_looks:
-        if look["id"] in seen_ids or look["sha256"] in seen_sha:
+        sha = look.get("sha256", "")
+        if sha in tombstoned:
+            # Blocked by admin tombstone — treat as skipped (not re-registered)
+            skipped += 1
+            continue
+        if look["id"] in seen_ids or sha in seen_sha:
             skipped += 1
             continue
         seen_ids.add(look["id"])
-        seen_sha.add(look["sha256"])
+        seen_sha.add(sha)
         merged.append({k: v for k, v in look.items() if k not in {"path", "object_name", "index"}})
         appended += 1
     return merged, appended, skipped
@@ -181,7 +214,8 @@ def publish_segment(season, date_folder, segment, items, dry_run):
         "count": 0,
         "looks": [],
     }
-    merged, appended, skipped = dedupe_append(base.get("looks", []), items)
+    tombstoned = load_deleted_sha256s()
+    merged, appended, skipped = dedupe_append(base.get("looks", []), items, tombstoned)
     catalog = {
         **base,
         "schema_version": 2,
