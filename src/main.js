@@ -29,6 +29,21 @@ const ADMIN_AGE_GROUPS = [10, 20, 30, 40, 50, 60];
 const PAGE_SIZE = 10;
 const LEGACY_ADMIN_PASSWORD_SHA256 = 'df34d853f2f2f1f14b92359f695426dcefc150b3f3a886c05c045b37baa2ee99';
 
+// v0.83 Optimized defaults — single source of truth for new-install and restore-defaults
+const OPTIMIZED_DEFAULTS = {
+  mainCharacterScale: 1.1,
+  mainCharacterOffsetY: 0,
+  thumbnailGap: 3,
+  genderButtonScale: 1.3,
+  bgmVolume: 0.67,
+  sfxVolume: 0.78,
+  sfxEnabled: true,
+  nowPlayingTitleScale: 2.0,
+  marqueeDistanceMm: 50,
+  equalizerHeightScale: 1.2,
+  equalizerWidthMm: 25,
+};
+
 // Application state
 const state = {
   config: null,
@@ -1173,9 +1188,9 @@ async function initApp() {
   } catch {
     state.config = applyRemoteLookTestOverride({
       workerUrl: 'https://todaypick-coupang-proxy.johnpark236.workers.dev',
-      mainCharacterScale: 1.0,
-      mainCharacterOffsetY: 0,
-      thumbnailGap: 8,
+      mainCharacterScale: OPTIMIZED_DEFAULTS.mainCharacterScale,
+      mainCharacterOffsetY: OPTIMIZED_DEFAULTS.mainCharacterOffsetY,
+      thumbnailGap: OPTIMIZED_DEFAULTS.thumbnailGap,
       defaultMode: 'real'
     });
   }
@@ -1191,9 +1206,9 @@ async function initApp() {
 
   // Restore stored UI config if exists
   const storedUi = StorageService.getUiConfig();
-  const currentScale = storedUi?.mainCharacterScale ?? state.config.mainCharacterScale ?? 1.0;
-  const currentOffset = storedUi?.mainCharacterOffsetY ?? state.config.mainCharacterOffsetY ?? 0;
-  const currentGap = storedUi?.thumbnailGap ?? state.config.thumbnailGap ?? 8;
+  const currentScale = storedUi?.mainCharacterScale ?? state.config.mainCharacterScale ?? OPTIMIZED_DEFAULTS.mainCharacterScale;
+  const currentOffset = storedUi?.mainCharacterOffsetY ?? state.config.mainCharacterOffsetY ?? OPTIMIZED_DEFAULTS.mainCharacterOffsetY;
+  const currentGap = storedUi?.thumbnailGap ?? state.config.thumbnailGap ?? OPTIMIZED_DEFAULTS.thumbnailGap;
 
   applyUiSettings(currentScale, currentOffset, currentGap);
 
@@ -1216,11 +1231,11 @@ async function initApp() {
   if (dom.toggleSfx) dom.toggleSfx.checked = curSfxEnabled;
   updateBgmButtonUi(AudioHub.getIsBgmEnabled());
 
-  // Sync Now Playing & Equalizer UI Settings (vc49 Defaults: 1.5x, 30mm, 2.0x, 50mm)
-  const currentTitleScale = storedUi?.nowPlayingTitleScale ?? 1.5;
-  const currentMarqueeDist = storedUi?.marqueeDistanceMm ?? 30;
-  const currentEqHeight = storedUi?.equalizerHeightScale ?? 2.0;
-  const currentEqWidth = storedUi?.equalizerWidthMm ?? 50;
+  // Sync Now Playing & Equalizer UI Settings (v0.83 Optimized Defaults)
+  const currentTitleScale = storedUi?.nowPlayingTitleScale ?? OPTIMIZED_DEFAULTS.nowPlayingTitleScale;
+  const currentMarqueeDist = storedUi?.marqueeDistanceMm ?? OPTIMIZED_DEFAULTS.marqueeDistanceMm;
+  const currentEqHeight = storedUi?.equalizerHeightScale ?? OPTIMIZED_DEFAULTS.equalizerHeightScale;
+  const currentEqWidth = storedUi?.equalizerWidthMm ?? OPTIMIZED_DEFAULTS.equalizerWidthMm;
 
   applyNowPlayingSettings(currentTitleScale, currentMarqueeDist, currentEqHeight, currentEqWidth);
 
@@ -2015,10 +2030,10 @@ function setupEventListeners() {
 
   // Now Playing & Equalizer Live Update Sliders
   const updateNowPlayingLivePreview = () => {
-    const tScale = parseFloat(dom.sliderTitleScale?.value) || 1.5;
-    const mDist = parseInt(dom.sliderMarqueeDist?.value) || 30;
-    const eqH = parseFloat(dom.sliderEqHeight?.value) || 2.0;
-    const eqW = parseInt(dom.sliderEqWidth?.value) || 50;
+    const tScale = parseFloat(dom.sliderTitleScale?.value) || OPTIMIZED_DEFAULTS.nowPlayingTitleScale;
+    const mDist = parseInt(dom.sliderMarqueeDist?.value) || OPTIMIZED_DEFAULTS.marqueeDistanceMm;
+    const eqH = parseFloat(dom.sliderEqHeight?.value) || OPTIMIZED_DEFAULTS.equalizerHeightScale;
+    const eqW = parseInt(dom.sliderEqWidth?.value) || OPTIMIZED_DEFAULTS.equalizerWidthMm;
 
     if (dom.valTitleScale) dom.valTitleScale.textContent = `${tScale.toFixed(1)}x`;
     if (dom.valMarqueeDist) dom.valMarqueeDist.textContent = `${mDist}mm`;
@@ -2036,9 +2051,9 @@ function setupEventListeners() {
   // Reset Settings
   dom.btnResetSettings.addEventListener('click', () => {
     StorageService.clearUiConfig();
-    const s = state.config.mainCharacterScale || 1.0;
-    const o = state.config.mainCharacterOffsetY || 0;
-    const g = state.config.thumbnailGap || 8;
+    const s = OPTIMIZED_DEFAULTS.mainCharacterScale;
+    const o = OPTIMIZED_DEFAULTS.mainCharacterOffsetY;
+    const g = OPTIMIZED_DEFAULTS.thumbnailGap;
     dom.sliderScale.value = s;
     dom.sliderOffsetY.value = o;
     dom.sliderGap.value = g;
@@ -2047,22 +2062,37 @@ function setupEventListeners() {
     dom.valGap.textContent = `${g}px`;
     applyUiSettings(s, o, g);
 
-    // Reset Now Playing & Equalizer to vc49 Defaults
-    if (dom.sliderTitleScale) dom.sliderTitleScale.value = 1.5;
-    if (dom.valTitleScale) dom.valTitleScale.textContent = '1.5x';
-    if (dom.sliderMarqueeDist) dom.sliderMarqueeDist.value = 30;
-    if (dom.valMarqueeDist) dom.valMarqueeDist.textContent = '30mm';
-    if (dom.sliderEqHeight) dom.sliderEqHeight.value = 2.0;
-    if (dom.valEqHeight) dom.valEqHeight.textContent = '2.0x';
-    if (dom.sliderEqWidth) dom.sliderEqWidth.value = 50;
-    if (dom.valEqWidth) dom.valEqWidth.textContent = '50mm';
-    applyNowPlayingSettings(1.5, 30, 2.0, 50);
+    // Reset gender button scale
+    const modeSlider = document.getElementById('slider-mode-button-scale');
+    const modeVal = document.getElementById('val-mode-button-scale');
+    if (modeSlider) {
+      modeSlider.value = OPTIMIZED_DEFAULTS.genderButtonScale;
+      modeSlider.dispatchEvent(new Event('input'));
+    }
+    if (modeVal) modeVal.textContent = `${OPTIMIZED_DEFAULTS.genderButtonScale.toFixed(1)}x`;
 
-    AudioHub.setSfxEnabled(true);
-    AudioHub.setSfxVolume(0.35);
-    if (dom.toggleSfx) dom.toggleSfx.checked = true;
-    if (dom.sliderSfxVol) dom.sliderSfxVol.value = 35;
-    if (dom.valSfxVol) dom.valSfxVol.textContent = '35%';
+    // Reset Now Playing & Equalizer to v0.83 Optimized Defaults
+    if (dom.sliderTitleScale) dom.sliderTitleScale.value = OPTIMIZED_DEFAULTS.nowPlayingTitleScale;
+    if (dom.valTitleScale) dom.valTitleScale.textContent = `${OPTIMIZED_DEFAULTS.nowPlayingTitleScale.toFixed(1)}x`;
+    if (dom.sliderMarqueeDist) dom.sliderMarqueeDist.value = OPTIMIZED_DEFAULTS.marqueeDistanceMm;
+    if (dom.valMarqueeDist) dom.valMarqueeDist.textContent = `${OPTIMIZED_DEFAULTS.marqueeDistanceMm}mm`;
+    if (dom.sliderEqHeight) dom.sliderEqHeight.value = OPTIMIZED_DEFAULTS.equalizerHeightScale;
+    if (dom.valEqHeight) dom.valEqHeight.textContent = `${OPTIMIZED_DEFAULTS.equalizerHeightScale.toFixed(1)}x`;
+    if (dom.sliderEqWidth) dom.sliderEqWidth.value = OPTIMIZED_DEFAULTS.equalizerWidthMm;
+    if (dom.valEqWidth) dom.valEqWidth.textContent = `${OPTIMIZED_DEFAULTS.equalizerWidthMm}mm`;
+    applyNowPlayingSettings(OPTIMIZED_DEFAULTS.nowPlayingTitleScale, OPTIMIZED_DEFAULTS.marqueeDistanceMm, OPTIMIZED_DEFAULTS.equalizerHeightScale, OPTIMIZED_DEFAULTS.equalizerWidthMm);
+
+    AudioHub.setSfxEnabled(OPTIMIZED_DEFAULTS.sfxEnabled);
+    AudioHub.setSfxVolume(OPTIMIZED_DEFAULTS.sfxVolume);
+    if (dom.toggleSfx) dom.toggleSfx.checked = OPTIMIZED_DEFAULTS.sfxEnabled;
+    const sfxPct = Math.round(OPTIMIZED_DEFAULTS.sfxVolume * 100);
+    if (dom.sliderSfxVol) dom.sliderSfxVol.value = sfxPct;
+    if (dom.valSfxVol) dom.valSfxVol.textContent = `${sfxPct}%`;
+
+    AudioHub.setBgmVolume(OPTIMIZED_DEFAULTS.bgmVolume);
+    const bgmPct = Math.round(OPTIMIZED_DEFAULTS.bgmVolume * 100);
+    if (dom.sliderBgmVol) dom.sliderBgmVol.value = bgmPct;
+    if (dom.valBgmVol) dom.valBgmVol.textContent = `${bgmPct}%`;
 
     showToast('설정이 기본값으로 복원되었습니다.');
   });
@@ -2070,20 +2100,20 @@ function setupEventListeners() {
   // Save Settings (Local Phone Storage Only)
   dom.btnSaveSettings.addEventListener('click', () => {
     AudioHub.tap();
-    const s = parseFloat(dom.sliderScale.value) || 1.0;
-    const o = parseInt(dom.sliderOffsetY.value) || 0;
-    const g = parseInt(dom.sliderGap.value) || 4;
+    const s = parseFloat(dom.sliderScale.value) || OPTIMIZED_DEFAULTS.mainCharacterScale;
+    const o = parseInt(dom.sliderOffsetY.value) || OPTIMIZED_DEFAULTS.mainCharacterOffsetY;
+    const g = parseInt(dom.sliderGap.value) || OPTIMIZED_DEFAULTS.thumbnailGap;
     const sliderMode = document.getElementById('slider-mode-button-scale');
-    const modeScale = sliderMode ? parseFloat(sliderMode.value) : 2.0;
+    const modeScale = sliderMode ? parseFloat(sliderMode.value) : OPTIMIZED_DEFAULTS.genderButtonScale;
     const bgmVol = AudioHub.getBgmVolume();
     const sfxVol = AudioHub.getSfxVolume();
     const isBgmOn = AudioHub.getIsBgmEnabled();
     const isSfxOn = AudioHub.getIsSfxEnabled();
 
-    const nowPlayingTitleScale = parseFloat(dom.sliderTitleScale?.value) || 1.5;
-    const marqueeDistanceMm = parseInt(dom.sliderMarqueeDist?.value) || 30;
-    const equalizerHeightScale = parseFloat(dom.sliderEqHeight?.value) || 2.0;
-    const equalizerWidthMm = parseInt(dom.sliderEqWidth?.value) || 50;
+    const nowPlayingTitleScale = parseFloat(dom.sliderTitleScale?.value) || OPTIMIZED_DEFAULTS.nowPlayingTitleScale;
+    const marqueeDistanceMm = parseInt(dom.sliderMarqueeDist?.value) || OPTIMIZED_DEFAULTS.marqueeDistanceMm;
+    const equalizerHeightScale = parseFloat(dom.sliderEqHeight?.value) || OPTIMIZED_DEFAULTS.equalizerHeightScale;
+    const equalizerWidthMm = parseInt(dom.sliderEqWidth?.value) || OPTIMIZED_DEFAULTS.equalizerWidthMm;
 
     // Local Storage Save & Merge
     StorageService.saveUiConfig({
@@ -2121,18 +2151,18 @@ function setupEventListeners() {
           backupVersion: 2,
           exportedAt: now.toISOString(),
           settings: {
-            mainCharacterScale: storedUi.mainCharacterScale ?? parseFloat(dom.sliderScale.value) ?? 1.0,
-            mainCharacterOffsetY: storedUi.mainCharacterOffsetY ?? parseInt(dom.sliderOffsetY.value) ?? 0,
-            thumbnailGap: storedUi.thumbnailGap ?? parseInt(dom.sliderGap.value) ?? 4,
-            genderButtonScale: storedUi.genderButtonScale ?? storedUi.modeButtonScale ?? 2.0,
-            bgmVolume: storedUi.bgmVolume ?? AudioHub.getBgmVolume() ?? 0.55,
-            sfxVolume: storedUi.sfxVolume ?? AudioHub.getSfxVolume() ?? 0.35,
+            mainCharacterScale: storedUi.mainCharacterScale ?? parseFloat(dom.sliderScale.value) ?? OPTIMIZED_DEFAULTS.mainCharacterScale,
+            mainCharacterOffsetY: storedUi.mainCharacterOffsetY ?? parseInt(dom.sliderOffsetY.value) ?? OPTIMIZED_DEFAULTS.mainCharacterOffsetY,
+            thumbnailGap: storedUi.thumbnailGap ?? parseInt(dom.sliderGap.value) ?? OPTIMIZED_DEFAULTS.thumbnailGap,
+            genderButtonScale: storedUi.genderButtonScale ?? storedUi.modeButtonScale ?? OPTIMIZED_DEFAULTS.genderButtonScale,
+            bgmVolume: storedUi.bgmVolume ?? AudioHub.getBgmVolume() ?? OPTIMIZED_DEFAULTS.bgmVolume,
+            sfxVolume: storedUi.sfxVolume ?? AudioHub.getSfxVolume() ?? OPTIMIZED_DEFAULTS.sfxVolume,
             isBgmEnabled: storedUi.isBgmEnabled ?? AudioHub.getIsBgmEnabled() ?? true,
-            isSfxEnabled: storedUi.isSfxEnabled ?? AudioHub.getIsSfxEnabled() ?? true,
-            nowPlayingTitleScale: storedUi.nowPlayingTitleScale ?? parseFloat(dom.sliderTitleScale?.value) ?? 1.5,
-            marqueeDistanceMm: storedUi.marqueeDistanceMm ?? parseInt(dom.sliderMarqueeDist?.value) ?? 30,
-            equalizerHeightScale: storedUi.equalizerHeightScale ?? parseFloat(dom.sliderEqHeight?.value) ?? 2.0,
-            equalizerWidthMm: storedUi.equalizerWidthMm ?? parseInt(dom.sliderEqWidth?.value) ?? 50
+            isSfxEnabled: storedUi.isSfxEnabled ?? AudioHub.getIsSfxEnabled() ?? OPTIMIZED_DEFAULTS.sfxEnabled,
+            nowPlayingTitleScale: storedUi.nowPlayingTitleScale ?? parseFloat(dom.sliderTitleScale?.value) ?? OPTIMIZED_DEFAULTS.nowPlayingTitleScale,
+            marqueeDistanceMm: storedUi.marqueeDistanceMm ?? parseInt(dom.sliderMarqueeDist?.value) ?? OPTIMIZED_DEFAULTS.marqueeDistanceMm,
+            equalizerHeightScale: storedUi.equalizerHeightScale ?? parseFloat(dom.sliderEqHeight?.value) ?? OPTIMIZED_DEFAULTS.equalizerHeightScale,
+            equalizerWidthMm: storedUi.equalizerWidthMm ?? parseInt(dom.sliderEqWidth?.value) ?? OPTIMIZED_DEFAULTS.equalizerWidthMm
           }
         };
 

@@ -54,10 +54,10 @@ class AudioService {
     this.isSfxEnabled = savedSfxEnabled !== 'false';
 
     const savedBgmVol = localStorage.getItem(BGM_VOLUME_KEY);
-    this.bgmVolume = savedBgmVol !== null ? parseFloat(savedBgmVol) : 0.55;
+    this.bgmVolume = savedBgmVol !== null ? parseFloat(savedBgmVol) : 0.67;
 
     const savedSfxVol = localStorage.getItem(SFX_VOLUME_KEY);
-    this.sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.35;
+    this.sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.78;
 
     this.bgmTracks = BGM_TRACKS;
     this.currentTrackIndex = 0;

@@ -7,7 +7,7 @@ const STORAGE_KEYS = {
   SEARCH_HISTORY: 'todaypick_search_history_v1'
 };
 
-const DEFAULT_MODE_BUTTON_SCALE = 2.0;
+const DEFAULT_MODE_BUTTON_SCALE = 1.3;
 
 export class StorageService {
   static getSavedLooks() {
