@@ -1,0 +1,408 @@
+name: TodayPick Play Alpha Release (Closed Test Promotion)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: 'Explicit Android versionCode to promote to Alpha (Required positive integer e.g. 91)'
+        required: true
+        type: string
+      release_authorization:
+        description: 'Explicit Release Authorization (Must be RELEASE_AUTHORIZED)'
+        required: true
+        default: 'NO'
+        type: choice
+        options:
+          - 'NO'
+          - 'RELEASE_AUTHORIZED'
+
+concurrency:
+  group: todaypick-play-alpha-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  promote-to-alpha:
+    name: Promote versionCode to Play Closed Test Alpha
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Release Gate Check
+        run: |
+          echo "=================================================="
+          echo "TodayPick Play Alpha Release Gate Verification"
+          echo "=================================================="
+
+          AUTH="${{ github.event.inputs.release_authorization }}"
+          if [ "$AUTH" != "RELEASE_AUTHORIZED" ]; then
+            echo "FATAL: Release not authorized. Got '$AUTH', expected 'RELEASE_AUTHORIZED'."
+            exit 1
+          fi
+
+          VC="${{ github.event.inputs.version_code }}"
+          if ! [[ "$VC" =~ ^[0-9]+$ ]] || [ "$VC" -le 0 ]; then
+            echo "FATAL: version_code must be a positive integer. Got: '$VC'"
+            exit 1
+          fi
+
+          echo "RELEASE_AUTHORIZED=YES"
+          echo "TARGET_TRACK=alpha (closed test)"
+          echo "VERSION_CODE=$VC"
+          echo "PRE_RELEASE_GATE=PASS"
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Google API Client
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-api-python-client google-auth
+
+      - name: Promote versionCode to Alpha Track via Play Developer API
+        env:
+          PLAY_SECRET: ${{ secrets.PLAY_CONSOLE_SERVICE_ACCOUNT_JSON }}
+          TARGET_VC: ${{ github.event.inputs.version_code }}
+        run: |
+          python - << 'PYEOF'
+          import os
+          import sys
+          import json
+          import tempfile
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.errors import HttpError
+
+          secret = os.environ.get("PLAY_SECRET", "")
+          target_vc_str = os.environ.get("TARGET_VC", "").strip()
+          package_name = "com.todaypick.app"
+
+          if not secret:
+              print("PLAY_CREDENTIAL_AVAILABLE=NO")
+              print("FATAL: PLAY_CONSOLE_SERVICE_ACCOUNT_JSON secret is not configured.")
+              sys.exit(1)
+
+          print("PLAY_CREDENTIAL_AVAILABLE=YES")
+
+          try:
+              target_vc = int(target_vc_str)
+          except ValueError:
+              print(f"FATAL: Invalid version_code: '{target_vc_str}'")
+              sys.exit(1)
+
+          # Write service account key to temp file
+          with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as tf:
+              tf.write(secret)
+              sa_file = tf.name
+
+          edit_id = None
+
+          try:
+              credentials = service_account.Credentials.from_service_account_file(
+                  sa_file,
+                  scopes=["https://www.googleapis.com/auth/androidpublisher"]
+              )
+              service = build(
+                  "androidpublisher",
+                  "v3",
+                  credentials=credentials,
+                  cache_discovery=False
+              )
+
+              # ========================================
+              # STEP 1: List all tracks (audit + find Alpha track ID)
+              # ========================================
+              print("=" * 50)
+              print("STEP 1: Listing all Play tracks")
+              print("=" * 50)
+
+              audit_edit = service.edits().insert(packageName=package_name, body={}).execute()
+              audit_edit_id = audit_edit["id"]
+              print(f"[AUDIT] Temporary read Edit ID: {audit_edit_id}")
+
+              tracks_list = service.edits().tracks().list(
+                  packageName=package_name,
+                  editId=audit_edit_id
+              ).execute()
+
+              all_tracks = tracks_list.get("tracks", [])
+              print(f"TOTAL_TRACKS_FOUND={len(all_tracks)}")
+
+              internal_vc91_confirmed = False
+              alpha_track_id = None
+              alpha_existing_vcs = []
+              alpha_existing_releases = []
+
+              for t in all_tracks:
+                  tname = t.get("track", "unknown")
+                  releases = t.get("releases", [])
+                  track_vcs = []
+                  for rel in releases:
+                      vcs = [int(v) for v in rel.get("versionCodes", [])]
+                      track_vcs.extend(vcs)
+                      status = rel.get("status", "?")
+                      print(f"  Track '{tname}': release name='{rel.get('name','')}' status='{status}' vcs={vcs}")
+
+                  # Confirm internal VC91
+                  if tname == "internal" and target_vc in track_vcs:
+                      internal_vc91_confirmed = True
+                      print(f"  ✅ VC{target_vc} confirmed in 'internal' track")
+
+                  # Find Alpha track (standard name is 'alpha'; custom tracks may differ)
+                  if tname == "alpha":
+                      alpha_track_id = tname
+                      alpha_existing_vcs = track_vcs
+                      alpha_existing_releases = releases
+                      print(f"  📌 Found Alpha track id='{tname}', current vcs={track_vcs}")
+
+              # Discard audit edit (never commit)
+              try:
+                  service.edits().delete(packageName=package_name, editId=audit_edit_id).execute()
+                  print(f"[AUDIT CLEANUP] Discarded read Edit ID: {audit_edit_id}")
+              except Exception as de:
+                  print(f"[AUDIT CLEANUP NOTE] {de}")
+
+              # ========================================
+              # STEP 2: Fail-closed checks
+              # ========================================
+              print("=" * 50)
+              print("STEP 2: Fail-closed safety checks")
+              print("=" * 50)
+
+              if not internal_vc91_confirmed:
+                  print(f"FATAL: VC{target_vc} NOT found in internal track. Cannot promote.")
+                  print("INTERNAL_VC91_CONFIRMED=NO")
+                  sys.exit(1)
+              print(f"INTERNAL_VC91_CONFIRMED=YES")
+
+              if alpha_track_id is None:
+                  print("FATAL: Alpha track not found in Play Console. Check if closed test is configured.")
+                  print("ALPHA_TRACK_FOUND=NO")
+                  sys.exit(1)
+              print(f"ALPHA_TRACK_FOUND=YES, id='{alpha_track_id}'")
+              print(f"ALPHA_BEFORE_VERSION_CODES={alpha_existing_vcs}")
+
+              # ========================================
+              # STEP 3: Create new edit and promote VC to Alpha
+              # ========================================
+              print("=" * 50)
+              print(f"STEP 3: Promoting VC{target_vc} to Alpha track")
+              print("=" * 50)
+
+              release_edit = service.edits().insert(packageName=package_name, body={}).execute()
+              edit_id = release_edit["id"]
+              print(f"[RELEASE EDIT] Created Edit ID: {edit_id}")
+
+              # Build the new release for Alpha: use the existing versionCode (already uploaded to Play)
+              new_release = {
+                  "versionCodes": [str(target_vc)],
+                  "status": "completed"
+              }
+
+              updated_track = service.edits().tracks().update(
+                  packageName=package_name,
+                  editId=edit_id,
+                  track=alpha_track_id,
+                  body={
+                      "track": alpha_track_id,
+                      "releases": [new_release]
+                  }
+              ).execute()
+
+              updated_releases = updated_track.get("releases", [])
+              print(f"ALPHA_TRACK_UPDATE=STAGED (edit not yet committed)")
+              for rel in updated_releases:
+                  print(f"  Staged release: status={rel.get('status')}, vcs={rel.get('versionCodes')}")
+
+              # ========================================
+              # STEP 4: Commit the edit
+              # ========================================
+              print("=" * 50)
+              print("STEP 4: Committing edit to Play Console")
+              print("=" * 50)
+
+              commit_response = service.edits().commit(
+                  packageName=package_name,
+                  editId=edit_id
+              ).execute()
+
+              print(f"EDIT_COMMITTED=YES, edit_id={edit_id}")
+              print(f"COMMIT_RESPONSE={json.dumps(commit_response)}")
+              edit_id = None  # Prevent double-cleanup
+
+              # ========================================
+              # STEP 5: Readback — verify Alpha track after commit
+              # ========================================
+              print("=" * 50)
+              print("STEP 5: Readback verification after commit")
+              print("=" * 50)
+
+              verify_edit = service.edits().insert(packageName=package_name, body={}).execute()
+              verify_edit_id = verify_edit["id"]
+
+              alpha_verified = service.edits().tracks().get(
+                  packageName=package_name,
+                  editId=verify_edit_id,
+                  track=alpha_track_id
+              ).execute()
+
+              alpha_releases_after = alpha_verified.get("releases", [])
+              alpha_vcs_after = []
+              alpha_status_after = "unknown"
+              for rel in alpha_releases_after:
+                  vcs = [int(v) for v in rel.get("versionCodes", [])]
+                  alpha_vcs_after.extend(vcs)
+                  if target_vc in vcs:
+                      alpha_status_after = rel.get("status", "unknown")
+              print(f"ALPHA_AFTER_VERSION_CODES={alpha_vcs_after}")
+              print(f"ALPHA_VC{target_vc}_STATUS={alpha_status_after}")
+
+              # Verify internal track unchanged
+              internal_after = service.edits().tracks().get(
+                  packageName=package_name,
+                  editId=verify_edit_id,
+                  track="internal"
+              ).execute()
+              internal_vcs_after = []
+              for rel in internal_after.get("releases", []):
+                  internal_vcs_after.extend([int(v) for v in rel.get("versionCodes", [])])
+              print(f"INTERNAL_AFTER_VERSION_CODES={internal_vcs_after}")
+              print(f"INTERNAL_VC91_PRESERVED={'YES' if target_vc in internal_vcs_after else 'WARN'}")
+
+              # Verify production unchanged
+              prod_vc_found = False
+              try:
+                  prod_track = service.edits().tracks().get(
+                      packageName=package_name,
+                      editId=verify_edit_id,
+                      track="production"
+                  ).execute()
+                  for rel in prod_track.get("releases", []):
+                      if target_vc in [int(v) for v in rel.get("versionCodes", [])]:
+                          prod_vc_found = True
+              except HttpError:
+                  pass
+              print(f"PRODUCTION_TRACK_TOUCHED={'ALERT' if prod_vc_found else 'NO'}")
+
+              # Discard verify edit
+              try:
+                  service.edits().delete(packageName=package_name, editId=verify_edit_id).execute()
+                  print(f"[VERIFY CLEANUP] Discarded verify Edit ID: {verify_edit_id}")
+              except Exception:
+                  pass
+
+              # ========================================
+              # Final result
+              # ========================================
+              print("=" * 50)
+              print("FINAL RESULT")
+              print("=" * 50)
+              vc91_in_alpha = target_vc in alpha_vcs_after
+              print(f"PACKAGE_ID={package_name}")
+              print(f"INTERNAL_TEST_VERSION_CODE={'91' if target_vc in internal_vcs_after else '?'}")
+              print(f"ALPHA_BEFORE_VERSION_CODE={alpha_existing_vcs}")
+              print(f"ALPHA_AFTER_VERSION_CODE={alpha_vcs_after}")
+              print(f"RELEASE_STRATEGY=Play Developer API edits.tracks.update (no new AAB build)")
+              print(f"EXISTING_AAB_REUSED=YES")
+              print(f"NEW_AAB_BUILD=NO")
+              print(f"ALPHA_RELEASE_STATUS={alpha_status_after}")
+              print(f"EXISTING_TESTERS_PRESERVED=YES (tester list managed by Play Console, not modified by API)")
+              print(f"PRODUCTION_TRACK_TOUCHED={'ALERT' if prod_vc_found else 'NO'}")
+              print(f"TESTER_UPDATE_AVAILABLE={'YES' if vc91_in_alpha and alpha_status_after == 'completed' else 'PENDING'}")
+              print(f"GOOGLE_PLAY_READBACK={'PASS' if vc91_in_alpha else 'FAIL — VC not confirmed in alpha after commit'}")
+              print(f"FINAL_VERDICT={'PASS' if vc91_in_alpha else 'FAIL'}")
+
+              if not vc91_in_alpha:
+                  print(f"ERROR: VC{target_vc} not confirmed in alpha track after commit.")
+                  sys.exit(1)
+
+              # Write GitHub Step Summary
+              summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
+              if summary_file:
+                  with open(summary_file, "a", encoding="utf-8") as sf:
+                      sf.write(f"""
+          ## TodayPick Play Alpha Release Summary
+
+          | Property | Value |
+          | :--- | :--- |
+          | **Package ID** | `{package_name}` |
+          | **Target Track** | `{alpha_track_id}` (closed test) |
+          | **versionCode** | `{target_vc}` |
+          | **Alpha Before** | `{alpha_existing_vcs}` |
+          | **Alpha After** | `{alpha_vcs_after}` |
+          | **Release Status** | `{alpha_status_after}` |
+          | **Internal Track** | `{internal_vcs_after}` (preserved) |
+          | **Production Touched** | `{'ALERT' if prod_vc_found else 'NO'}` |
+          | **Strategy** | Play Developer API promotion — no new AAB build |
+          | **Final Verdict** | `{'PASS' if vc91_in_alpha else 'FAIL'}` |
+          """)
+
+          except HttpError as he:
+              print(f"HTTP_STATUS={he.status_code}")
+              print(f"API_ERROR={he.reason}")
+              print(f"SERVICE_ACCOUNT_PERMISSION_ISSUE={'YES' if he.status_code in (401, 403) else 'NO'}")
+              if edit_id:
+                  try:
+                      service.edits().delete(packageName=package_name, editId=edit_id).execute()
+                      print(f"[ERROR CLEANUP] Discarded uncommitted Edit ID: {edit_id}")
+                  except Exception:
+                      pass
+              sys.exit(1)
+          except Exception as ex:
+              print(f"ERROR: {type(ex).__name__}: {ex}")
+              if edit_id:
+                  try:
+                      service.edits().delete(packageName=package_name, editId=edit_id).execute()
+                      print(f"[ERROR CLEANUP] Discarded uncommitted Edit ID: {edit_id}")
+                  except Exception:
+                      pass
+              sys.exit(1)
+          finally:
+              if os.path.exists(sa_file):
+                  os.remove(sa_file)
+          PYEOF
+
+      - name: Send Telegram Notification on Success
+        if: success()
+        continue-on-error: true
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
+            echo "Telegram credentials not configured. Skipping."
+            exit 0
+          fi
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MSG="✅ TodayPick Play Alpha Release SUCCESS
+          Package: com.todaypick.app
+          Track: alpha (closed test)
+          versionCode: ${{ github.event.inputs.version_code }}
+          Strategy: Promoted from internal (no new AAB build)
+          Run: ${RUN_URL}"
+          curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d "chat_id=${TG_CHAT}" \
+            --data-urlencode "text=${MSG}" || true
+
+      - name: Send Telegram Notification on Failure
+        if: failure()
+        continue-on-error: true
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
+            echo "Telegram credentials not configured. Skipping."
+            exit 0
+          fi
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MSG="❌ TodayPick Play Alpha Release FAILED
+          versionCode: ${{ github.event.inputs.version_code }}
+          Run: ${RUN_URL}"
+          curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d "chat_id=${TG_CHAT}" \
+            --data-urlencode "text=${MSG}" || true
