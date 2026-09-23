@@ -1,0 +1,48 @@
+name: TodayPick Publisher SSH Auth Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  ssh-auth-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: todaypick-image-publish
+
+    steps:
+      - name: Authenticate via WIF
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Verify gcloud identity
+        run: |
+          echo "=== WIF AUTH IDENTITY ==="
+          gcloud auth list --format="value(account)"
+          gcloud config get-value project
+
+      - name: SSH to VM via IAP (read-only check)
+        run: |
+          gcloud compute ssh tt-orchestra \
+            --zone=asia-northeast3-a \
+            --project=todaypick-web-363284724091 \
+            --tunnel-through-iap \
+            --strict-host-key-checking=no \
+            --command="echo '=== WHOAMI ===' && whoami && \
+                       echo '=== HOSTNAME ===' && hostname && \
+                       echo '=== UPTIME ===' && uptime && \
+                       echo '=== LOADAVG ===' && cat /proc/loadavg && \
+                       echo '=== AGENT_IMAGE_TOOLS ===' && ls -la /opt/todaypick-web/automation/daily_looks/scripts/agent_image_tools.py && \
+                       echo '=== SQLITE_DB ===' && ls -la /opt/todaypick-web/automation/daily_looks/runtime/cloud_single_first/state.sqlite3 && \
+                       echo '=== SQLITE_TABLE ===' && sqlite3 /opt/todaypick-web/automation/daily_looks/runtime/cloud_single_first/state.sqlite3 '.tables' && \
+                       echo '=== SQLITE_PROCESSED_SETS_COUNT ===' && sqlite3 /opt/todaypick-web/automation/daily_looks/runtime/cloud_single_first/state.sqlite3 'SELECT COUNT(*) FROM processed_sets;' && \
+                       echo '=== SSH_TEST_PASS ==='"
