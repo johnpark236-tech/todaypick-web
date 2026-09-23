@@ -1,6 +1,6 @@
 # TodayPick ChatGPT → Drive → GitHub Actions → VM REGISTER → GCS
 
-Status: **CODE STAGED; NOT LIVE. No successful runner/VM end-to-end test.**
+Status: **MERGED TO MASTER; GCS NOT PUBLISHED.** First queue push triggered Actions run 35869097202; request validation PASS, deliberate activation gate FAIL (environment variable unset). VM/REGISTER not invoked.
 
 ## Current reviewed input
 - Request: `publish_requests/tp_260923_f50_chatgpt_01.json`
@@ -24,7 +24,7 @@ No images in Git, no Drive copies or second backup, no always-on watchers, no GA
    ```json
    {"request_path":"publish_requests/tp_260923_f50_chatgpt_01.json"}
    ```
-   This single Git commit triggers the workflow. Do not create this file early. The first run must first pass the workflow preflight and VM dry-run before a real REGISTER is attempted.
+   The queue push already triggered run [35869097202](https://github.com/johnpark236-tech/todaypick-web/actions/runs/35869097202); request validation passed and the explicit activation gate failed before VM access. **Do not create or push a duplicate queue file.** Once credentials, environment and IAP OS Login are configured, re-run failed jobs on that same run (or issue a new uniquely named queue file pointing to the SAME request JSON if a rerun is unavailable).
 7. Verify Actions logs show `GCS_POSTED_WITH_METADATA_AND_READBACK_OK`; independently read the GCS catalog and then test female 50s/autumn in the **actually deployed** app. A web/VM catalog readback alone does not prove the installed Android bundle has the new `remoteLook.items` code or that Coupang API search returns products.
 
 ## Known preflight blockers and limits
@@ -39,8 +39,8 @@ No images in Git, no Drive copies or second backup, no always-on watchers, no GA
 - [x] 10 Drive images and associated metadata/manifest uploaded.
 - [x] Registration request stored in feature branch.
 - [x] GitHub Actions and VM wrapper committed to feature branch.
-- [ ] GCP WIF + IAP + OS Login verified for GitHub identity.
+- [ ] GCP WIF + IAP + OS Login verified for GitHub identity (blocking activation).
 - [ ] Environment configured and approved.
-- [ ] PR merged, first queue message pushed on master.
+- [x] PR merged, first queue message pushed on master; fail-closed activation guard verified.
 - [ ] First workflow run, VM dry-run, real GCS metadata readback completed.
 - [ ] Actual deployed web/Android app image display and Coupang query verified.
