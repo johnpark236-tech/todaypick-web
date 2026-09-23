@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import urllib.parse
+from datetime import datetime, timezone
 
 import google.auth
 from google.auth.transport.requests import AuthorizedSession
@@ -198,6 +199,8 @@ def publish(req, expected, dry_run):
     meta_resp = http.get(endpoint, timeout=20)
     meta_resp.raise_for_status()
     generation = meta_resp.json()["generation"]
+    now["count"] = len(now["looks"])
+    now["updated_at"] = datetime.now(timezone.utc).isoformat()
     serialized = json.dumps(now, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     upload = http.post(f"https://storage.googleapis.com/upload/storage/v1/b/{BUCKET}/o",
                        params={"uploadType": "media", "name": obj, "ifGenerationMatch": generation},
@@ -206,6 +209,7 @@ def publish(req, expected, dry_run):
     _, readback = gcs_read()
     final = {look["id"]: look for look in readback["looks"]}
     require(len(final) == len(seen), "readback count changed unexpectedly")
+    require(readback.get("count") == len(final), "readback count field mismatch")
     for i, id_ in enumerate(ids, 1):
         require(final[id_].get("sha256") == expected[i][0]
                 and final[id_].get("items") == expected[i][1]["items"]
