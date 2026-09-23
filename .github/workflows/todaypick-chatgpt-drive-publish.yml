@@ -1,0 +1,46 @@
+name: TodayPick ChatGPT Drive Publish Gate
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'publish_requests/*.json'
+  workflow_dispatch:
+    inputs:
+      request_path:
+        description: 'An existing publish_requests/<request-id>.json file'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: todaypick-chatgpt-publish-gate
+  cancel-in-progress: false
+jobs:
+  validate-request:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Validate user-submitted request (no production writes)
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUEST_PATH: ${{ inputs.request_path }}
+          BEFORE_SHA: ${{ github.event.before }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            test -n "$REQUEST_PATH"
+            python automation/daily_looks/scripts/validate_chatgpt_publish_request.py "$REQUEST_PATH"
+          else
+            git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA" -- publish_requests/ | while IFS= read -r request; do
+              case "$request" in publish_requests/*.json) python automation/daily_looks/scripts/validate_chatgpt_publish_request.py "$request";; esac
+            done
+          fi
+      - name: Explicitly report publication not configured
+        run: |
+          echo 'REQUEST_GATE_PASS: envelope validation only.'
+          echo 'NOT_PUBLISHED: Drive read, image integrity, REGISTER, GCS and app readback are not connected.'
