@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "request_id": "tp_260923_f50_chatgpt_01",
+  "date_folder": "260923",
+  "segment": "f_50",
+  "drive_folder_id": "1XhS01-yh8m55dt5zzI3ri9lb1miskKHw",
+  "manifest_file_id": "1mf5t_aWNJxPnagC4tx9wDGNtVwXB70nF",
+  "metadata_file_id": "1RWNF5FNkpKu24ZeThVl5l3gwZ4jFHYQ-",
+  "expected_image_count": 10,
+  "source": "chatgpt"
+}

@@ -3857,7 +3857,8 @@ export class OutfitManager {
           remoteSeason: season,
           remoteSourceDate: remoteLook.sourceDate || remoteLook.source_date || null,
           remoteIndex: index + 1,
-          title: `${template.title} #${index + 1}`,
+          title: remoteLook.title || `${template.title} #${index + 1}`,
+          items: (Array.isArray(remoteLook.items) && remoteLook.items.length > 0) ? remoteLook.items : template.items,
           image: remoteLook.url,
           thumbnail: remoteLook.url,
           // 1-CUT / 10-CUT fields (undefined for legacy items without these fields)
