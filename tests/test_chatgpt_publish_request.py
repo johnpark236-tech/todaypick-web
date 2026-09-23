@@ -4,7 +4,7 @@ import json
 import pathlib
 import unittest
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 MODULE = ROOT / "automation/daily_looks/scripts/validate_chatgpt_publish_request.py"
 SPEC = importlib.util.spec_from_file_location("request_validator", MODULE)
 VALIDATOR = importlib.util.module_from_spec(SPEC)
