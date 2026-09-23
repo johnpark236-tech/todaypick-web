@@ -7,6 +7,7 @@ import hashlib
 import io
 import json
 import os
+import signal
 import pathlib
 import re
 import sqlite3
@@ -46,7 +47,7 @@ def info(service, file_id):
 def verify_request(req, service):
     require(req.get("schema_version") == 1 and req.get("source") == "chatgpt", "bad schema/source")
     date, segment = req.get("date_folder"), req.get("segment")
-    require(isinstance(date, str) and re.fullmatch(r"\\d{6}", date), "invalid date")
+    require(isinstance(date, str) and re.fullmatch(r"[0-9]{6}", date), "invalid date")
     require(isinstance(segment, str) and re.fullmatch(r"[fm]_(10|20|30|40|50|60)", segment), "invalid segment")
     require(req.get("expected_image_count") == 10, "expected_image_count != 10")
     for key in ("drive_folder_id", "manifest_file_id", "metadata_file_id"):
@@ -164,10 +165,23 @@ def publish(req, expected, dry_run):
     if not all(have):
         cmd = [sys.executable, str(ENGINE), "REGISTER", "--date", req["date_folder"], "--no-dry-run",
                "--drive-sync-mode", "best_effort_source_mapping"]
-        result = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True, timeout=420)
-        print("REGISTER_EXIT_CODE", result.returncode)
-        print(result.stdout[-3000:])
-        require(result.returncode == 0, f"REGISTER failed: {result.stderr[-1000:]}")
+        require(os.getloadavg()[0] < 4.0, "VM load too high for REGISTER")
+        proc = subprocess.Popen(cmd, cwd=str(ROOT), stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True, start_new_session=True)
+        try:
+            stdout, stderr = proc.communicate(timeout=420)
+        except subprocess.TimeoutExpired:
+            # Terminate only the subprocess group spawned by THIS request.
+            os.killpg(proc.pid, signal.SIGTERM)
+            try:
+                proc.communicate(timeout=10)
+            except subprocess.TimeoutExpired:
+                os.killpg(proc.pid, signal.SIGKILL)
+                proc.communicate()
+            raise RuntimeError("REGISTER timed out; its own subprocess group was terminated")
+        print("REGISTER_EXIT_CODE", proc.returncode)
+        print(stdout[-3000:])
+        require(proc.returncode == 0, f"REGISTER failed: {stderr[-1000:]}")
     obj, now = gcs_read()
     seen = {look["id"]: look for look in now["looks"]}
     require(all(id_ in seen for id_ in ids), "REGISTER did not create all requested IDs")
