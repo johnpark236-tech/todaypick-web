@@ -32,9 +32,9 @@ jobs:
 
       - name: SSH to VM via IAP (read-only check)
         run: |
-          gcloud compute ssh tt-orchestra \
-            --zone=asia-northeast3-a \
-            --project=todaypick-web-363284724091 \
+          gcloud compute ssh Admin@tt-orchestra \
+            --zone=us-central1-a \
+            --project=my-youtube-automation-497504 \
             --tunnel-through-iap \
             --strict-host-key-checking=no \
             --command="echo '=== WHOAMI ===' && whoami && \
