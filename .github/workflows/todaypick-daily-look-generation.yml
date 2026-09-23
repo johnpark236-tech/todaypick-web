@@ -1,9 +1,7 @@
 name: TodayPick Daily Look Generation Automation
 
 on:
-  schedule:
-    # Runs everyday at 21:00 UTC, which corresponds to 06:00 AM KST (UTC+9)
-    - cron: '0 21 * * *'
+  # Scheduled generation is disabled. Only explicit manual dispatch is allowed.
   workflow_dispatch:
     inputs:
       dry_run:
