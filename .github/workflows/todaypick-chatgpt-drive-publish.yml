@@ -1,46 +1,95 @@
-name: TodayPick ChatGPT Drive Publish Gate
+name: TodayPick ChatGPT Drive Publish (one-shot VM)
 on:
   push:
     branches: [master]
-    paths:
-      - 'publish_requests/*.json'
+    paths: ['publish_queue/*.json']
   workflow_dispatch:
     inputs:
       request_path:
-        description: 'An existing publish_requests/<request-id>.json file'
+        description: 'Existing publish_requests/<request-id>.json'
         required: true
         type: string
+
 permissions:
   contents: read
+  id-token: write
+
 concurrency:
-  group: todaypick-chatgpt-publish-gate
+  group: todaypick-production-image-publisher
   cancel-in-progress: false
+
 jobs:
-  validate-request:
+  publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
+    environment: todaypick-image-publish
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false
           fetch-depth: 2
-      - name: Validate user-submitted request (no production writes)
+          persist-credentials: false
+      - name: Resolve exactly one explicit request
+        id: request
         env:
           EVENT_NAME: ${{ github.event_name }}
           REQUEST_PATH: ${{ inputs.request_path }}
-          BEFORE_SHA: ${{ github.event.before }}
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            test -n "$REQUEST_PATH"
-            python automation/daily_looks/scripts/validate_chatgpt_publish_request.py "$REQUEST_PATH"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            target="$REQUEST_PATH"
           else
-            git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA" -- publish_requests/ | while IFS= read -r request; do
-              case "$request" in publish_requests/*.json) python automation/daily_looks/scripts/validate_chatgpt_publish_request.py "$request";; esac
-            done
+            mapfile -t queued < <(git diff --name-only "${{ github.event.before }}" "$GITHUB_SHA" -- publish_queue/)
+            if [[ "${#queued[@]}" -ne 1 || ! "${queued[0]}" =~ ^publish_queue/[A-Za-z0-9_-]+\.json$ ]]; then
+              echo "One new queue JSON required"; exit 1
+            fi
+            target="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["request_path"])' "${queued[0]}")"
           fi
-      - name: Explicitly report publication not configured
+          if [[ ! "$target" =~ ^publish_requests/tp_[A-Za-z0-9_-]+\.json$ ]]; then
+            echo "Invalid request path"; exit 1
+          fi
+          python3 automation/daily_looks/scripts/validate_chatgpt_publish_request.py "$target"
+          # First deployment is restricted to a single reviewed data set.
+          test "$target" = "publish_requests/tp_260923_f50_chatgpt_01.json"
+          echo "path=$target" >> "$GITHUB_OUTPUT"
+      - name: Fail closed until explicit production activation
+        env:
+          PUBLISH_ENABLED: ${{ vars.TODAYPICK_PUBLISH_ENABLED }}
+          WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+          DEPLOY_SA: ${{ secrets.GCP_DEPLOY_SA }}
         run: |
-          echo 'REQUEST_GATE_PASS: envelope validation only.'
-          echo 'NOT_PUBLISHED: Drive read, image integrity, REGISTER, GCS and app readback are not connected.'
+          test "$PUBLISH_ENABLED" = "true" || { echo "NOT_PUBLISHED: activation variable missing"; exit 1; }
+          test -n "$WIF_PROVIDER" && test -n "$DEPLOY_SA" || {
+            echo "NOT_PUBLISHED: GitHub OIDC/IAP secrets missing"; exit 1;
+          }
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+          create_credentials_file: true
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Stage and execute locked REGISTER on existing VM
+        shell: bash
+        env:
+          REQUEST_PATH: ${{ steps.request.outputs.path }}
+        run: |
+          set -euo pipefail
+          project="my-youtube-automation-497504"
+          zone="us-central1-a"
+          instance="Admin@tt-orchestra"
+          remote_dir="/home/Admin/.cache/todaypick-publish/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          gcloud compute ssh "$instance" --project="$project" --zone="$zone" --tunnel-through-iap \
+            --command="mkdir -p '$remote_dir' && chmod 700 '$remote_dir'"
+          gcloud compute scp --project="$project" --zone="$zone" --tunnel-through-iap \
+            automation/daily_looks/scripts/publish_chatgpt_request_vm.py "$REQUEST_PATH" \
+            "$instance:$remote_dir/"
+          # Never let the shell interpolate request JSON into a remote command.
+          gcloud compute ssh "$instance" --project="$project" --zone="$zone" --tunnel-through-iap \
+            --command="cd /opt/todaypick-web && flock -n /opt/todaypick-web/automation/daily_looks/runtime/cloud_single_first/publish.lock /opt/todaypick-web/.venv/bin/python '$remote_dir/publish_chatgpt_request_vm.py' --request '$remote_dir/$(basename "$REQUEST_PATH")' --dry-run"
+          gcloud compute ssh "$instance" --project="$project" --zone="$zone" --tunnel-through-iap \
+            --command="cd /opt/todaypick-web && flock -n /opt/todaypick-web/automation/daily_looks/runtime/cloud_single_first/publish.lock /opt/todaypick-web/.venv/bin/python '$remote_dir/publish_chatgpt_request_vm.py' --request '$remote_dir/$(basename "$REQUEST_PATH")'"
+      - name: Report accurate publish status
+        if: success()
+        run: |
+          echo 'GCS image+metadata readback verified by VM publisher.'
+          echo 'Installed Android application UI and live Coupang API results require separate verification.'
