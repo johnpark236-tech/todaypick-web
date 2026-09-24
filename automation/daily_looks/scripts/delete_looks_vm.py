@@ -26,6 +26,8 @@ def main():
     dry_run = bool(payload.get("dry_run", False))
     skip_drive_backup = bool(payload.get("skip_drive_backup", False))
 
+    _ALREADY_DONE = ("look_id not found in catalog:", "look already tombstoned")
+
     results = []
     failed = []
     for look_id in look_ids:
@@ -38,9 +40,16 @@ def main():
             skip_drive_backup=skip_drive_backup,
         )
         result = delete_look(req, state_db_path=STATE_DB_PATH)
-        results.append(result.to_dict())
-        print(json.dumps(result.to_dict(), ensure_ascii=False))
-        if not result.success:
+        d = result.to_dict()
+        already_done = not result.success and any(
+            result.error and result.error.startswith(pfx) for pfx in _ALREADY_DONE
+        )
+        if already_done:
+            d["success"] = True
+            d["already_done"] = True
+        results.append(d)
+        print(json.dumps(d, ensure_ascii=False))
+        if not d["success"]:
             failed.append(look_id)
 
     print(f"\nDELETE_SUMMARY: {len(look_ids)} requested, "
