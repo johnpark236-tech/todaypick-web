@@ -194,7 +194,9 @@ function checkNewUploads() {
 
 function submitPublishRequest(dateStr, segment, folderId, manifestFileId, metadataFileId, manifest) {
   const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').substring(0, 14);
-  const requestId = `tp_${dateStr}_${segment.replace('_', '')}_auto_${timestamp}`;
+  // manifest.json의 request_id가 있으면 그대로 사용 (ChatGPT가 생성한 경우)
+  // 없으면 GAS가 새로 생성
+  const requestId = manifest.request_id || `tp_${dateStr}_${segment.replace('_', '')}_auto_${timestamp}`;
 
   // 1. publish_requests JSON 생성
   const requestPath = `publish_requests/${requestId}.json`;
