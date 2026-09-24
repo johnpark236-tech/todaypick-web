@@ -90,6 +90,7 @@ jobs:
 
           gcloud compute scp --project="$project" --zone="$zone" --tunnel-through-iap \
             automation/daily_looks/scripts/delete_looks_vm.py \
+            automation/daily_looks/scripts/admin_delete_look.py \
             "$instance:$remote_dir/"
 
           # Write inputs to a temp JSON file to avoid shell injection
