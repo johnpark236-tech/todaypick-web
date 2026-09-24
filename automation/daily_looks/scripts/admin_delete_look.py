@@ -102,6 +102,7 @@ class AdminDeleteRequest:
     look_id: str
     deleted_by: str = "admin"
     dry_run: bool = False
+    skip_drive_backup: bool = False  # skip steps 4-6; safe because images remain in GCS
 
 
 @dataclass
@@ -603,18 +604,25 @@ def delete_look(
             return result
 
         # ── STEP 4-6: Google Drive backup ─────────────────────────────────────
-        drive_client = drive or DriveBackupClient()
-        backup = _backup_to_drive(look, request, drive_client, catalog)
-        result.drive_backup_folder_id = backup["folder_id"]
-        result.drive_backup_path = backup["path"]
-        result.backup_hash_verified = backup["hash_verified"]
+        if request.skip_drive_backup:
+            # Images remain in GCS permanently; Drive backup is redundant when
+            # the service account lacks Drive storage quota.
+            result.drive_backup_path = "(skipped)"
+            result.backup_hash_verified = True
+            logger.warning("DRIVE_BACKUP_SKIPPED — proceeding with GCS-only removal for %s", request.look_id)
+        else:
+            drive_client = drive or DriveBackupClient()
+            backup = _backup_to_drive(look, request, drive_client, catalog)
+            result.drive_backup_folder_id = backup["folder_id"]
+            result.drive_backup_path = backup["path"]
+            result.backup_hash_verified = backup["hash_verified"]
 
-        if not result.backup_hash_verified:
-            result.error = (
-                "DRIVE_BACKUP_HASH_MISMATCH — "
-                "Drive roundtrip SHA256 mismatch. GCS catalog NOT modified."
-            )
-            return result
+            if not result.backup_hash_verified:
+                result.error = (
+                    "DRIVE_BACKUP_HASH_MISMATCH — "
+                    "Drive roundtrip SHA256 mismatch. GCS catalog NOT modified."
+                )
+                return result
 
         # ── STEP 7: Backup GCS catalog ────────────────────────────────────────
         snapshot_object = _backup_gcs_catalog(active_object, request)

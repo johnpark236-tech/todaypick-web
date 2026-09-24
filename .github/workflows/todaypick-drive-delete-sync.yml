@@ -21,6 +21,11 @@ on:
         required: false
         type: boolean
         default: false
+      skip_drive_backup:
+        description: 'true = skip Drive backup steps 4-6 (safe: images stay in GCS)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -78,6 +83,7 @@ jobs:
           SEASON: ${{ inputs.season }}
           SEGMENT: ${{ inputs.segment }}
           DRY_RUN: ${{ inputs.dry_run }}
+          SKIP_DRIVE_BACKUP: ${{ inputs.skip_drive_backup }}
         run: |
           set -euo pipefail
           project="my-youtube-automation-497504"
@@ -101,6 +107,7 @@ jobs:
               'season': os.environ['SEASON'],
               'segment': os.environ['SEGMENT'],
               'dry_run': os.environ['DRY_RUN'].lower() == 'true',
+              'skip_drive_backup': os.environ['SKIP_DRIVE_BACKUP'].lower() == 'true',
           }
           print(json.dumps(payload))
           " > /tmp/delete_request.json

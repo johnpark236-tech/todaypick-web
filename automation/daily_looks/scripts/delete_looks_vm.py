@@ -24,6 +24,7 @@ def main():
     season = payload["season"]
     segment = payload["segment"]
     dry_run = bool(payload.get("dry_run", False))
+    skip_drive_backup = bool(payload.get("skip_drive_backup", False))
 
     results = []
     failed = []
@@ -34,6 +35,7 @@ def main():
             look_id=look_id,
             deleted_by="gas_auto",
             dry_run=dry_run,
+            skip_drive_backup=skip_drive_backup,
         )
         result = delete_look(req, state_db_path=STATE_DB_PATH)
         results.append(result.to_dict())
