@@ -609,7 +609,7 @@ def delete_look(
             # the service account lacks Drive storage quota.
             result.drive_backup_path = "(skipped)"
             result.backup_hash_verified = True
-            logger.warning("DRIVE_BACKUP_SKIPPED — proceeding with GCS-only removal for %s", request.look_id)
+            print(f"DRIVE_BACKUP_SKIPPED — proceeding with GCS-only removal for {request.look_id}", flush=True)
         else:
             drive_client = drive or DriveBackupClient()
             backup = _backup_to_drive(look, request, drive_client, catalog)
