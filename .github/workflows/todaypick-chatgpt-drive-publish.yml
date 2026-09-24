@@ -9,6 +9,11 @@ on:
         description: 'Existing publish_requests/<request-id>.json'
         required: true
         type: string
+      dry_run_only:
+        description: 'true = preflight only; no REGISTER or GCS write'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -55,10 +60,11 @@ jobs:
       - name: Fail closed until explicit production activation
         env:
           PUBLISH_ENABLED: ${{ vars.TODAYPICK_PUBLISH_ENABLED }}
+          DRY_RUN_ONLY: ${{ inputs.dry_run_only }}
           WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
           DEPLOY_SA: ${{ secrets.GCP_DEPLOY_SA }}
         run: |
-          test "$PUBLISH_ENABLED" = "true" || { echo "NOT_PUBLISHED: activation variable missing"; exit 1; }
+          test "$DRY_RUN_ONLY" = "true" || test "$PUBLISH_ENABLED" = "true" || { echo "NOT_PUBLISHED: activation variable missing"; exit 1; }
           test -n "$WIF_PROVIDER" && test -n "$DEPLOY_SA" || {
             echo "NOT_PUBLISHED: GitHub OIDC/IAP secrets missing"; exit 1;
           }
@@ -72,6 +78,7 @@ jobs:
         shell: bash
         env:
           REQUEST_PATH: ${{ steps.request.outputs.path }}
+          DRY_RUN_ONLY: ${{ inputs.dry_run_only }}
         run: |
           set -euo pipefail
           project="my-youtube-automation-497504"
@@ -86,10 +93,11 @@ jobs:
           # Never let the shell interpolate request JSON into a remote command.
           gcloud compute ssh "$instance" --project="$project" --zone="$zone" --tunnel-through-iap \
             --command="cd /opt/todaypick-web && flock -n /opt/todaypick-web/automation/daily_looks/runtime/cloud_single_first/publish.lock /opt/todaypick-web/.venv/bin/python '$remote_dir/publish_chatgpt_request_vm.py' --request '$remote_dir/$(basename "$REQUEST_PATH")' --dry-run"
+          if [[ "${DRY_RUN_ONLY:-false}" == "true" ]]; then echo "DRY_RUN_ONLY: stopped before REGISTER; no GCS write"; exit 0; fi
           gcloud compute ssh "$instance" --project="$project" --zone="$zone" --tunnel-through-iap \
             --command="cd /opt/todaypick-web && flock -n /opt/todaypick-web/automation/daily_looks/runtime/cloud_single_first/publish.lock /opt/todaypick-web/.venv/bin/python '$remote_dir/publish_chatgpt_request_vm.py' --request '$remote_dir/$(basename "$REQUEST_PATH")'"
       - name: Report accurate publish status
-        if: success()
+        if: success() && inputs.dry_run_only != true
         run: |
           echo 'GCS image+metadata readback verified by VM publisher.'
           echo 'Installed Android application UI and live Coupang API results require separate verification.'
