@@ -38,7 +38,7 @@ concurrency:
 jobs:
   delete-sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     environment: todaypick-image-publish
     steps:
       - uses: actions/checkout@v4
