@@ -1,0 +1,59 @@
+name: TodayPick VM Diagnostics (read-only)
+on:
+  workflow_dispatch:
+    inputs:
+      commands:
+        description: 'Diagnostic scope: status | processes | cron | all'
+        required: false
+        type: string
+        default: all
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: todaypick-image-publish
+    steps:
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+          create_credentials_file: true
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: VM diagnostics (read-only)
+        shell: bash
+        env:
+          SCOPE: ${{ inputs.commands }}
+        run: |
+          set -euo pipefail
+          project="my-youtube-automation-497504"
+          zone="us-central1-a"
+          instance="Admin@tt-orchestra"
+
+          run_remote() {
+            gcloud compute ssh "$instance" --project="$project" --zone="$zone" \
+              --tunnel-through-iap --command="$1"
+          }
+
+          echo "=== SYSTEM LOAD ==="
+          run_remote "uptime && free -h && df -h /opt"
+
+          echo ""
+          echo "=== TODAYPICK PROCESSES ==="
+          run_remote "ps aux | grep -E 'watcher|scheduler|polling|todaypick|python' | grep -v grep || echo '(none)'"
+
+          echo ""
+          echo "=== CRONTAB ==="
+          run_remote "crontab -l 2>/dev/null || echo '(no crontab)'"
+
+          echo ""
+          echo "=== PUBLISH LOCK ==="
+          run_remote "ls -la /opt/todaypick-web/automation/daily_looks/runtime/cloud_single_first/publish.lock 2>/dev/null || echo '(lock file absent)'"
+
+          echo ""
+          echo "=== STATE DB (last 5 rows) ==="
+          run_remote "sqlite3 /opt/todaypick-web/automation/daily_looks/runtime/cloud_single_first/state.sqlite3 'SELECT id, status, updated_at FROM processed_sets ORDER BY updated_at DESC LIMIT 5;' 2>/dev/null || echo '(db read failed)'"
