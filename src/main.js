@@ -989,14 +989,15 @@ function setPriceSheet(isOpen) {
 
   if (isOpen && state.currentOutfit) {
     dom.sheetOutfitName.textContent = state.currentOutfit.title;
-    dom.sheetTotalPrice.textContent = `${Number(state.currentOutfit.totalPrice).toLocaleString('ko-KR')}원`;
+    const totalPrice = state.currentOutfit.totalPrice;
+    dom.sheetTotalPrice.textContent = totalPrice ? `${Number(totalPrice).toLocaleString('ko-KR')}원` : '가격 미확인';
 
     dom.sheetItemsList.innerHTML = state.currentOutfit.items.map(item => `
       <div class="item-row">
         <span class="item-slot-badge">${item.slot}</span>
         <div class="item-info">
           <span class="item-name">${item.name}</span>
-          <span class="item-price">${Number(item.price).toLocaleString('ko-KR')}원</span>
+          <span class="item-price">${item.price ? Number(item.price).toLocaleString('ko-KR') + '원' : '가격 미확인'}</span>
         </div>
         <button class="item-btn-coupang" data-keyword="${item.searchKeyword}" data-name="${item.name}">
           쿠팡에서 보기
@@ -1086,7 +1087,7 @@ function renderSavedLooks() {
       <button class="saved-btn-remove" data-id="${item.id}" data-mode="${item.mode}">&times;</button>
       <img class="saved-thumb" src="${item.image}" alt="${item.title}" />
       <span class="saved-title">${item.title}</span>
-      <span class="saved-price">${Number(item.totalPrice).toLocaleString('ko-KR')}원</span>
+      <span class="saved-price">${item.totalPrice ? Number(item.totalPrice).toLocaleString('ko-KR') + '원' : '가격 미확인'}</span>
       <button class="btn-primary" style="padding: 6px; font-size: 11px;" data-action="view">코디 보기</button>
     </div>
   `).join('');
