@@ -117,6 +117,6 @@ jobs:
             "$instance:$remote_dir/delete_request.json"
 
           gcloud compute ssh "$instance" --project="$project" --zone="$zone" --tunnel-through-iap \
-            --command="flock -n /opt/todaypick-web/automation/daily_looks/runtime/cloud_single_first/publish.lock \
+            --command="flock --timeout=300 /opt/todaypick-web/automation/daily_looks/runtime/cloud_single_first/publish.lock \
               /opt/todaypick-web/.venv/bin/python '$remote_dir/delete_looks_vm.py' \
               --request '$remote_dir/delete_request.json'"
