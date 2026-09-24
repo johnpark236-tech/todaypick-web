@@ -327,6 +327,110 @@ function pollDriveChanges() {
   Logger.log('=== TodayPick Drive Sync Poll END ===');
 }
 
+// ── GCS → 00_MAIN_IMAGES 일회성 동기화 ────────────────────────────────────────
+/**
+ * GCS 카탈로그의 모든 룩을 00_MAIN_IMAGES/{MM}/{gender}/{age}/{look_id}.webp 로 복사.
+ * 최초 1회 수동 실행. 이미 존재하는 파일은 건너뜀.
+ *
+ * look_id 패턴: {season}_{gender}_{age}_{YYMMDD}_{nn}
+ * 예: autumn_female_50_260923_01 → 09/female/50/autumn_female_50_260923_01.webp
+ */
+function syncGcsToMainImages() {
+  const { mainImagesRootId } = getProps();
+  if (!mainImagesRootId) { Logger.log('MAIN_IMAGES_ROOT_ID not set'); return; }
+
+  const bucket = 'todaypick-daily-looks-363284724091';
+  const seasons = ['autumn', 'spring', 'summer', 'winter'];
+  const genders = ['female', 'male'];
+  const ages = ['10', '20', '30', '40', '50', '60'];
+
+  let total = 0, skipped = 0, uploaded = 0, failed = 0;
+
+  for (const season of seasons) {
+    for (const gender of genders) {
+      for (const age of ages) {
+        const segment = `${gender}_${age}`;
+        const catalogUrl = `https://storage.googleapis.com/${bucket}/production/${season}/${segment}.json`;
+
+        let catalog;
+        try {
+          const resp = UrlFetchApp.fetch(catalogUrl, { muteHttpExceptions: true });
+          if (resp.getResponseCode() !== 200) continue;
+          catalog = JSON.parse(resp.getContentText());
+        } catch (e) {
+          Logger.log(`Catalog fetch error ${season}/${segment}: ${e}`);
+          continue;
+        }
+
+        const looks = catalog.looks || [];
+        if (looks.length === 0) continue;
+        Logger.log(`Syncing ${season}/${segment}: ${looks.length} looks`);
+
+        for (const look of looks) {
+          total++;
+          const lookId = look.id;
+          if (!lookId || !look.url) { failed++; continue; }
+
+          // look_id에서 월 추출: autumn_female_50_260923_01 → 260923 → 09
+          const parts = lookId.split('_');
+          // parts: [season, gender, age, YYMMDD, nn] or [season, gender(two parts), age, YYMMDD, nn]
+          // gender could be 'female' or 'male' (single word), age is 2-digit number
+          const dateStr = parts.find(p => /^\d{6}$/.test(p));
+          if (!dateStr) { Logger.log(`Cannot parse date from ${lookId}`); failed++; continue; }
+          const month = dateStr.substring(2, 4); // "260923" → "09"
+
+          // 폴더 경로: 00_MAIN_IMAGES/{month}/{gender}/{age}/
+          const monthFolder = getOrCreateFolder(mainImagesRootId, month);
+          const genderFolder = getOrCreateFolder(monthFolder, gender);
+          const ageFolder = getOrCreateFolder(genderFolder, age);
+
+          const fileName = `${lookId}.webp`;
+
+          // 이미 존재하면 skip
+          const existing = findFileInFolder(ageFolder, fileName);
+          if (existing) { skipped++; continue; }
+
+          // GCS에서 이미지 다운로드 후 Drive에 업로드
+          try {
+            const imgResp = UrlFetchApp.fetch(look.url, { muteHttpExceptions: true });
+            if (imgResp.getResponseCode() !== 200) {
+              Logger.log(`Image fetch failed ${lookId}: ${imgResp.getResponseCode()}`);
+              failed++;
+              continue;
+            }
+            const blob = imgResp.getBlob().setName(fileName).setContentType('image/webp');
+            DriveApp.getFolderById(ageFolder).createFile(blob);
+            uploaded++;
+            Logger.log(`Uploaded: ${fileName}`);
+          } catch (e) {
+            Logger.log(`Upload error ${lookId}: ${e}`);
+            failed++;
+          }
+
+          Utilities.sleep(200); // Drive API 레이트 리밋 방지
+        }
+      }
+    }
+  }
+
+  Logger.log(`=== syncGcsToMainImages DONE ===`);
+  Logger.log(`Total: ${total}, Uploaded: ${uploaded}, Skipped: ${skipped}, Failed: ${failed}`);
+}
+
+function getOrCreateFolder(parentId, name) {
+  const q = `'${parentId}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.folder' and name = '${name}'`;
+  const res = Drive.Files.list({ q, fields: 'files(id)', pageSize: 5 });
+  const files = (res.files || []);
+  if (files.length > 0) return files[0].id;
+  const meta = {
+    name,
+    mimeType: 'application/vnd.google-apps.folder',
+    parents: [parentId],
+  };
+  const created = Drive.Files.create(meta, null, { fields: 'id', supportsAllDrives: true });
+  return created.id;
+}
+
 // ── 트리거 설정 (최초 1회 실행) ───────────────────────────────────────────────
 function installTrigger() {
   // 기존 트리거 제거
