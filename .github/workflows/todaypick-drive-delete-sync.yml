@@ -1,0 +1,114 @@
+name: TodayPick Drive Delete Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      look_ids:
+        description: 'JSON array of look IDs to delete, e.g. ["autumn_female_50_260923_01"]'
+        required: true
+        type: string
+      season:
+        description: 'Season (autumn/spring/summer/winter)'
+        required: true
+        type: choice
+        options: [autumn, spring, summer, winter]
+      segment:
+        description: 'Segment (female_10 … male_60)'
+        required: true
+        type: string
+      dry_run:
+        description: 'true = simulate only; no GCS write'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: todaypick-production-image-publisher
+  cancel-in-progress: false
+
+jobs:
+  delete-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: todaypick-image-publish
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate inputs
+        env:
+          LOOK_IDS: ${{ inputs.look_ids }}
+          SEASON: ${{ inputs.season }}
+          SEGMENT: ${{ inputs.segment }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import json, os, re, sys
+          look_ids = json.loads(os.environ["LOOK_IDS"])
+          season = os.environ["SEASON"]
+          segment = os.environ["SEGMENT"]
+          if not isinstance(look_ids, list) or not look_ids:
+              sys.exit("look_ids must be a non-empty JSON array")
+          if season not in ("autumn", "spring", "summer", "winter"):
+              sys.exit(f"invalid season: {season}")
+          if not re.fullmatch(r"(female|male)_(10|20|30|40|50|60)", segment):
+              sys.exit(f"invalid segment: {segment}")
+          id_re = re.compile(r"^[A-Za-z0-9_-]{5,80}$")
+          for lid in look_ids:
+              if not isinstance(lid, str) or not id_re.match(lid):
+                  sys.exit(f"invalid look_id: {lid!r}")
+          print(f"VALIDATED: {len(look_ids)} look(s) — {season}/{segment}")
+          PYEOF
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Execute delete on VM
+        env:
+          LOOK_IDS: ${{ inputs.look_ids }}
+          SEASON: ${{ inputs.season }}
+          SEGMENT: ${{ inputs.segment }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          project="my-youtube-automation-497504"
+          zone="us-central1-a"
+          instance="Admin@tt-orchestra"
+          remote_dir="/home/Admin/.cache/todaypick-delete/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          gcloud compute ssh "$instance" --project="$project" --zone="$zone" --tunnel-through-iap \
+            --command="mkdir -p '$remote_dir' && chmod 700 '$remote_dir'"
+
+          gcloud compute scp --project="$project" --zone="$zone" --tunnel-through-iap \
+            automation/daily_looks/scripts/delete_looks_vm.py \
+            "$instance:$remote_dir/"
+
+          # Write inputs to a temp JSON file to avoid shell injection
+          python3 -c "
+          import json, os, sys
+          payload = {
+              'look_ids': json.loads(os.environ['LOOK_IDS']),
+              'season': os.environ['SEASON'],
+              'segment': os.environ['SEGMENT'],
+              'dry_run': os.environ['DRY_RUN'].lower() == 'true',
+          }
+          print(json.dumps(payload))
+          " > /tmp/delete_request.json
+
+          gcloud compute scp --project="$project" --zone="$zone" --tunnel-through-iap \
+            /tmp/delete_request.json \
+            "$instance:$remote_dir/delete_request.json"
+
+          gcloud compute ssh "$instance" --project="$project" --zone="$zone" --tunnel-through-iap \
+            --command="flock -n /opt/todaypick-web/automation/daily_looks/runtime/cloud_single_first/publish.lock \
+              /opt/todaypick-web/.venv/bin/python '$remote_dir/delete_looks_vm.py' \
+              --request '$remote_dir/delete_request.json'"

@@ -26,8 +26,8 @@ def validate(payload):
         fail(f"missing={sorted(missing)} unexpected={sorted(unknown)}")
     if payload["schema_version"] != 1 or isinstance(payload["schema_version"], bool):
         fail("schema_version must equal 1")
-    if payload["source"] != "chatgpt":
-        fail("source must be chatgpt")
+    if payload["source"] not in ("chatgpt", "gas_auto"):
+        fail("source must be chatgpt or gas_auto")
     if not isinstance(payload["request_id"], str) or not re.fullmatch(r"tp_[a-zA-Z0-9_-]{8,80}", payload["request_id"]):
         fail("invalid request_id")
     date = payload["date_folder"]

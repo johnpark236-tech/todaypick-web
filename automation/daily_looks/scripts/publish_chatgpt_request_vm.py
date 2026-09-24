@@ -28,6 +28,19 @@ BUCKET = "todaypick-daily-looks-363284724091"
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly",
           "https://www.googleapis.com/auth/devstorage.read_write"]
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{15,128}$")
+SEASONS = {12: "winter", 1: "winter", 2: "winter",
+           3: "spring", 4: "spring", 5: "spring",
+           6: "summer", 7: "summer", 8: "summer",
+           9: "autumn", 10: "autumn", 11: "autumn"}
+ALLOWED_SOURCES = {"chatgpt", "gas_auto"}
+
+
+def catalog_info(date_folder, segment):
+    month = int(date_folder[2:4])
+    season = SEASONS[month]
+    gender = "female" if segment.startswith("f") else "male"
+    age = segment.split("_")[1]
+    return season, gender, age
 
 
 def require(ok, reason):
@@ -46,7 +59,7 @@ def info(service, file_id):
 
 
 def verify_request(req, service):
-    require(req.get("schema_version") == 1 and req.get("source") == "chatgpt", "bad schema/source")
+    require(req.get("schema_version") == 1 and req.get("source") in ALLOWED_SOURCES, "bad schema/source")
     date, segment = req.get("date_folder"), req.get("segment")
     require(isinstance(date, str) and re.fullmatch(r"[0-9]{6}", date), "invalid date")
     require(isinstance(segment, str) and re.fullmatch(r"[fm]_(10|20|30|40|50|60)", segment), "invalid segment")
@@ -137,20 +150,20 @@ def verify_request(req, service):
     return expected
 
 
-def gcs_read():
-    obj = "production/autumn/female_50.json"
+def gcs_read(date_folder, segment):
+    season, gender, age = catalog_info(date_folder, segment)
+    obj = f"production/{season}/{gender}_{age}.json"
     proc = subprocess.run(["gcloud", "storage", "cat", f"gs://{BUCKET}/{obj}"],
                           capture_output=True, check=True, timeout=30, text=True)
     return obj, json.loads(proc.stdout)
 
 
 def publish(req, expected, dry_run):
-    require(req["date_folder"] == "260923" and req["segment"] == "f_50",
-            "first release is restricted to reviewed 260923/f_50 request")
-    obj, before = gcs_read()
+    season, gender, age = catalog_info(req["date_folder"], req["segment"])
+    obj, before = gcs_read(req["date_folder"], req["segment"])
     require(before.get("schema_version") == 2 and isinstance(before.get("looks"), list), "bad catalog")
     previous = {x["id"]: x for x in before["looks"]}
-    ids = [f"autumn_female_50_260923_{n:02d}" for n in range(1, 11)]
+    ids = [f"{season}_{gender}_{age}_{req['date_folder']}_{n:02d}" for n in range(1, 11)]
     have = [id_ in previous for id_ in ids]
     require(not any(have) or all(have), "partially published set: fail closed")
     if all(have):
@@ -183,7 +196,7 @@ def publish(req, expected, dry_run):
         print("REGISTER_EXIT_CODE", proc.returncode)
         print(stdout[-3000:])
         require(proc.returncode == 0, f"REGISTER failed: {stderr[-1000:]}")
-    obj, now = gcs_read()
+    obj, now = gcs_read(req["date_folder"], req["segment"])
     seen = {look["id"]: look for look in now["looks"]}
     require(all(id_ in seen for id_ in ids), "REGISTER did not create all requested IDs")
     for i, id_ in enumerate(ids, 1):
@@ -206,7 +219,7 @@ def publish(req, expected, dry_run):
                        params={"uploadType": "media", "name": obj, "ifGenerationMatch": generation},
                        data=serialized, headers={"Content-Type": "application/json"}, timeout=30)
     upload.raise_for_status()
-    _, readback = gcs_read()
+    _, readback = gcs_read(req["date_folder"], req["segment"])
     final = {look["id"]: look for look in readback["looks"]}
     require(len(final) == len(seen), "readback count changed unexpectedly")
     require(readback.get("count") == len(final), "readback count field mismatch")
@@ -224,7 +237,6 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     req = json.loads(args.request.read_text(encoding="utf-8"))
-    require(req.get("request_id") == "tp_260923_f50_chatgpt_01", "unreviewed request ID")
     creds, _ = google.auth.default(scopes=SCOPES)
     drive = build("drive", "v3", credentials=creds, cache_discovery=False)
     expected = verify_request(req, drive)

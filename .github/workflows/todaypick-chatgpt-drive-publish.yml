@@ -54,8 +54,6 @@ jobs:
             echo "Invalid request path"; exit 1
           fi
           python3 automation/daily_looks/scripts/validate_chatgpt_publish_request.py "$target"
-          # First deployment is restricted to a single reviewed data set.
-          test "$target" = "publish_requests/tp_260923_f50_chatgpt_01.json"
           echo "path=$target" >> "$GITHUB_OUTPUT"
       - name: Fail closed until explicit production activation
         env:
