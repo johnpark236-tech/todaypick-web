@@ -709,12 +709,6 @@ const MALE_LOOKS = [
 
 export const DEMOGRAPHIC_GROUPS = [
   {
-    "key": "female_10s",
-    "gender": "female",
-    "age": "10대",
-    "label": "여성 10대"
-  },
-  {
     "key": "female_20s",
     "gender": "female",
     "age": "20대",
@@ -743,12 +737,6 @@ export const DEMOGRAPHIC_GROUPS = [
     "gender": "female",
     "age": "60대",
     "label": "여성 60대"
-  },
-  {
-    "key": "male_10s",
-    "gender": "male",
-    "age": "10대",
-    "label": "남성 10대"
   },
   {
     "key": "male_20s",
@@ -828,12 +816,13 @@ export class OutfitManager {
       };
     });
 
-    // 3. New 10 Demographic Groups (10 looks each)
-    this.categories.female_10s = [
+    // 3. Former 10대 looks merged into 20대 (images preserved at original path)
+    // 10대 자산 20대로 편입 (_original: female_10s, images kept at /assets/looks/female_10s/)
+    this.categories.female_20s = this.categories.female_20s.concat([
       {
             "id": "F10_01",
-            "mode": "female_10s",
-            "title": "[여성 10대] 화이트 카라 반팔티 & 베이지 테니스 스커트 룩",
+            "mode": "female_20s",
+            "title": "[여성 20대] 화이트 카라 반팔티 & 베이지 테니스 스커트 룩",
             "image": "/assets/looks/female_10s/LOOK01.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK01.webp",
             "totalPrice": 67700,
@@ -863,8 +852,8 @@ export class OutfitManager {
       },
       {
             "id": "F10_02",
-            "mode": "female_10s",
-            "title": "[여성 10대] 스카이블루 스트라이프 린넨 셔츠 & 데님 쇼츠 룩",
+            "mode": "female_20s",
+            "title": "[여성 20대] 스카이블루 스트라이프 린넨 셔츠 & 데님 쇼츠 룩",
             "image": "/assets/looks/female_10s/LOOK02.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK02.webp",
             "totalPrice": 72000,
@@ -894,8 +883,8 @@ export class OutfitManager {
       },
       {
             "id": "F10_03",
-            "mode": "female_10s",
-            "title": "[여성 10대] 소프트 옐로우 퍼프소매 플라워 원피스 룩",
+            "mode": "female_20s",
+            "title": "[여성 20대] 소프트 옐로우 퍼프소매 플라워 원피스 룩",
             "image": "/assets/looks/female_10s/LOOK03.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK03.webp",
             "totalPrice": 61000,
@@ -918,8 +907,8 @@ export class OutfitManager {
       },
       {
             "id": "F10_04",
-            "mode": "female_10s",
-            "title": "[여성 10대] 베이비핑크 반팔 그래픽티 & A라인 데님 스커트 룩",
+            "mode": "female_20s",
+            "title": "[여성 20대] 베이비핑크 반팔 그래픽티 & A라인 데님 스커트 룩",
             "image": "/assets/looks/female_10s/LOOK04.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK04.webp",
             "totalPrice": 70800,
@@ -949,8 +938,8 @@ export class OutfitManager {
       },
       {
             "id": "F10_05",
-            "mode": "female_10s",
-            "title": "[여성 10대] 파스텔 민트 퍼프 블라우스 & 화이트 플리츠 스커트 룩",
+            "mode": "female_20s",
+            "title": "[여성 20대] 파스텔 민트 퍼프 블라우스 & 화이트 플리츠 스커트 룩",
             "image": "/assets/looks/female_10s/LOOK05.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK05.webp",
             "totalPrice": 74500,
@@ -980,8 +969,8 @@ export class OutfitManager {
       },
       {
             "id": "F10_06",
-            "mode": "female_10s",
-            "title": "[여성 10대] 그레이 크롭 반팔 후디 & 블랙 쿨링 카고팬츠 룩",
+            "mode": "female_20s",
+            "title": "[여성 20대] 그레이 크롭 반팔 후디 & 블랙 쿨링 카고팬츠 룩",
             "image": "/assets/looks/female_10s/LOOK06.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK06.webp",
             "totalPrice": 87000,
@@ -1011,8 +1000,8 @@ export class OutfitManager {
       },
       {
             "id": "F10_07",
-            "mode": "female_10s",
-            "title": "[여성 10대] 라벤더 골지 반팔 가디건 & 크림 코튼 쇼츠 룩",
+            "mode": "female_20s",
+            "title": "[여성 20대] 라벤더 골지 반팔 가디건 & 크림 코튼 쇼츠 룩",
             "image": "/assets/looks/female_10s/LOOK07.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK07.webp",
             "totalPrice": 70900,
@@ -1042,8 +1031,8 @@ export class OutfitManager {
       },
       {
             "id": "F10_08",
-            "mode": "female_10s",
-            "title": "[여성 10대] 네이비 세일러 칼라 블라우스 & 그레이 테니스 스커트 룩",
+            "mode": "female_20s",
+            "title": "[여성 20대] 네이비 세일러 칼라 블라우스 & 그레이 테니스 스커트 룩",
             "image": "/assets/looks/female_10s/LOOK08.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK08.webp",
             "totalPrice": 77000,
@@ -1073,8 +1062,8 @@ export class OutfitManager {
       },
       {
             "id": "F10_09",
-            "mode": "female_10s",
-            "title": "[여성 10대] 버터크림 박시 반팔 셔츠 & 핀턱 버뮤다 쇼츠 룩",
+            "mode": "female_20s",
+            "title": "[여성 20대] 버터크림 박시 반팔 셔츠 & 핀턱 버뮤다 쇼츠 룩",
             "image": "/assets/looks/female_10s/LOOK09.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK09.webp",
             "totalPrice": 73800,
@@ -1104,8 +1093,8 @@ export class OutfitManager {
       },
       {
             "id": "F10_10",
-            "mode": "female_10s",
-            "title": "[여성 10대] 스카이블루 스퀘어넥 반팔 니트 & 아이보리 와이드 슬랙스 룩",
+            "mode": "female_20s",
+            "title": "[여성 20대] 스카이블루 스퀘어넥 반팔 니트 & 아이보리 와이드 슬랙스 룩",
             "image": "/assets/looks/female_10s/LOOK10.webp",
             "thumbnail": "/assets/looks/female_10s/LOOK10.webp",
             "totalPrice": 78900,
@@ -1133,7 +1122,7 @@ export class OutfitManager {
                   }
             ]
       }
-];
+]);
 
     this.categories.female_30s = [
       {
@@ -2205,11 +2194,12 @@ export class OutfitManager {
       }
 ];
 
-    this.categories.male_10s = [
+    // 10대 자산 20대로 편입 (_original: male_10s, images kept at /assets/looks/male_10s/)
+    this.categories.male_20s = this.categories.male_20s.concat([
       {
             "id": "M10_01",
-            "mode": "male_10s",
-            "title": "[남성 10대] 네이비 바시티 자켓 & 와이드 카고 팬츠 룩",
+            "mode": "male_20s",
+            "title": "[남성 20대] 네이비 바시티 자켓 & 와이드 카고 팬츠 룩",
             "image": "/assets/looks/male_10s/LOOK01.webp",
             "thumbnail": "/assets/looks/male_10s/LOOK01.webp",
             "totalPrice": 135000,
@@ -2239,8 +2229,8 @@ export class OutfitManager {
       },
       {
             "id": "M10_02",
-            "mode": "male_10s",
-            "title": "[남성 10대] 오버핏 레터링 후드티 & 와이드 데님 팬츠 룩",
+            "mode": "male_20s",
+            "title": "[남성 20대] 오버핏 레터링 후드티 & 와이드 데님 팬츠 룩",
             "image": "/assets/looks/male_10s/LOOK02.webp",
             "thumbnail": "/assets/looks/male_10s/LOOK02.webp",
             "totalPrice": 119000,
@@ -2270,8 +2260,8 @@ export class OutfitManager {
       },
       {
             "id": "M10_03",
-            "mode": "male_10s",
-            "title": "[남성 10대] 윈드브레이커 바람막이 & 조거 카고팬츠 룩",
+            "mode": "male_20s",
+            "title": "[남성 20대] 윈드브레이커 바람막이 & 조거 카고팬츠 룩",
             "image": "/assets/looks/male_10s/LOOK03.webp",
             "thumbnail": "/assets/looks/male_10s/LOOK03.webp",
             "totalPrice": 121000,
@@ -2301,8 +2291,8 @@ export class OutfitManager {
       },
       {
             "id": "M10_04",
-            "mode": "male_10s",
-            "title": "[남성 10대] 중청 데님 트러커 자켓 & 와이드 슬랙스 룩",
+            "mode": "male_20s",
+            "title": "[남성 20대] 중청 데님 트러커 자켓 & 와이드 슬랙스 룩",
             "image": "/assets/looks/male_10s/LOOK04.webp",
             "thumbnail": "/assets/looks/male_10s/LOOK04.webp",
             "totalPrice": 110000,
@@ -2332,8 +2322,8 @@ export class OutfitManager {
       },
       {
             "id": "M10_05",
-            "mode": "male_10s",
-            "title": "[남성 10대] 그린 니트 베스트 & 오버핏 셔츠 와이드 팬츠 룩",
+            "mode": "male_20s",
+            "title": "[남성 20대] 그린 니트 베스트 & 오버핏 셔츠 와이드 팬츠 룩",
             "image": "/assets/looks/male_10s/LOOK05.webp",
             "thumbnail": "/assets/looks/male_10s/LOOK05.webp",
             "totalPrice": 100000,
@@ -2363,8 +2353,8 @@ export class OutfitManager {
       },
       {
             "id": "M10_06",
-            "mode": "male_10s",
-            "title": "[남성 10대] 패딩 조끼 & 그레이 후드티 카고팬츠 룩",
+            "mode": "male_20s",
+            "title": "[남성 20대] 패딩 조끼 & 그레이 후드티 카고팬츠 룩",
             "image": "/assets/looks/male_10s/LOOK06.webp",
             "thumbnail": "/assets/looks/male_10s/LOOK06.webp",
             "totalPrice": 125000,
@@ -2394,8 +2384,8 @@ export class OutfitManager {
       },
       {
             "id": "M10_07",
-            "mode": "male_10s",
-            "title": "[남성 10대] 체크 오버핏 셔츠 & 브라운 와이드 슬랙스 룩",
+            "mode": "male_20s",
+            "title": "[남성 20대] 체크 오버핏 셔츠 & 브라운 와이드 슬랙스 룩",
             "image": "/assets/looks/male_10s/LOOK07.webp",
             "thumbnail": "/assets/looks/male_10s/LOOK07.webp",
             "totalPrice": 96000,
@@ -2425,8 +2415,8 @@ export class OutfitManager {
       },
       {
             "id": "M10_08",
-            "mode": "male_10s",
-            "title": "[남성 10대] 그레이 레터링 맨투맨 & 조거 팬츠 룩",
+            "mode": "male_20s",
+            "title": "[남성 20대] 그레이 레터링 맨투맨 & 조거 팬츠 룩",
             "image": "/assets/looks/male_10s/LOOK08.webp",
             "thumbnail": "/assets/looks/male_10s/LOOK08.webp",
             "totalPrice": 104000,
@@ -2456,8 +2446,8 @@ export class OutfitManager {
       },
       {
             "id": "M10_09",
-            "mode": "male_10s",
-            "title": "[남성 10대] 블루 배색 바람막이 점퍼 & 트랙 팬츠 룩",
+            "mode": "male_20s",
+            "title": "[남성 20대] 블루 배색 바람막이 점퍼 & 트랙 팬츠 룩",
             "image": "/assets/looks/male_10s/LOOK09.webp",
             "thumbnail": "/assets/looks/male_10s/LOOK09.webp",
             "totalPrice": 118000,
@@ -2487,8 +2477,8 @@ export class OutfitManager {
       },
       {
             "id": "M10_10",
-            "mode": "male_10s",
-            "title": "[남성 10대] 베이지 워크웨어 자켓 & 와이드 진 룩",
+            "mode": "male_20s",
+            "title": "[남성 20대] 베이지 워크웨어 자켓 & 와이드 진 룩",
             "image": "/assets/looks/male_10s/LOOK10.webp",
             "thumbnail": "/assets/looks/male_10s/LOOK10.webp",
             "totalPrice": 133000,
@@ -2516,7 +2506,7 @@ export class OutfitManager {
                   }
             ]
       }
-];
+]);
 
     this.categories.male_30s = [
       {

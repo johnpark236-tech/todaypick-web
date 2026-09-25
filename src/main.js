@@ -18,14 +18,14 @@ import { warmUpNamingDB, saveShareNamingEvent } from './services/naming-db.js';
 import { generateNamingRecommendations, resolveShareName, validateUserInput, generateShareId, normalizeName } from './services/naming-engine.js';
 
 
-// 12 Demographic groups ordered sequentially for vertical swipe navigation
+// 10 Demographic groups ordered sequentially for vertical swipe navigation (10대 제외)
 const ALL_GROUPS = [
-  'female_10s', 'female_20s', 'female_30s', 'female_40s', 'female_50s', 'female_60s',
-  'male_10s', 'male_20s', 'male_30s', 'male_40s', 'male_50s', 'male_60s'
+  'female_20s', 'female_30s', 'female_40s', 'female_50s', 'female_60s',
+  'male_20s', 'male_30s', 'male_40s', 'male_50s', 'male_60s'
 ];
 const ADMIN_SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 const ADMIN_GENDERS = ['female', 'male'];
-const ADMIN_AGE_GROUPS = [10, 20, 30, 40, 50, 60];
+const ADMIN_AGE_GROUPS = [20, 30, 40, 50, 60];
 const PAGE_SIZE = 10;
 const LEGACY_ADMIN_PASSWORD_SHA256 = 'df34d853f2f2f1f14b92359f695426dcefc150b3f3a886c05c045b37baa2ee99';
 
@@ -47,7 +47,7 @@ const OPTIMIZED_DEFAULTS = {
 // Application state
 const state = {
   config: null,
-  currentMode: 'female_20s', // 12 cohorts: female_10s~60s, male_10s~60s
+  currentMode: 'female_20s', // 10 cohorts: female_20s~60s, male_20s~60s
   currentSeason: getCurrentSeason(),
   currentGender: 'female',
   currentAgeGroup: 20,
@@ -946,7 +946,7 @@ function modeFromSelection(gender = state.currentGender, ageGroup = state.curren
 function parseMode(groupKey) {
   if (groupKey === 'female' || groupKey === 'real') groupKey = 'female_20s';
   if (groupKey === 'male' || groupKey === 'male2d') groupKey = 'male_20s';
-  const match = String(groupKey || '').match(/^(female|male)_(10|20|30|40|50|60)s$/);
+  const match = String(groupKey || '').match(/^(female|male)_(20|30|40|50|60)s$/);
   if (!match) return { gender: 'female', ageGroup: 20 };
   return { gender: match[1], ageGroup: Number(match[2]) };
 }

@@ -159,7 +159,7 @@ function validateIndex(index) {
   for (const season of Object.keys(index.seasons)) {
     if (!SEASONS.includes(season)) return { ok: false, reason: `invalid season: ${season}` };
     for (const [segment, url] of Object.entries(index.seasons[season] || {})) {
-      if (!/^(female|male)_(10|20|30|40|50|60)$/.test(segment)) {
+      if (!/^(female|male)_(20|30|40|50|60)$/.test(segment)) {
         return { ok: false, reason: `invalid segment: ${segment}` };
       }
       if (!validatePublicUrl(url)) return { ok: false, reason: `unsafe catalog url: ${segment}` };
@@ -173,7 +173,7 @@ function validateManifest(manifest) {
     return { ok: false, reason: 'invalid schema' };
   }
   for (const [segment, entry] of Object.entries(manifest.segments)) {
-    if (!/^(female|male)_(10|20|30|40|50|60)$/.test(segment)) {
+    if (!/^(female|male)_(20|30|40|50|60)$/.test(segment)) {
       return { ok: false, reason: `invalid segment: ${segment}` };
     }
     const valid = validateLookList(entry.looks, { requirePublicUrls: true });
