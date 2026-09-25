@@ -1,0 +1,78 @@
+name: TodayPick Drive Image Register (GAS-triggered)
+# Triggered by TodayPickDriveAutoRegisterGAS when new images are detected in Drive.
+# SSH to VM → cloud_drive_auto_ingest.py --date YYMMDD --once
+on:
+  workflow_dispatch:
+    inputs:
+      date_yymmdd:
+        description: 'Date folder to ingest (YYMMDD, e.g. 260925)'
+        required: true
+        type: string
+      dry_run:
+        description: 'true = scan/validate only; no GCS write'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: todaypick-drive-image-register
+  cancel-in-progress: false
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: todaypick-image-publish
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate date input
+        run: |
+          set -euo pipefail
+          date="${{ inputs.date_yymmdd }}"
+          if [[ ! "$date" =~ ^[0-9]{6}$ ]]; then
+            echo "ERROR: date_yymmdd must be 6 digits (YYMMDD), got: $date"
+            exit 1
+          fi
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+          create_credentials_file: true
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run Drive auto-ingest on VM (one-shot)
+        shell: bash
+        env:
+          DATE_YYMMDD: ${{ inputs.date_yymmdd }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          project="my-youtube-automation-497504"
+          zone="us-central1-a"
+          instance="Admin@tt-orchestra"
+
+          dry_flag=""
+          if [[ "${DRY_RUN:-false}" == "true" ]]; then
+            dry_flag="--dry-run"
+          fi
+
+          gcloud compute ssh "$instance" \
+            --project="$project" --zone="$zone" --tunnel-through-iap \
+            --command="cd /opt/todaypick-web && /opt/todaypick-web/.venv/bin/python \
+              automation/daily_looks/scripts/cloud_drive_auto_ingest.py \
+              --date '${DATE_YYMMDD}' --once ${dry_flag} 2>&1 | tail -300"
+
+      - name: Report
+        if: success()
+        run: |
+          echo "Drive image registration completed for ${{ inputs.date_yymmdd }}"
+          echo "DRY_RUN=${{ inputs.dry_run }}"
