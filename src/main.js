@@ -126,7 +126,6 @@ const dom = {
   dropdownItems: document.querySelectorAll('.dropdown-item'),
   characterDisplay: document.querySelector('.character-display'),
   mainImg: document.getElementById('main-character-img'),
-  uploadingOverlay: document.getElementById('uploading-overlay'),
   thumbCarousel: document.getElementById('thumb-carousel'),
   btnSave: document.getElementById('btn-save-outfit'),
   btnShare: document.getElementById('btn-share-outfit'),
@@ -292,14 +291,6 @@ function renderOutfit(outfit) {
     return;
   }
   state.currentOutfit = outfit;
-
-  const isRemoteImage = outfit.image && outfit.image.startsWith('https://');
-  if (dom.uploadingOverlay) dom.uploadingOverlay.hidden = isRemoteImage;
-  if (!isRemoteImage) {
-    dom.mainImg.style.opacity = '0';
-    dom.mainImg.removeAttribute('src');
-    return;
-  }
 
   dom.mainImg.style.opacity = '0';
   const dt = outfit.displayTransform;
