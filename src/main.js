@@ -293,9 +293,9 @@ function renderOutfit(outfit) {
   }
   state.currentOutfit = outfit;
 
-  const isBundled = !outfit.remoteLookId;
-  if (dom.uploadingOverlay) dom.uploadingOverlay.hidden = !isBundled;
-  if (isBundled) {
+  const isRemoteImage = outfit.image && outfit.image.startsWith('https://');
+  if (dom.uploadingOverlay) dom.uploadingOverlay.hidden = isRemoteImage;
+  if (!isRemoteImage) {
     dom.mainImg.style.opacity = '0';
     dom.mainImg.removeAttribute('src');
     return;
