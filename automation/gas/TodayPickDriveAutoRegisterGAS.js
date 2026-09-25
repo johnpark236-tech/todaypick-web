@@ -28,6 +28,7 @@ var ROOT_FOLDER_ID   = '1WvKlV8B3xM9X21vl_47Oh6dTfBDFVUPd';  // TodayPick_user_c
 var WORKFLOW_FILE    = 'todaypick-drive-image-register.yml';
 var GH_BRANCH        = 'master';
 var REQUIRED_IMAGES  = 10;         // minimum images per segment to trigger
+var REQUIRED_META_FILES = ['metadata.json', 'manifest.json']; // both must be present
 
 // Segments that have been removed from the app; never trigger registration for these.
 var EXCLUDED_SEGMENTS = ['f_10', 'm_10'];
@@ -131,7 +132,8 @@ function pollAndRegister() {
 // ── HELPERS ────────────────────────────────────────────────────────────────────
 
 /**
- * Returns list of segment names inside dateFolder that have ≥ REQUIRED_IMAGES images.
+ * Returns list of segment names inside dateFolder that have ≥ REQUIRED_IMAGES images
+ * AND both metadata.json + manifest.json present.
  * Excludes teen segments.
  */
 function detectReadySegments(dateFolder, dateName) {
@@ -141,10 +143,23 @@ function detectReadySegments(dateFolder, dateName) {
     var segIter = dateFolder.getFoldersByName(segName);
     if (!segIter.hasNext()) continue;
     var segFolder = segIter.next();
+
     var count = countImages(segFolder);
-    Logger.log('  ' + dateName + '/' + segName + ': ' + count + ' images');
+    var missingMeta = checkRequiredMetaFiles(segFolder);
+
+    if (missingMeta.length > 0) {
+      Logger.log('  ' + dateName + '/' + segName + ': images=' + count
+        + ' WAIT — missing meta files: ' + missingMeta.join(', '));
+      continue;
+    }
+
+    Logger.log('  ' + dateName + '/' + segName + ': images=' + count
+      + ' meta=OK (metadata.json + manifest.json)');
+
     if (count >= REQUIRED_IMAGES) {
       ready.push(segName);
+    } else {
+      Logger.log('  ' + dateName + '/' + segName + ': WAIT — only ' + count + '/' + REQUIRED_IMAGES + ' images');
     }
   }
   return ready;
@@ -163,6 +178,22 @@ function countImages(folder) {
     }
   }
   return count;
+}
+
+/**
+ * Checks that all REQUIRED_META_FILES exist in the folder.
+ * Returns an array of missing filenames (empty = all present).
+ */
+function checkRequiredMetaFiles(folder) {
+  var missing = [];
+  for (var i = 0; i < REQUIRED_META_FILES.length; i++) {
+    var name = REQUIRED_META_FILES[i];
+    var iter = folder.getFilesByName(name);
+    if (!iter.hasNext()) {
+      missing.push(name);
+    }
+  }
+  return missing;
 }
 
 /**

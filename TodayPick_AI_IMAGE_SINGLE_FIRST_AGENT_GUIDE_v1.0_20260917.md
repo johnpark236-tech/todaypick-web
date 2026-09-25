@@ -249,8 +249,12 @@ TodayPick_user_config/
         ├── tp_260925_f50_chatgpt_01.png
         ├── ...
         ├── tp_260925_f50_chatgpt_09.png
-        └── metadata.json                  ← 메타데이터
+        ├── metadata.json                  ← 메타데이터 (필수)
+        └── manifest.json                  ← 매니페스트 (필수)
 ```
+
+> **중요**: `metadata.json`과 `manifest.json` 2개 파일이 모두 있어야 자동 등록이 시작됩니다.  
+> 둘 중 하나라도 없으면 GAS가 해당 세그먼트를 건너뜁니다.
 
 ### Step 5: 자동 등록 대기
 - GAS가 1분마다 Drive를 스캔
