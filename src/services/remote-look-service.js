@@ -145,10 +145,9 @@ export const RemoteLookService = {
 };
 
 async function fetchJson(url) {
-  const res = await fetch(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`, {
-    cache: 'no-store'
-  });
-  if (!res.ok) throw new Error(`manifest fetch failed: ${res.status}`);
+  const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+  const res = await fetch(fetchUrl, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`fetch failed: ${res.status} ${url}`);
   return res.json();
 }
 
