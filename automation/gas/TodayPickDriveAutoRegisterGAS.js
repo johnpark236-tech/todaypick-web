@@ -247,9 +247,9 @@ function installMinuteTrigger() {
   removePollTriggers();
   ScriptApp.newTrigger('pollAndRegister')
     .timeBased()
-    .everyMinutes(1)
+    .everyMinutes(5)
     .create();
-  Logger.log('1-minute trigger installed for pollAndRegister');
+  Logger.log('5-minute trigger installed for pollAndRegister (Gmail free account quota-safe)');
 }
 
 /**
