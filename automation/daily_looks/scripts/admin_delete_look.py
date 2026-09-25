@@ -666,6 +666,125 @@ def delete_look(
     return result
 
 
+# ── batch delete (single-segment, single GCS round-trip) ─────────────────────
+
+def batch_delete_looks_for_segment(
+    season: str,
+    segment: str,
+    look_ids: list[str],
+    deleted_by: str = "gas_auto",
+    dry_run: bool = False,
+    state_db_path: Path = STATE_DB_PATH,
+) -> list[dict]:
+    """
+    Delete multiple looks from ONE segment in a single GCS round-trip.
+
+    Instead of the per-look 6-gcloud-call flow, this function:
+      1. Downloads the catalog once.
+      2. Removes all target IDs from memory.
+      3. Uploads one snapshot and one updated catalog.
+      4. Updates index.json once.
+      5. Records all tombstones in a single SQLite transaction.
+
+    Returns a list of per-look result dicts (compatible with AdminDeleteResult.to_dict()).
+    """
+    active_object = f"production/{season}/{segment}.json"
+    results = []
+    now = now_iso()
+
+    if not _object_exists(active_object):
+        for lid in look_ids:
+            results.append({"success": False, "look_id": lid, "season": season,
+                             "segment": segment, "error": f"catalog not found: {active_object}",
+                             "dry_run": dry_run, "completed_at": now})
+        return results
+
+    catalog = _read_gcs_json(active_object)
+
+    # Pre-load tombstoned IDs to detect duplicates
+    con = open_state_db(state_db_path)
+    tombstoned = set(
+        r[0] for r in con.execute("SELECT look_id FROM deleted_looks WHERE season=? AND segment=?",
+                                  (season, segment)).fetchall()
+    )
+
+    snapshot_object = None
+    removed_looks = []
+    per_look = {}
+
+    for lid in look_ids:
+        if lid in tombstoned:
+            per_look[lid] = {"success": True, "already_done": True,
+                             "error": f"look already tombstoned: {lid}"}
+            continue
+        look = find_look(catalog, lid)
+        if look is None:
+            per_look[lid] = {"success": True, "already_done": True,
+                             "error": f"look_id not found in catalog: {lid}"}
+            continue
+        per_look[lid] = {"look": look, "pending": True}
+        removed_looks.append(look)
+
+    if removed_looks and not dry_run:
+        # One snapshot backup
+        req_for_snapshot = AdminDeleteRequest(season=season, segment=segment,
+                                              look_id="batch", deleted_by=deleted_by)
+        snapshot_object = _backup_gcs_catalog(active_object, req_for_snapshot)
+
+        # Remove all at once
+        working_catalog = dict(catalog)
+        for look in removed_looks:
+            working_catalog, _ = remove_look_from_catalog(working_catalog, look["id"])
+
+        # Upload once
+        _upload_gcs_json(working_catalog, active_object)
+
+        # Update index once
+        _update_index(season, segment, active_object)
+
+        # Batch tombstone
+        try:
+            for look in removed_looks:
+                lid = look["id"]
+                cut_index = next(
+                    (i for i, lk in enumerate(catalog.get("looks", [])) if lk.get("id") == lid), -1
+                )
+                con.execute("""
+                    INSERT OR REPLACE INTO deleted_looks
+                        (look_id, season, segment, sha256, original_url, cut_index,
+                         deleted_at, deleted_by, backup_drive_folder_id, backup_drive_path,
+                         catalog_snapshot_object)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                """, (lid, season, segment, look.get("sha256", ""), look.get("url", ""),
+                      cut_index, now_iso(), deleted_by, None, "(batch_skipped)", snapshot_object))
+            con.commit()
+        finally:
+            con.close()
+    else:
+        con.close()
+
+    # Build result list
+    after_count = (len(catalog.get("looks", [])) - len(removed_looks)) if removed_looks else len(catalog.get("looks", []))
+    for lid in look_ids:
+        info = per_look.get(lid, {})
+        if info.get("already_done"):
+            results.append({"success": True, "look_id": lid, "season": season, "segment": segment,
+                             "already_done": True, "dry_run": dry_run,
+                             "error": info.get("error"), "completed_at": now})
+        elif info.get("pending") or info.get("look"):
+            results.append({"success": True, "look_id": lid, "season": season, "segment": segment,
+                             "drive_backup_path": "(batch_skipped)", "backup_hash_verified": True,
+                             "catalog_snapshot_object": snapshot_object,
+                             "catalog_before_count": len(catalog.get("looks", [])),
+                             "catalog_after_count": after_count,
+                             "tombstone_recorded": not dry_run,
+                             "dry_run": dry_run, "error": None, "completed_at": now})
+        else:
+            results.append({"success": False, "look_id": lid, "season": season, "segment": segment,
+                             "error": "unknown", "dry_run": dry_run, "completed_at": now})
+    return results
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main() -> int:

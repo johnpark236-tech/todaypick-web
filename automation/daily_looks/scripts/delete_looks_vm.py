@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """One-shot VM delete executor. Called exclusively by GitHub Actions (todaypick-drive-delete-sync).
-Wraps admin_delete_look.delete_look() for each look_id in the request JSON.
+Uses batch_delete_looks_for_segment() for a single GCS round-trip per segment.
 """
 import argparse
 import json
@@ -11,7 +11,7 @@ _SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
-from admin_delete_look import AdminDeleteRequest, delete_look, STATE_DB_PATH
+from admin_delete_look import batch_delete_looks_for_segment, STATE_DB_PATH
 
 
 def main():
@@ -24,33 +24,21 @@ def main():
     season = payload["season"]
     segment = payload["segment"]
     dry_run = bool(payload.get("dry_run", False))
-    skip_drive_backup = bool(payload.get("skip_drive_backup", False))
 
-    _ALREADY_DONE = ("look_id not found in catalog:", "look already tombstoned")
+    results = batch_delete_looks_for_segment(
+        season=season,
+        segment=segment,
+        look_ids=look_ids,
+        deleted_by="gas_auto",
+        dry_run=dry_run,
+        state_db_path=STATE_DB_PATH,
+    )
 
-    results = []
     failed = []
-    for look_id in look_ids:
-        req = AdminDeleteRequest(
-            season=season,
-            segment=segment,
-            look_id=look_id,
-            deleted_by="gas_auto",
-            dry_run=dry_run,
-            skip_drive_backup=skip_drive_backup,
-        )
-        result = delete_look(req, state_db_path=STATE_DB_PATH)
-        d = result.to_dict()
-        already_done = not result.success and any(
-            result.error and result.error.startswith(pfx) for pfx in _ALREADY_DONE
-        )
-        if already_done:
-            d["success"] = True
-            d["already_done"] = True
-        results.append(d)
+    for d in results:
         print(json.dumps(d, ensure_ascii=False))
-        if not d["success"]:
-            failed.append(look_id)
+        if not d.get("success"):
+            failed.append(d.get("look_id"))
 
     print(f"\nDELETE_SUMMARY: {len(look_ids)} requested, "
           f"{len(look_ids) - len(failed)} succeeded, {len(failed)} failed")
