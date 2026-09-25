@@ -3865,6 +3865,7 @@ export class OutfitManager {
           setId: remoteLook.setId || remoteLook.set_id || undefined,
           sheetUrl: remoteLook.sheetUrl || remoteLook.sheet_url || undefined,
           cutIndex: remoteLook.cutIndex != null ? Number(remoteLook.cutIndex) : (remoteLook.cut_index != null ? Number(remoteLook.cut_index) : undefined),
+          displayTransform: remoteLook.display_transform || null,
         };
       })
       .sort((a, b) => this.compareRemoteLooksForDisplay(a, b));

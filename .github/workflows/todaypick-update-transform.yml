@@ -1,0 +1,120 @@
+name: TodayPick Update Display Transform
+
+on:
+  workflow_dispatch:
+    inputs:
+      season:
+        description: 'Season (autumn/spring/summer/winter)'
+        required: true
+        type: choice
+        options: [autumn, spring, summer, winter]
+      segment:
+        description: 'Segment (female_10 … male_60)'
+        required: true
+        type: string
+      updates:
+        description: 'JSON array: [{look_id, display_transform: {x,y,scale} | null}]'
+        required: true
+        type: string
+      dry_run:
+        description: 'true = simulate only; no GCS write'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: todaypick-production-image-publisher
+  cancel-in-progress: false
+
+jobs:
+  update-transform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: todaypick-image-publish
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate inputs
+        env:
+          SEASON: ${{ inputs.season }}
+          SEGMENT: ${{ inputs.segment }}
+          UPDATES: ${{ inputs.updates }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import json, os, re, sys
+          season = os.environ["SEASON"]
+          segment = os.environ["SEGMENT"]
+          updates = json.loads(os.environ["UPDATES"])
+          if season not in ("autumn", "spring", "summer", "winter"):
+              sys.exit(f"invalid season: {season}")
+          if not re.fullmatch(r"(female|male)_(10|20|30|40|50|60)", segment):
+              sys.exit(f"invalid segment: {segment}")
+          if not isinstance(updates, list) or not updates:
+              sys.exit("updates must be a non-empty JSON array")
+          for u in updates:
+              if not isinstance(u.get("look_id"), str):
+                  sys.exit(f"missing look_id in: {u}")
+              dt = u.get("display_transform")
+              if dt is not None:
+                  if not isinstance(dt, dict):
+                      sys.exit(f"display_transform must be object or null: {dt}")
+                  for k in ("x", "y", "scale"):
+                      if k in dt and not isinstance(dt[k], (int, float)):
+                          sys.exit(f"display_transform.{k} must be number: {dt[k]}")
+          print(f"VALIDATED: {len(updates)} update(s) — {season}/{segment}")
+          PYEOF
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Execute transform update on VM
+        env:
+          SEASON: ${{ inputs.season }}
+          SEGMENT: ${{ inputs.segment }}
+          UPDATES: ${{ inputs.updates }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          project="my-youtube-automation-497504"
+          zone="us-central1-a"
+          instance="Admin@tt-orchestra"
+          remote_dir="/home/Admin/.cache/todaypick-transform/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          gcloud compute ssh "$instance" --project="$project" --zone="$zone" --tunnel-through-iap \
+            --command="mkdir -p '$remote_dir' && chmod 700 '$remote_dir'"
+
+          gcloud compute scp --project="$project" --zone="$zone" --tunnel-through-iap \
+            automation/daily_looks/scripts/update_transform_vm.py \
+            automation/daily_looks/scripts/admin_update_transform.py \
+            "$instance:$remote_dir/"
+
+          python3 -c "
+          import json, os
+          payload = {
+              'season': os.environ['SEASON'],
+              'segment': os.environ['SEGMENT'],
+              'updates': json.loads(os.environ['UPDATES']),
+              'dry_run': os.environ['DRY_RUN'].lower() == 'true',
+          }
+          print(json.dumps(payload))
+          " > /tmp/transform_request.json
+
+          gcloud compute scp --project="$project" --zone="$zone" --tunnel-through-iap \
+            /tmp/transform_request.json \
+            "$instance:$remote_dir/transform_request.json"
+
+          gcloud compute ssh "$instance" --project="$project" --zone="$zone" --tunnel-through-iap \
+            --command="flock --timeout=300 /opt/todaypick-web/automation/daily_looks/runtime/cloud_single_first/publish.lock \
+              /opt/todaypick-web/.venv/bin/python '$remote_dir/update_transform_vm.py' \
+              --request '$remote_dir/transform_request.json'"

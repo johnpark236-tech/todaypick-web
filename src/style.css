@@ -498,7 +498,7 @@ body {
   max-height: 94%;
   object-fit: contain;
   object-position: center center;
-  transform: translateY(var(--character-offset-y)) scale(var(--character-scale));
+  transform: translateX(var(--img-tx, 0px)) translateY(calc(var(--character-offset-y) + var(--img-ty, 0px))) scale(calc(var(--character-scale) * var(--img-sc, 1)));
   transition: transform 0.2s ease, opacity 0.15s ease;
   filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.12));
   pointer-events: none;

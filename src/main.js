@@ -293,6 +293,16 @@ function renderOutfit(outfit) {
   state.currentOutfit = outfit;
 
   dom.mainImg.style.opacity = '0';
+  const dt = outfit.displayTransform;
+  if (dt) {
+    dom.mainImg.style.setProperty('--img-tx', `${dt.x || 0}px`);
+    dom.mainImg.style.setProperty('--img-ty', `${dt.y || 0}px`);
+    dom.mainImg.style.setProperty('--img-sc', dt.scale ?? 1);
+  } else {
+    dom.mainImg.style.removeProperty('--img-tx');
+    dom.mainImg.style.removeProperty('--img-ty');
+    dom.mainImg.style.removeProperty('--img-sc');
+  }
   setTimeout(() => {
     dom.mainImg.src = outfit.image;
     dom.mainImg.alt = outfit.title;
