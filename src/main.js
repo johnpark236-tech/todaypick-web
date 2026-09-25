@@ -2304,6 +2304,13 @@ function setupEventListeners() {
   // Main Character Swipe Gesture Navigation
   setupSwipeNavigation();
 
+  // Dev mode: auto-poll GCS every 15s so transform changes appear without manual refresh
+  if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+    setInterval(async () => {
+      await refreshRemoteLooks({ rerender: true });
+    }, 15000);
+  }
+
   // Global test hook for automated verification
   window.testBackNav = handleBackButton;
   if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
