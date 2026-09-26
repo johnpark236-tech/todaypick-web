@@ -85,7 +85,13 @@ def batch_reassign_looks_for_segment(
     print(f"Reading {src_obj} ...", flush=True)
     src_data = _read_gcs_json(src_obj)
     print(f"Reading {tgt_obj} ...", flush=True)
-    tgt_data = _read_gcs_json(tgt_obj)
+    tgt_new = False
+    try:
+        tgt_data = _read_gcs_json(tgt_obj)
+    except RuntimeError:
+        tgt_data = {"season": target_season, "segment": segment, "count": 0, "looks": []}
+        tgt_new = True
+        print(f"  Target catalog not found — will create new: {tgt_obj}", flush=True)
 
     src_looks: list[dict] = src_data.get("looks", [])
     tgt_looks: list[dict] = tgt_data.get("looks", [])
@@ -116,6 +122,21 @@ def batch_reassign_looks_for_segment(
         _upload_gcs_json(src_data, src_obj)
         print(f"Uploading {tgt_obj} ({len(tgt_looks)} looks) ...", flush=True)
         _upload_gcs_json(tgt_data, tgt_obj)
+
+        if tgt_new:
+            index_obj = "production/index.json"
+            print(f"Updating {index_obj} to register {target_season}/{segment} ...", flush=True)
+            index_data = _read_gcs_json(index_obj)
+            seasons = index_data.setdefault("seasons", {})
+            if target_season not in seasons:
+                seasons[target_season] = {}
+            tgt_url = (
+                f"https://storage.googleapis.com/{BUCKET}"
+                f"/production/{target_season}/{segment}.json"
+            )
+            seasons[target_season][segment] = tgt_url
+            _upload_gcs_json(index_data, index_obj)
+            print(f"  index.json updated: {target_season}/{segment} = {tgt_url}", flush=True)
 
     results = []
     for look in moved:
