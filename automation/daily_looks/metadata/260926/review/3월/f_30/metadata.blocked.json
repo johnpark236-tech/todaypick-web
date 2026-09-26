@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "request_id": "tp_mar_f30_review_01",
+  "date_folder": "3월",
+  "segment": "f_30",
+  "validation_status": "BLOCKED_SEASON_MISMATCH",
+  "expected_season": "spring",
+  "visual_review_season": "winter",
+  "reason": "Images contain winter styling/backgrounds and were not published to spring.",
+  "looks": [
+    {
+      "index": 1,
+      "source_file": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_46-1.png",
+      "image_sha256": "8d487674ae0b9574522d4613ac58c3015607d61c742d9590afba64174e25c24a",
+      "gender": "female",
+      "age_group": 30,
+      "month": 3,
+      "season": "spring",
+      "title": "카멜 블레이저 겨울룩",
+      "items": [],
+      "status": "BLOCKED_SEASON_MISMATCH"
+    },
+    {
+      "index": 2,
+      "source_file": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_47-2.png",
+      "image_sha256": "c25ea7ab5314cfef11dc6149e0d5b47d2175ddc6b8a7de89f39b76a249b34857",
+      "gender": "female",
+      "age_group": 30,
+      "month": 3,
+      "season": "spring",
+      "title": "토프 코트 겨울룩",
+      "items": [],
+      "status": "BLOCKED_SEASON_MISMATCH"
+    },
+    {
+      "index": 3,
+      "source_file": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_49-3.png",
+      "image_sha256": "575323d365b4582a96503a7283915d075b8fe96d2a59bd5b0e0dbd01626631e3",
+      "gender": "female",
+      "age_group": 30,
+      "month": 3,
+      "season": "spring",
+      "title": "올리브 니트 겨울룩",
+      "items": [],
+      "status": "BLOCKED_SEASON_MISMATCH"
+    },
+    {
+      "index": 4,
+      "source_file": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_50-4.png",
+      "image_sha256": "cc16e3bc26ed8d89331e716ee0fe2a0caee5c6869dd27c7138869c1d941058bf",
+      "gender": "female",
+      "age_group": 30,
+      "month": 3,
+      "season": "spring",
+      "title": "체크 블레이저 겨울룩",
+      "items": [],
+      "status": "BLOCKED_SEASON_MISMATCH"
+    },
+    {
+      "index": 5,
+      "source_file": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_51-5.png",
+      "image_sha256": "9ad3d39c8bf5e86ba135db77d12d7cb8646a5ff6ac7b610dba4c1a5ebb92fc41",
+      "gender": "female",
+      "age_group": 30,
+      "month": 3,
+      "season": "spring",
+      "title": "베이지 코트 겨울룩",
+      "items": [],
+      "status": "BLOCKED_SEASON_MISMATCH"
+    },
+    {
+      "index": 6,
+      "source_file": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_52-6.png",
+      "image_sha256": "4a76ecafc77582601318ab68f0cd5318c92378ca182dd6cd0d484adc8843b987",
+      "gender": "female",
+      "age_group": 30,
+      "month": 3,
+      "season": "spring",
+      "title": "트위드 슬랙스 겨울룩",
+      "items": [],
+      "status": "BLOCKED_SEASON_MISMATCH"
+    },
+    {
+      "index": 7,
+      "source_file": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_53-7.png",
+      "image_sha256": "685de615469fa71dc0744635a2ed7f19f41cba3195da29dc0e7d249c38fb5f20",
+      "gender": "female",
+      "age_group": 30,
+      "month": 3,
+      "season": "spring",
+      "title": "브라운 데님 겨울룩",
+      "items": [],
+      "status": "BLOCKED_SEASON_MISMATCH"
+    },
+    {
+      "index": 8,
+      "source_file": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_53-8.png",
+      "image_sha256": "f92b16ad4a366caeef9b8244feb9a74ad7b3e5c32ece705836481fc05f53fc71",
+      "gender": "female",
+      "age_group": 30,
+      "month": 3,
+      "season": "spring",
+      "title": "네이비 플리츠 겨울룩",
+      "items": [],
+      "status": "BLOCKED_SEASON_MISMATCH"
+    },
+    {
+      "index": 9,
+      "source_file": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_54-9.png",
+      "image_sha256": "22d566cf8e9ab1d173ea1d7b5e485c294e0f44ba6de42dd1641467dab2c525c2",
+      "gender": "female",
+      "age_group": 30,
+      "month": 3,
+      "season": "spring",
+      "title": "그레이 코트 겨울룩",
+      "items": [],
+      "status": "BLOCKED_SEASON_MISMATCH"
+    },
+    {
+      "index": 10,
+      "source_file": "ChatGPT 이미지 2026년 9월 26일 오후 05_38_02-10.png",
+      "image_sha256": "19e3160d13f470390e8895e96e161fc850f98b613ec3b539321ea40651217681",
+      "gender": "female",
+      "age_group": 30,
+      "month": 3,
+      "season": "spring",
+      "title": "브라운 미디 겨울룩",
+      "items": [],
+      "status": "BLOCKED_SEASON_MISMATCH"
+    }
+  ]
+}
