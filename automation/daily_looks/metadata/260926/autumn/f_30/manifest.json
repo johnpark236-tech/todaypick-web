@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "request_id": "tp_sep_f30_chatgpt_01",
+  "source": "chatgpt",
+  "date_folder": "260926",
+  "source_month_folder": "9월",
+  "segment": "f_30",
+  "gender": "female",
+  "age_group": 30,
+  "month": 9,
+  "season": "autumn",
+  "expected_image_count": 10,
+  "files": [
+    {
+      "index": 1,
+      "file_name": "LOOK_01.png",
+      "sha256": "03600a0b390d9c369d4d0adb238d5d7bceafa7e672d9e9e6887fac29b691d545",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1LZ5Reuzhc94NHgE0AzbzRG-H3KS2Biw3"
+    },
+    {
+      "index": 2,
+      "file_name": "LOOK_02.png",
+      "sha256": "f250868eed300582bca48e9de962363743224e8a874ad5faf0a786f66971ba90",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "16-SYUskd4qbmcBgt_6whFoZbDBYtlRfi"
+    },
+    {
+      "index": 3,
+      "file_name": "LOOK_03.png",
+      "sha256": "d251b32aedc96bda7d959999c3cec55a479e47e084d86da67b1322934dad526c",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1-lHcT1NIKWsRrJ2JziIzpMFDOCenYrIc"
+    },
+    {
+      "index": 4,
+      "file_name": "LOOK_04.png",
+      "sha256": "2d3702da1a860393d7c0339158abf54cfa61afac47cb99bb66e2550d44372d9f",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1L4xrvrkWVFK-1IBBGR8Y8DVVEyCY8Wmz"
+    },
+    {
+      "index": 5,
+      "file_name": "LOOK_05.png",
+      "sha256": "4d75edb4602902e14b65553cff8d8b4d97804fb48d2276ee77b13ae149a2264d",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "19VDAwBF-o6gEjzMjZA62Ge3hxubFjWgh"
+    },
+    {
+      "index": 6,
+      "file_name": "LOOK_06.png",
+      "sha256": "289025cc04d042949a7980812f3e87ff6992dd2582cb7782b96fef1731a287ad",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1V6Z3VgfipG-o99ucmkQGeaZyjxqYIaHk"
+    },
+    {
+      "index": 7,
+      "file_name": "LOOK_07.png",
+      "sha256": "a2e9cdc9d35f6337ec442388ac1b8e1dc4e78f3e9f95c7eb848fd07341a8ecb5",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "16MSj-duwbAlqYUZ3t-KvPnQv4oEyKsC8"
+    },
+    {
+      "index": 8,
+      "file_name": "LOOK_08.png",
+      "sha256": "8f734d78c6ce74a6ecb124fd7ed85bd7b5f08355eb4806004a7a117b4841702c",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1SmVcdplRhzc5eh5W_XmdtN0Yx_42hdQW"
+    },
+    {
+      "index": 9,
+      "file_name": "LOOK_09.png",
+      "sha256": "5419aa10e1867f7bc36321ddeecab79ece2d22a592542543fda71f033cabfa06",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "17gnzb1f8Lmj6EW6EkOP3kUddTP6Eu5DG"
+    },
+    {
+      "index": 10,
+      "file_name": "LOOK_10.png",
+      "sha256": "3396e8ffdce08cbc5dc2882e9c6664b6b6b301c2409dedcab14679a8a9d7fdde",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1WWRvWsB4SPoI068mcnUaHaUc7MnGXIIU"
+    }
+  ],
+  "metadata_file": "metadata.json",
+  "metadata_sha256": "",
+  "upload_complete": true,
+  "drive_folder_id": "1GhJzzohVz6qJBydQ5xH_11N_j1BNKU7I",
+  "note": "Autumn-valid f_30 set copied from TodayPick_user_config/9월/f_30/*-1.png. Winter-like *-2.png set intentionally excluded.",
+  "metadata_file_id": ""
+}
