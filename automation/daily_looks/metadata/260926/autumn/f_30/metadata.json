@@ -1,0 +1,445 @@
+{
+  "schema_version": 1,
+  "request_id": "tp_sep_f30_chatgpt_01",
+  "date_folder": "260926",
+  "source_month_folder": "9월",
+  "segment": "f_30",
+  "looks": [
+    {
+      "index": 1,
+      "source_file": "LOOK_01.png",
+      "source_original_file": "1-1.png",
+      "image_sha256": "03600a0b390d9c369d4d0adb238d5d7bceafa7e672d9e9e6887fac29b691d545",
+      "gender": "female",
+      "age_group": 30,
+      "month": 9,
+      "season": "autumn",
+      "title": "카멜 블레이저 오피스룩",
+      "items": [
+        {
+          "slot": "아우터",
+          "name": "카멜 울 블레이저",
+          "searchKeyword": "여성 카멜 울 블레이저",
+          "price": 0
+        },
+        {
+          "slot": "상의",
+          "name": "아이보리 실크 블라우스",
+          "searchKeyword": "여성 아이보리 실크 블라우스",
+          "price": 0
+        },
+        {
+          "slot": "하의",
+          "name": "다크브라운 슬랙스",
+          "searchKeyword": "여성 다크브라운 슬랙스",
+          "price": 0
+        },
+        {
+          "slot": "신발",
+          "name": "베이지 로퍼",
+          "searchKeyword": "여성 베이지 로퍼",
+          "price": 0
+        },
+        {
+          "slot": "가방",
+          "name": "탄 숄더백",
+          "searchKeyword": "여성 탄 숄더백",
+          "price": 0
+        }
+      ],
+      "status": "PENDING_GCS_LOOK_ID",
+      "source_drive_file_id": "14w7zM98xZv-ZC9sWb3nkjoKiFiG1vuBq",
+      "staging_drive_file_id": "1LZ5Reuzhc94NHgE0AzbzRG-H3KS2Biw3"
+    },
+    {
+      "index": 2,
+      "source_file": "LOOK_02.png",
+      "source_original_file": "2-1.png",
+      "image_sha256": "f250868eed300582bca48e9de962363743224e8a874ad5faf0a786f66971ba90",
+      "gender": "female",
+      "age_group": 30,
+      "month": 9,
+      "season": "autumn",
+      "title": "토프 코트 미디스커트룩",
+      "items": [
+        {
+          "slot": "아우터",
+          "name": "토프 롱 울코트",
+          "searchKeyword": "여성 토프 롱 울코트",
+          "price": 0
+        },
+        {
+          "slot": "상의",
+          "name": "아이보리 니트",
+          "searchKeyword": "여성 아이보리 니트",
+          "price": 0
+        },
+        {
+          "slot": "하의",
+          "name": "차콜 미디스커트",
+          "searchKeyword": "여성 차콜 미디스커트",
+          "price": 0
+        },
+        {
+          "slot": "신발",
+          "name": "브라운 앵클부츠",
+          "searchKeyword": "여성 브라운 앵클부츠",
+          "price": 0
+        },
+        {
+          "slot": "가방",
+          "name": "브라운 토트백",
+          "searchKeyword": "여성 브라운 토트백",
+          "price": 0
+        }
+      ],
+      "status": "PENDING_GCS_LOOK_ID",
+      "source_drive_file_id": "1F7e39IBONN89zdbIOCXKWpyH2gcu8wlP",
+      "staging_drive_file_id": "16-SYUskd4qbmcBgt_6whFoZbDBYtlRfi"
+    },
+    {
+      "index": 3,
+      "source_file": "LOOK_03.png",
+      "source_original_file": "3-1.png",
+      "image_sha256": "d251b32aedc96bda7d959999c3cec55a479e47e084d86da67b1322934dad526c",
+      "gender": "female",
+      "age_group": 30,
+      "month": 9,
+      "season": "autumn",
+      "title": "올리브 니트 원피스룩",
+      "items": [
+        {
+          "slot": "아우터",
+          "name": "베이지 롱 가디건",
+          "searchKeyword": "여성 베이지 롱 가디건",
+          "price": 0
+        },
+        {
+          "slot": "원피스",
+          "name": "올리브 니트 원피스",
+          "searchKeyword": "여성 올리브 니트 원피스",
+          "price": 0
+        },
+        {
+          "slot": "신발",
+          "name": "브라운 로우힐",
+          "searchKeyword": "여성 브라운 로우힐",
+          "price": 0
+        },
+        {
+          "slot": "가방",
+          "name": "브라운 미니백",
+          "searchKeyword": "여성 브라운 미니백",
+          "price": 0
+        }
+      ],
+      "status": "PENDING_GCS_LOOK_ID",
+      "source_drive_file_id": "1Zz-1YrG37U9gPtXHOCLhPzDMJN-HGA7G",
+      "staging_drive_file_id": "1-lHcT1NIKWsRrJ2JziIzpMFDOCenYrIc"
+    },
+    {
+      "index": 4,
+      "source_file": "LOOK_04.png",
+      "source_original_file": "4-1.png",
+      "image_sha256": "2d3702da1a860393d7c0339158abf54cfa61afac47cb99bb66e2550d44372d9f",
+      "gender": "female",
+      "age_group": 30,
+      "month": 9,
+      "season": "autumn",
+      "title": "체크 블레이저 출근룩",
+      "items": [
+        {
+          "slot": "아우터",
+          "name": "브라운 체크 블레이저",
+          "searchKeyword": "여성 브라운 체크 블레이저",
+          "price": 0
+        },
+        {
+          "slot": "상의",
+          "name": "버건디 블라우스",
+          "searchKeyword": "여성 버건디 블라우스",
+          "price": 0
+        },
+        {
+          "slot": "하의",
+          "name": "베이지 슬랙스",
+          "searchKeyword": "여성 베이지 슬랙스",
+          "price": 0
+        },
+        {
+          "slot": "신발",
+          "name": "다크브라운 로퍼",
+          "searchKeyword": "여성 다크브라운 로퍼",
+          "price": 0
+        }
+      ],
+      "status": "PENDING_GCS_LOOK_ID",
+      "source_drive_file_id": "1te_PaCihrvBntAKPo3vHFNGSRssiJsyf",
+      "staging_drive_file_id": "1L4xrvrkWVFK-1IBBGR8Y8DVVEyCY8Wmz"
+    },
+    {
+      "index": 5,
+      "source_file": "LOOK_05.png",
+      "source_original_file": "5-1.png",
+      "image_sha256": "4d75edb4602902e14b65553cff8d8b4d97804fb48d2276ee77b13ae149a2264d",
+      "gender": "female",
+      "age_group": 30,
+      "month": 9,
+      "season": "autumn",
+      "title": "베이지 코트드레스룩",
+      "items": [
+        {
+          "slot": "아우터",
+          "name": "베이지 트렌치 코트드레스",
+          "searchKeyword": "여성 베이지 트렌치 코트드레스",
+          "price": 0
+        },
+        {
+          "slot": "상의",
+          "name": "블랙 터틀넥",
+          "searchKeyword": "여성 블랙 터틀넥",
+          "price": 0
+        },
+        {
+          "slot": "신발",
+          "name": "브라운 앵클부츠",
+          "searchKeyword": "여성 브라운 앵클부츠",
+          "price": 0
+        },
+        {
+          "slot": "가방",
+          "name": "브라운 토트백",
+          "searchKeyword": "여성 브라운 토트백",
+          "price": 0
+        }
+      ],
+      "status": "PENDING_GCS_LOOK_ID",
+      "source_drive_file_id": "1DQLh0jpqkwOUxfxfzO9rUWKCH9fMQJeE",
+      "staging_drive_file_id": "19VDAwBF-o6gEjzMjZA62Ge3hxubFjWgh"
+    },
+    {
+      "index": 6,
+      "source_file": "LOOK_06.png",
+      "source_original_file": "6-1.png",
+      "image_sha256": "289025cc04d042949a7980812f3e87ff6992dd2582cb7782b96fef1731a287ad",
+      "gender": "female",
+      "age_group": 30,
+      "month": 9,
+      "season": "autumn",
+      "title": "트위드 와이드슬랙스룩",
+      "items": [
+        {
+          "slot": "아우터",
+          "name": "그레이지 트위드 재킷",
+          "searchKeyword": "여성 그레이지 트위드 재킷",
+          "price": 0
+        },
+        {
+          "slot": "상의",
+          "name": "블랙 터틀넥",
+          "searchKeyword": "여성 블랙 터틀넥",
+          "price": 0
+        },
+        {
+          "slot": "하의",
+          "name": "토프 와이드 슬랙스",
+          "searchKeyword": "여성 토프 와이드 슬랙스",
+          "price": 0
+        },
+        {
+          "slot": "신발",
+          "name": "블랙 플랫슈즈",
+          "searchKeyword": "여성 블랙 플랫슈즈",
+          "price": 0
+        },
+        {
+          "slot": "가방",
+          "name": "블랙 토트백",
+          "searchKeyword": "여성 블랙 토트백",
+          "price": 0
+        }
+      ],
+      "status": "PENDING_GCS_LOOK_ID",
+      "source_drive_file_id": "1bs94cZ6oPdj6esKcflofxifVC2Ll4slT",
+      "staging_drive_file_id": "1V6Z3VgfipG-o99ucmkQGeaZyjxqYIaHk"
+    },
+    {
+      "index": 7,
+      "source_file": "LOOK_07.png",
+      "source_original_file": "7-1.png",
+      "image_sha256": "a2e9cdc9d35f6337ec442388ac1b8e1dc4e78f3e9f95c7eb848fd07341a8ecb5",
+      "gender": "female",
+      "age_group": 30,
+      "month": 9,
+      "season": "autumn",
+      "title": "브라운 가디건 데님룩",
+      "items": [
+        {
+          "slot": "아우터",
+          "name": "브라운 니트 가디건",
+          "searchKeyword": "여성 브라운 니트 가디건",
+          "price": 0
+        },
+        {
+          "slot": "상의",
+          "name": "아이보리 블라우스",
+          "searchKeyword": "여성 아이보리 블라우스",
+          "price": 0
+        },
+        {
+          "slot": "하의",
+          "name": "다크 인디고 데님",
+          "searchKeyword": "여성 다크 인디고 데님",
+          "price": 0
+        },
+        {
+          "slot": "신발",
+          "name": "카멜 앵클부츠",
+          "searchKeyword": "여성 카멜 앵클부츠",
+          "price": 0
+        },
+        {
+          "slot": "가방",
+          "name": "브라운 크로스백",
+          "searchKeyword": "여성 브라운 크로스백",
+          "price": 0
+        }
+      ],
+      "status": "PENDING_GCS_LOOK_ID",
+      "source_drive_file_id": "13nPJ8bpk_K8JZrjVZ6zcGTZqVdwKXdtf",
+      "staging_drive_file_id": "16MSj-duwbAlqYUZ3t-KvPnQv4oEyKsC8"
+    },
+    {
+      "index": 8,
+      "source_file": "LOOK_08.png",
+      "source_original_file": "8-1.png",
+      "image_sha256": "8f734d78c6ce74a6ecb124fd7ed85bd7b5f08355eb4806004a7a117b4841702c",
+      "gender": "female",
+      "age_group": 30,
+      "month": 9,
+      "season": "autumn",
+      "title": "네이비 플리츠스커트룩",
+      "items": [
+        {
+          "slot": "아우터",
+          "name": "네이비 블레이저",
+          "searchKeyword": "여성 네이비 블레이저",
+          "price": 0
+        },
+        {
+          "slot": "상의",
+          "name": "베이지 니트",
+          "searchKeyword": "여성 베이지 니트",
+          "price": 0
+        },
+        {
+          "slot": "하의",
+          "name": "토프 플리츠 미디스커트",
+          "searchKeyword": "여성 토프 플리츠 미디스커트",
+          "price": 0
+        },
+        {
+          "slot": "신발",
+          "name": "블랙 로퍼",
+          "searchKeyword": "여성 블랙 로퍼",
+          "price": 0
+        },
+        {
+          "slot": "가방",
+          "name": "블랙 숄더백",
+          "searchKeyword": "여성 블랙 숄더백",
+          "price": 0
+        }
+      ],
+      "status": "PENDING_GCS_LOOK_ID",
+      "source_drive_file_id": "110RWxRkWF_0ua5WEeg4wNAmmK62wKWSo",
+      "staging_drive_file_id": "1SmVcdplRhzc5eh5W_XmdtN0Yx_42hdQW"
+    },
+    {
+      "index": 9,
+      "source_file": "LOOK_09.png",
+      "source_original_file": "9-1.png",
+      "image_sha256": "5419aa10e1867f7bc36321ddeecab79ece2d22a592542543fda71f033cabfa06",
+      "gender": "female",
+      "age_group": 30,
+      "month": 9,
+      "season": "autumn",
+      "title": "그레이 코트 시티룩",
+      "items": [
+        {
+          "slot": "아우터",
+          "name": "라이트그레이 롱코트",
+          "searchKeyword": "여성 라이트그레이 롱코트",
+          "price": 0
+        },
+        {
+          "slot": "상의",
+          "name": "더스티핑크 블라우스",
+          "searchKeyword": "여성 더스티핑크 블라우스",
+          "price": 0
+        },
+        {
+          "slot": "하의",
+          "name": "블랙 앵클 슬랙스",
+          "searchKeyword": "여성 블랙 앵클 슬랙스",
+          "price": 0
+        },
+        {
+          "slot": "신발",
+          "name": "베이지 펌프스",
+          "searchKeyword": "여성 베이지 펌프스",
+          "price": 0
+        },
+        {
+          "slot": "가방",
+          "name": "토프 토트백",
+          "searchKeyword": "여성 토프 토트백",
+          "price": 0
+        }
+      ],
+      "status": "PENDING_GCS_LOOK_ID",
+      "source_drive_file_id": "1jXWxC3UV8nSddMzoJvotbePhmM6BjyVu",
+      "staging_drive_file_id": "17gnzb1f8Lmj6EW6EkOP3kUddTP6Eu5DG"
+    },
+    {
+      "index": 10,
+      "source_file": "LOOK_10.png",
+      "source_original_file": "10-1.png",
+      "image_sha256": "3396e8ffdce08cbc5dc2882e9c6664b6b6b301c2409dedcab14679a8a9d7fdde",
+      "gender": "female",
+      "age_group": 30,
+      "month": 9,
+      "season": "autumn",
+      "title": "브라운 코트 미디룩",
+      "items": [
+        {
+          "slot": "아우터",
+          "name": "초콜릿브라운 롱코트",
+          "searchKeyword": "여성 초콜릿브라운 롱코트",
+          "price": 0
+        },
+        {
+          "slot": "상의",
+          "name": "크림 니트",
+          "searchKeyword": "여성 크림 니트",
+          "price": 0
+        },
+        {
+          "slot": "하의",
+          "name": "러스트 미디스커트",
+          "searchKeyword": "여성 러스트 미디스커트",
+          "price": 0
+        },
+        {
+          "slot": "신발",
+          "name": "브라운 로우힐",
+          "searchKeyword": "여성 브라운 로우힐",
+          "price": 0
+        }
+      ],
+      "status": "PENDING_GCS_LOOK_ID",
+      "source_drive_file_id": "1Qkf7nov89X25qsLk91yOnFd-DHCnBO3R",
+      "staging_drive_file_id": "1WWRvWsB4SPoI068mcnUaHaUc7MnGXIIU"
+    }
+  ]
+}
