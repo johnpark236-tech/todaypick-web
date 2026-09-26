@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "request_id": "tp_mar_f30_review_01",
+  "source": "chatgpt",
+  "date_folder": "3월",
+  "segment": "f_30",
+  "gender": "female",
+  "age_group": 30,
+  "month": 3,
+  "season": "spring",
+  "validation_status": "BLOCKED_SEASON_MISMATCH",
+  "expected_image_count": 10,
+  "files": [
+    {
+      "index": 1,
+      "file_name": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_46-1.png",
+      "sha256": "8d487674ae0b9574522d4613ac58c3015607d61c742d9590afba64174e25c24a",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1tHBXNJ7Rdv2ZFySG7QbtENB751_tffw3"
+    },
+    {
+      "index": 2,
+      "file_name": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_47-2.png",
+      "sha256": "c25ea7ab5314cfef11dc6149e0d5b47d2175ddc6b8a7de89f39b76a249b34857",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1Way-QJvS_ZwwzJpYZ7DwCZYEfS049vX5"
+    },
+    {
+      "index": 3,
+      "file_name": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_49-3.png",
+      "sha256": "575323d365b4582a96503a7283915d075b8fe96d2a59bd5b0e0dbd01626631e3",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1trdOxPMz4MPaATvHwSr5nR3RWvXGha3P"
+    },
+    {
+      "index": 4,
+      "file_name": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_50-4.png",
+      "sha256": "cc16e3bc26ed8d89331e716ee0fe2a0caee5c6869dd27c7138869c1d941058bf",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1k2bNpjZ4LNH5EULdL4_PxApd79z8CRFk"
+    },
+    {
+      "index": 5,
+      "file_name": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_51-5.png",
+      "sha256": "9ad3d39c8bf5e86ba135db77d12d7cb8646a5ff6ac7b610dba4c1a5ebb92fc41",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1mTq6yUrIgOUuIkYxI0g7fmPv8LEy_cJX"
+    },
+    {
+      "index": 6,
+      "file_name": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_52-6.png",
+      "sha256": "4a76ecafc77582601318ab68f0cd5318c92378ca182dd6cd0d484adc8843b987",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "18NIHh_4THuwiuEoUDY0mVGd_ShtfL_FR"
+    },
+    {
+      "index": 7,
+      "file_name": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_53-7.png",
+      "sha256": "685de615469fa71dc0744635a2ed7f19f41cba3195da29dc0e7d249c38fb5f20",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1XwJ5nst6hEEMAePQCKfNtXfVfUvv0l7C"
+    },
+    {
+      "index": 8,
+      "file_name": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_53-8.png",
+      "sha256": "f92b16ad4a366caeef9b8244feb9a74ad7b3e5c32ece705836481fc05f53fc71",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1J62yZaOUTJGHnp2Fset6-Y_KqJ76CRgx"
+    },
+    {
+      "index": 9,
+      "file_name": "ChatGPT 이미지 2026년 9월 26일 오후 05_37_54-9.png",
+      "sha256": "22d566cf8e9ab1d173ea1d7b5e485c294e0f44ba6de42dd1641467dab2c525c2",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1ShIpIoaVubvA3Emmv82Rij-BIH40JIDs"
+    },
+    {
+      "index": 10,
+      "file_name": "ChatGPT 이미지 2026년 9월 26일 오후 05_38_02-10.png",
+      "sha256": "19e3160d13f470390e8895e96e161fc850f98b613ec3b539321ea40651217681",
+      "width": 941,
+      "height": 1672,
+      "mime_type": "image/png",
+      "drive_file_id": "1wOT5OJCsmXnNU0gtxLl5C-Clo-Qx9mZu"
+    }
+  ],
+  "metadata_file": "metadata.blocked.json",
+  "upload_complete": false,
+  "drive_folder_id": "1rN1NwD0E-Ir91WcO9x3Wm20xvPjBTL_1",
+  "note": "Not eligible for spring publish: visual review shows winter styling/backgrounds."
+}
