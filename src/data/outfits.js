@@ -3839,6 +3839,10 @@ export class OutfitManager {
       .filter(remoteLook => remoteLook?.url && remoteLook?.id)
       .map((remoteLook, index) => {
         const template = templates[index % templates.length] || fallback;
+        const remoteItems = (Array.isArray(remoteLook.items) && remoteLook.items.length > 0) ? remoteLook.items : null;
+        const remoteTotalPrice = Number.isFinite(Number(remoteLook.totalPrice))
+          ? Number(remoteLook.totalPrice)
+          : (remoteItems ? remoteItems.reduce((sum, item) => sum + Number(item?.price || 0), 0) : template.totalPrice);
         return {
           ...template,
           id: remoteLook.id,
@@ -3848,7 +3852,8 @@ export class OutfitManager {
           remoteSourceDate: remoteLook.sourceDate || remoteLook.source_date || null,
           remoteIndex: index + 1,
           title: remoteLook.title || `${template.title} #${index + 1}`,
-          items: (Array.isArray(remoteLook.items) && remoteLook.items.length > 0) ? remoteLook.items : template.items,
+          totalPrice: remoteTotalPrice,
+          items: remoteItems || template.items,
           image: remoteLook.url,
           thumbnail: remoteLook.url,
           // 1-CUT / 10-CUT fields (undefined for legacy items without these fields)
