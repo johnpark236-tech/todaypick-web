@@ -32,15 +32,15 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Verify and register single-first batch
+      - name: Register from clean Git master
         shell: bash
         run: |
           set -euo pipefail
           project="my-youtube-automation-497504"
           zone="us-central1-a"
           instance="Admin@tt-orchestra"
-          cmd="cd /opt/todaypick-web && git fetch origin master && git checkout master && git pull --ff-only origin master && /opt/todaypick-web/.venv/bin/python automation/daily_looks/scripts/cloud_single_first_watcher.py --date 260926 --once && /opt/todaypick-web/.venv/bin/python automation/daily_looks/scripts/cloud_single_first_watcher.py --date 260926 --once"
+          cmd='set -euo pipefail; tmp=/tmp/todaypick-register-260926-f30-clean; rm -rf "$tmp"; git clone --depth 1 --branch master https://github.com/johnpark236-tech/todaypick-web.git "$tmp"; cd "$tmp"; /opt/todaypick-web/.venv/bin/python automation/daily_looks/scripts/cloud_single_first_watcher.py --date 260926 --once; /opt/todaypick-web/.venv/bin/python automation/daily_looks/scripts/cloud_single_first_watcher.py --date 260926 --once'
           gcloud compute ssh "$instance" --project="$project" --zone="$zone" --tunnel-through-iap --command="$cmd"
 
       - name: Report
-        run: echo "TodayPick 260926 f_30 single-first registration completed"
+        run: echo "TodayPick 260926 f_30 registration command completed"
