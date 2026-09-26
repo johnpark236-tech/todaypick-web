@@ -89,7 +89,16 @@ def batch_reassign_looks_for_segment(
     try:
         tgt_data = _read_gcs_json(tgt_obj)
     except RuntimeError:
-        tgt_data = {"season": target_season, "segment": segment, "count": 0, "looks": []}
+        gender, age = segment.split("_", 1)
+        tgt_data = {
+            "schema_version": 2,
+            "season": target_season,
+            "gender": gender,
+            "age_group": int(age),
+            "segment": segment,
+            "count": 0,
+            "looks": [],
+        }
         tgt_new = True
         print(f"  Target catalog not found — will create new: {tgt_obj}", flush=True)
 
