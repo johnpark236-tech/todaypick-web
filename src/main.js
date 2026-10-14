@@ -284,6 +284,12 @@ function getAdminSegmentLabel(look) {
 
 // Render Outfit in Home stage
 function renderOutfit(outfit) {
+  // Keep the autumn men's 30s portraits fully inside the stage. Apply the
+  // profile to the displayed look, and clear it when another segment is shown.
+  dom.mainImg.classList.toggle('character-img--autumn-male-30', Boolean(
+    outfit && outfit.mode === 'male_30s'
+      && (outfit.remoteSeason || state.currentSeason) === 'autumn'
+  ));
   if (!outfit) {
     state.currentOutfit = null;
     dom.mainImg.removeAttribute('src');

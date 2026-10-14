@@ -506,6 +506,20 @@ body {
   user-select: none;
 }
 
+/* Autumn / male / 30s: use 60% of the spare vertical space above the image
+   and 40% below. The bounded portrait must not inherit the 1.1x default or
+   old per-look zoom/offsets, which can push hair beyond the stage boundary. */
+.character-img.character-img--autumn-male-30 {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  width: auto;
+  height: auto;
+  max-width: 90%;
+  max-height: 94%;
+  transform: translate(-50%, -60%);
+}
+
 /* Quick Action Buttons (Right Stage) */
 .stage-quick-actions {
   position: absolute;
